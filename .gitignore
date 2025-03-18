@@ -2,7 +2,7 @@
 __pycache__/
 *.py[cod]
 *$py.class
-
+game_logs
 # C extensions
 *.so
 

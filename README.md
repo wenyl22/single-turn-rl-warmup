@@ -1,3 +1,49 @@
+### Install the required packages:
+
+CUDA 12.4 is required for the project.
+```bash
+uv venv openr1 --python 3.11 && source openr1/bin/activate && uv pip install --upgrade pip
+uv pip install vllm==0.7.2
+uv pip install setuptools && uv pip install flash-attn --no-build-isolation
+GIT_LFS_SKIP_SMUDGE=1 uv pip install -e ".[dev]"
+sudo apt-get install git-lfs
+```
+
+### Login to wandb & huggingface account:
+
+```bash
+wandb login
+huggingface-cli login
+```
+
+The trained models will be saved locally and also uploaded to the huggingface account.
+
+### Create the dataset:
+```bash
+unzip trajectory.zip
+python Overcooked_dataset.py --model=deepseek-ai/DeepSeek-R1-Distill-Qwen-1.5B --tagged 
+python Freeway_dataset.py --model=deepseek-ai/DeepSeek-R1-Distill-Qwen-1.5B
+```
+
+### Run GRPO:
+
+Default config is set for 8xH100s. Following are hyperparameters needed to set according to hardware and desired training time.
+
+In `recipes/accelerate_configs/zero3.yaml`:
+- `num_processes`: GPU count
+
+In `recipes/{model_name}/overcooked_config.yaml`:
+- `num_generations`: Number of generations per prompt.
+- `per_device_train_batch_size`: We require (`num_processes` - 1) * `per_device_train_batch_size` to be a multiple of `num_generations`.
+- `gradient_accumulation_steps`: Adjust according to `per_device_train_batch_size`
+-  `max_steps`: Set according to how long you want to train the model. If set to -1, will train one epoch(entire training set).
+
+```bash
+# Train deepseek-ai/DeepSeek-R1-Distill-Qwen-1.5B
+accelerate launch --config_file recipes/accelerate_configs/zero3.yaml src/open_r1/grpo.py --config recipes/DeepSeek-R1-Distill-Qwen-1.5B/overcooked_config.yaml
+```
+
+
 # Open R1
 
 *A fully open reproduction of DeepSeek-R1. This repo is a work in progress, let's build it together!*
