@@ -7,9 +7,9 @@ from minatar.environment import Environment
 from Freeway_agent import LLMAgent, prompt_builder
 
 parser = argparse.ArgumentParser()
-parser.add_argument('--model_name', type=str, default='deepseek-ai/DeepSeek-R1-Distill-Qwen-7B')
-parser.add_argument('--max_new_tokens', type=int, default=4000)
-parser.add_argument('--token_per_tick', type=int, default=4000)
+parser.add_argument('--model_name', type=str, default='deepseek-ai/DeepSeek-R1-Distill-Qwen-1.5B')
+parser.add_argument('--max_new_tokens', type=int, default=2000)
+parser.add_argument('--token_per_tick', type=int, default=2000)
 args = parser.parse_args()
 
 model_name = args.model_name

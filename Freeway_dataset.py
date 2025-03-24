@@ -11,7 +11,7 @@ import os
 
 
 def prompt_builder(env: dict):
-    player_states = (env["pos"], "You can move in this turn" if env["move_timer"] == 0 else f"I cannot move in the following {env["move_timer"]} turns")
+    player_states = (9 - env["pos"], "You can move in this turn" if env["move_timer"] == 0 else f"I cannot move in the following {env["move_timer"]} turns")
     car_states = []
     for car in env["cars"]:
         # dir = "towards"
@@ -69,6 +69,8 @@ def generate_dataset_dict_from_trajectory(trajectory: List[Dict[str, Any]], toke
     dataset = []
     env = Env()
     for i, step in enumerate(trajectory):
+        if i == 0:
+            continue
         # step["state"] is a dictionary stored in string format
         # turn it back into a dictionary
         state_dict = ast.literal_eval(step["game_state"])
@@ -81,12 +83,9 @@ def generate_dataset_dict_from_trajectory(trajectory: List[Dict[str, Any]], toke
         env.from_dict(state_dict)
         r, d = env.act(action)
         score -= r
-        # print(state_dict)
-        # print(action)
-        # print(r, step["reward"])
-        # print(file)
-        # if i < len(trajectory) - 1:
-        #     print(trajectory[i+1]["game_state"])
+        if i < len(trajectory) - 1:
+            new_state_dict = ast.literal_eval(trajectory[i+1]["game_state"])
+            assert env.pos == new_state_dict["pos"]
         assert r == int(step["reward"])
         valid = False
         for valid_action in state_for_llm['available_actions']:
@@ -109,19 +108,22 @@ def generate_dataset_dict_from_trajectory(trajectory: List[Dict[str, Any]], toke
         else:
             prompt = tokenizer.apply_chat_template(prompt, add_special_tokens=False, tokenize=False)
             prompt += '<|im_start|>assistant\n<think>'
-        # if i >= 1:
-        #     print("Prompt:", prompt)
-        #     exit(0)
-        # print("Action:", action)
-        # print("Available actions:", state_for_llm['available_actions'])
-        # exit(0)
-        dataset.append(
-            {
-                "prompt": prompt,
-                "solution": action,
-                "available_actions": state_for_llm['available_actions'],
-            }
-        )
+        keep_prob = 1.0
+        if "up" in action.lower():
+            keep_prob = 0.03
+        elif "down" in action.lower():
+            keep_prob = 1
+        else:
+            keep_prob = 0.1
+        r = random.random()
+        if r <= keep_prob:
+            dataset.append(
+                {
+                    "prompt": prompt,
+                    "solution": action,
+                    "available_actions": state_for_llm['available_actions'],
+                }
+            )
     assert score == 0
     return dataset
 
@@ -141,6 +143,15 @@ if __name__ == "__main__":
         for i in range(len(df)):
             df_dict_list.append(df.iloc[i].to_dict())
         data.extend(generate_dataset_dict_from_trajectory(df_dict_list, tokenizer, score, file))
+    #     break
+    # # data to csv
+    # df = pandas.DataFrame(data)
+    # df.to_csv("data/Freeway/Freeway.csv", index=False)
+    print(len(data))
+    # print "up", "down", "stay" in data[:]["solution"]
+    print("up:", sum([1 if "up" in d["solution"].lower() else 0 for d in data]))
+    print("down:", sum([1 if "down" in d["solution"].lower() else 0 for d in data]))
+    print("stay:", sum([1 if "stay" in d["solution"].lower() else 0 for d in data]))
     random.shuffle(data)
     random.shuffle(data)
     random.shuffle(data)
@@ -150,7 +161,6 @@ if __name__ == "__main__":
     split = int(0.8 * len(data))
     train_data = data[:split]
     test_data = data[split:]
-    # store data in parquet format
     train_df = pandas.DataFrame(train_data)
     test_df = pandas.DataFrame(test_data)
     if not os.path.exists("data/Freeway"):

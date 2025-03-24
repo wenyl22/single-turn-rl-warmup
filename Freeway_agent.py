@@ -45,13 +45,12 @@ class LLMManager:
         self.frequency_penalty = frequency_penalty
         self.presence_penalty = presence_penalty
         self.api_server = api_server
-        self.device = 'cuda'
         
         self.token_per_tick = token_per_tick
         self.token_queue_len = 0
         self.accum = 0
         if global_llm_model is None:
-            global_llm_model = LLM(model_name, device = self.device)
+            global_llm_model = LLM(model_name)
             global_tokenizer = AutoTokenizer.from_pretrained(model_name)
         self.inference_fn = self.run_openai_inference                    
 
@@ -198,10 +197,6 @@ Each turn, you must **analyze car positions, predict future movements, and decid
 - **A**: Move **up** to Freeway (y + 1).  
 - **B**: Move **down** to Freeway (y - 1).  
 - **C**: Stay on the current freeway. '''
-        self.message = [
-            {"role": "system", "content": self.llm_system_prompt},
-            {"role": "user", "content": self.llm_base_prompt},
-        ]
             
         self.tokens_used = 0 
 
@@ -247,8 +242,10 @@ Each turn, you must **analyze car positions, predict future movements, and decid
         
         state_description = self._state_to_description(state_for_llm)
         print(f"{bcolors.OKBLUE}{state_description}{bcolors.ENDC}")
-        messages = self.message.copy()
-        messages[1]["content"] += state_description
+        messages = [
+            {"role": "system", "content": self.llm_system_prompt},
+            {"role": "user", "content": self.llm_base_prompt + state_description}
+        ]
         add_to_dict_list(self.log_csv_dict, 'state_description', state_description)
 
         action_string = self.llm.inference_fn(messages=messages)
