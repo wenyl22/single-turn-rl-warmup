@@ -1,4 +1,4 @@
-API_KEY = "sk-cdc26b886bf94bf2b6645739c79e9e43"
+API_KEY = "Your API"
 
 
 from openai import OpenAI

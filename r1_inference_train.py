@@ -1,5 +1,4 @@
-API_KEY = "sk-3ee8fe0163b54cdaad0989072a6126b7"
-
+API_KEY = "Your API"
 
 from openai import OpenAI
 import time
