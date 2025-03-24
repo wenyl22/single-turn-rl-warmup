@@ -4,31 +4,40 @@ import argparse
 import pandas
 from typing import List, Dict, Any
 from transformers import AutoTokenizer
-from Freeway_prompts import MESSAGE
+from Freeway_prompts import LLM_SYSTEM_PROMPT, LLM_BASE_PROMPT
 import ast
 from minatar.environments.freeway import Env
 import os
 
 
 def prompt_builder(env: dict):
-    player_states = (env["pos"], "I can move in this turn" if env["move_timer"] == 0 else f"I cannot move in the following {env["move_timer"]} turns")
+    player_states = (env["pos"], "You can move in this turn" if env["move_timer"] == 0 else f"I cannot move in the following {env["move_timer"]} turns")
     car_states = []
     for car in env["cars"]:
-        dir = "towards"
-        if car[0] > 4 and car[3] > 0:
-            dir = "away from"
-        elif car[0] < 4 and car[3] < 0:
-            dir = "away from"
+        # dir = "towards"
+        # if car[0] > 4 and car[3] > 0:
+        #     dir = "away from"
+        # elif car[0] < 4 and car[3] < 0:
+        #     dir = "away from"
+        dir = 'left' if car[3] < 0 else 'right'
+        speed = 12 // abs(car[3])
+        pos = 12 * (car[0] - 4)
+        if dir == 'left':
+            pos -= (abs(car[3]) - car[2] - 1) * speed
+        else:
+            pos += (abs(car[3]) - car[2] - 1) * speed
+        assert car[2] < abs(car[3])
         car_states.append(
-            (car[1], car[0] - 4, dir, car[2])
+            (9 - car[1], pos, dir, speed)
         )
+    car_states = car_states[::-1]
     available_actions = []
 
     if env["move_timer"] == 0:
-        if env["pos"] > 0:
-            available_actions.append("Move down (to Freeway " + str(env["pos"] - 1) + ")")
+        assert env["pos"] > 0
+        available_actions.append("Move up to Freeway " + str(9 - env["pos"] + 1))
         if env["pos"] < 9:
-            available_actions.append("Move up (to Freeway " + str(env["pos"] + 1) + ")")
+            available_actions.append("Move down to Freeway " + str(9 - env["pos"] - 1))
     available_actions.append("Stay in the same freeway")
     state_for_llm = {
         'player_states': player_states,
@@ -47,10 +56,11 @@ def get_available_actions(state_for_llm):
     return description
 
 def state_to_description(state_for_llm):
-    description = f"I am on Freeway {state_for_llm["player_states"][0]}. {state_for_llm["player_states"][1]}."
+    description = f"-**Your position**: (0, {state_for_llm["player_states"][0]}).\n"
+    description += '-**Cars on each freeway**:\n'
     for car in state_for_llm['car_states']:
-        description += f"There is a car at $x = {car[1]}$ on Freeway {car[0]}. It's moving {car[2]} me and will move 1 unit forward in {car[3]} turns.\n"
-    
+        span = 11 if car[2] == 'left' else -11
+        description += f"\t-**Freeway {car[0]}**: head at **x = {car[1]}**, tail at **x = {car[1] + span}**, direction = {car[2]}, speed = {car[3]}.\n"
     description += f'Available actions:\n{get_available_actions(state_for_llm)}'
     return description
 
@@ -90,13 +100,18 @@ def generate_dataset_dict_from_trajectory(trajectory: List[Dict[str, Any]], toke
                 break
         if not valid:
             action = "Stay in the same freeway"
-        prompt = MESSAGE + [{"role": "user", "content": description}]
+        prompt = [
+            {"role": "system", "content": LLM_SYSTEM_PROMPT},
+            {"role": "user", "content": LLM_BASE_PROMPT + description},
+        ]
         if "deepseek" in tokenizer.name_or_path.lower():
             prompt = tokenizer.apply_chat_template(prompt, add_generation_prompt=True, tokenize=False)
         else:
             prompt = tokenizer.apply_chat_template(prompt, add_special_tokens=False, tokenize=False)
             prompt += '<|im_start|>assistant\n<think>'
-        # print("Prompt:", prompt)
+        # if i >= 1:
+        #     print("Prompt:", prompt)
+        #     exit(0)
         # print("Action:", action)
         # print("Available actions:", state_for_llm['available_actions'])
         # exit(0)

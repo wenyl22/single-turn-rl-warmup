@@ -68,8 +68,8 @@ class Env:
             if(car[0:2]==[4,self.pos]):
                 self.pos = 9
             if(car[2]==0):
-                car[2]=abs(car[3])
-                car[0]+=1 if car[3]>0 else -1
+                car[2] = abs(car[3]) - 1
+                car[0] += 1 if car[3] > 0 else -1
                 if(car[0]<0):
                     car[0]=9
                 elif(car[0]>9):
@@ -116,7 +116,7 @@ class Env:
 
     # Randomize car speeds and directions, also reset their position if initialize=True
     def _randomize_cars(self, initialize=False):
-        speeds = self.random.randint(1,6,8)
+        speeds = self.random.randint(1,5,8)
         directions = np.sign(self.random.rand(8) - 0.5).astype(int)
         speeds*=directions
         if(initialize):

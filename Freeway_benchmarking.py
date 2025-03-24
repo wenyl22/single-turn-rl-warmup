@@ -7,9 +7,9 @@ from minatar.environment import Environment
 from Freeway_agent import LLMAgent, prompt_builder
 
 parser = argparse.ArgumentParser()
-parser.add_argument('--model_name', type=str, default='deepseek-ai/DeepSeek-R1-Distill-Qwen-1.5B')
-parser.add_argument('--max_new_tokens', type=int, default=2000)
-parser.add_argument('--token_per_tick', type=int, default=500)
+parser.add_argument('--model_name', type=str, default='deepseek-ai/DeepSeek-R1-Distill-Qwen-7B')
+parser.add_argument('--max_new_tokens', type=int, default=4000)
+parser.add_argument('--token_per_tick', type=int, default=4000)
 args = parser.parse_args()
 
 model_name = args.model_name
@@ -32,11 +32,13 @@ def game_loop():
             if "stay" in action.lower():
                 action = 0
             elif "up" in action.lower(): 
-                # move up for llm is moving down in the game
-                # which is a more natural way for llm to understand
-                action = 4
-            elif "down" in action.lower():
+                # 1. move up for llm is (y + 1)
+                # 2. Freeway are numbered as 0 to 9, LLM starts at y = 0; but the game controller numbers the freeway in a reverse order.
+                # 3. "up"(2) in the game controller brings LLM to freeway k - 1
+                # 4. So these actually match
                 action = 2
+            elif "down" in action.lower():
+                action = 4
         reward, terminal = env.act(action)
         game_turn += 1
         if reward > 0.5:
@@ -57,7 +59,8 @@ if __name__ == '__main__':
         nt, game_time = game_loop()
         game_turns.append(nt)
         game_times.append(game_time)
-    with open(f'logs/freeway/{model_name.split('/')[-1]}/summarize_{max_new_tokens}_{token_per_tick}.txt', 'w') as f:
+    time_stamp = time.strftime("%Y-%m-%d-%H-%M-%S", time.localtime())
+    with open(f'logs/freeway/{model_name.split('/')[-1]}/summarize_{max_new_tokens}_{token_per_tick}_{time_stamp}.txt', 'w') as f:
         f.write(f'Model: {model_name}\n')
         f.write(f'Mean Turns: {np.mean(game_turns)}\n')
         f.write(f'Standard Error: {np.std(np.array(game_turns)) / np.sqrt(NUM_TRIALS)}\n')

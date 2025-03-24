@@ -169,7 +169,6 @@ cython_debug/
 
 # PyPI configuration file
 .pypirc
-
 # Temp folders
 data/
 wandb/
@@ -178,3 +177,6 @@ eval_results/
 results/
 
 .vscode/
+
+test-r1.py
+*.sh
