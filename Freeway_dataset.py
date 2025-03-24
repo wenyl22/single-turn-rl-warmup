@@ -103,18 +103,18 @@ def generate_dataset_dict_from_trajectory(trajectory: List[Dict[str, Any]], toke
             {"role": "system", "content": LLM_SYSTEM_PROMPT},
             {"role": "user", "content": LLM_BASE_PROMPT + description},
         ]
-        if "deepseek" in tokenizer.name_or_path.lower():
-            prompt = tokenizer.apply_chat_template(prompt, add_generation_prompt=True, tokenize=False)
-        else:
-            prompt = tokenizer.apply_chat_template(prompt, add_special_tokens=False, tokenize=False)
-            prompt += '<|im_start|>assistant\n<think>'
+        # if "deepseek" in tokenizer.name_or_path.lower():
+        #     prompt = tokenizer.apply_chat_template(prompt, add_generation_prompt=True, tokenize=False)
+        # else:
+        #     prompt = tokenizer.apply_chat_template(prompt, add_special_tokens=False, tokenize=False)
+        #     prompt += '<|im_start|>assistant\n<think>'
         keep_prob = 1.0
         if "up" in action.lower():
-            keep_prob = 0.03
+            keep_prob = 0.006
         elif "down" in action.lower():
-            keep_prob = 1
+            keep_prob = 0.2
         else:
-            keep_prob = 0.1
+            keep_prob = 0.02
         r = random.random()
         if r <= keep_prob:
             dataset.append(
@@ -131,12 +131,12 @@ random.seed(42)
 
 if __name__ == "__main__":
     args = argparse.ArgumentParser()
-    args.add_argument("--model", type=str, default="Qwen/Qwen2.5-0.5B-Instruct")
+    args.add_argument("--model", type=str, default="deepseek-ai/DeepSeek-R1-Distill-Qwen-7B")
     args = args.parse_args()
     tokenizer = AutoTokenizer.from_pretrained(args.model)
-    files = glob.glob("data/Freeway/speed_1/*.csv")
+    files = sorted(glob.glob("data/Freeway/speed_1/*.csv"))
     data = []
-    for file in files:
+    for i, file in enumerate(files):
         df = pandas.read_csv(file)
         score = int(file.split("_")[-1].split(".")[0])
         df_dict_list = []
