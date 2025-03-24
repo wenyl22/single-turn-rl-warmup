@@ -90,11 +90,11 @@ def generate_dataset_dict_from_trajectory(trajectory: List[Dict[str, Any]], toke
         assert r == int(step["reward"])
         valid = False
         for valid_action in state_for_llm['available_actions']:
-            if action == "u" and "Move down" in valid_action:
+            if action == "u" and "Move up" in valid_action:
                 valid = True
                 action = valid_action
                 break
-            if action == "d" and "Move up" in valid_action:
+            if action == "d" and "Move down" in valid_action:
                 valid = True
                 action = valid_action
                 break
