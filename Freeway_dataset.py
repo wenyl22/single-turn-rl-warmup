@@ -103,27 +103,13 @@ def generate_dataset_dict_from_trajectory(trajectory: List[Dict[str, Any]], toke
             {"role": "system", "content": LLM_SYSTEM_PROMPT},
             {"role": "user", "content": LLM_BASE_PROMPT + description},
         ]
-        # if "deepseek" in tokenizer.name_or_path.lower():
-        #     prompt = tokenizer.apply_chat_template(prompt, add_generation_prompt=True, tokenize=False)
-        # else:
-        #     prompt = tokenizer.apply_chat_template(prompt, add_special_tokens=False, tokenize=False)
-        #     prompt += '<|im_start|>assistant\n<think>'
-        keep_prob = 1.0
-        if "up" in action.lower():
-            keep_prob = 0.006
-        elif "down" in action.lower():
-            keep_prob = 0.2
-        else:
-            keep_prob = 0.02
-        r = random.random()
-        if r <= keep_prob:
-            dataset.append(
-                {
-                    "prompt": prompt,
-                    "solution": action,
-                    "available_actions": state_for_llm['available_actions'],
-                }
-            )
+        dataset.append(
+            {
+                "prompt": prompt,
+                "solution": action,
+                "available_actions": state_for_llm['available_actions'],
+            }
+        )
     assert score == 0
     return dataset
 
@@ -158,7 +144,7 @@ if __name__ == "__main__":
     random.shuffle(data)
     random.shuffle(data)
     random.shuffle(data)
-    split = int(0.8 * len(data))
+    split = int(0.5 * len(data))
     train_data = data[:split]
     test_data = data[split:]
     train_df = pandas.DataFrame(train_data)

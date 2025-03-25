@@ -7,6 +7,38 @@ from fuzzywuzzy import process
 import numpy as np 
 import pandas as pd
 from minatar.environments.freeway import Env
+import threading
+import queue
+class LocalThreadedLLMClient:
+    def __init__(self):
+        self.num_threads = 0
+        self.lock = threading.Lock()
+        self.query_queues = {}
+        self.response_queues = {}
+
+    def add_new_thread(self):
+        self.lock.acquire()
+        self.num_threads += 1
+        thread_id = self.num_threads
+        self.query_queues[thread_id] = queue.Queue()
+        self.response_queues[thread_id] = queue.Queue()
+        self.lock.release()
+        return thread_id
+    
+    def generate(self, thread_id, prompt):
+        self.query_queues[thread_id].put(prompt)
+        return self.response_queues[thread_id].get()
+
+VLLM_client = None # this will be lazy loaded
+
+def setup_thread_VLLM_client():
+    global VLLM_client
+    VLLM_client = LocalThreadedLLMClient()
+
+def get_thread_VLLM_client():
+    global VLLM_client
+    return VLLM_client
+
 def add_to_dict_list(dictionary, key, item):
     if key not in dictionary:
         dictionary[key] = [item]
@@ -33,26 +65,29 @@ global_tokenizer = None
 STAY_COMPLETION = f"""Action: Stay in the same freeway"""
 
 class LLMManager:
-    def __init__(self, model_name, cache_dir, temperature=0.6, do_sample=True, max_new_tokens=2000, top_p=0.9, frequency_penalty=0.0, presence_penalty=0.0, api_server=True, token_per_tick = 500):
+    def __init__(self, model_name, cache_dir, temperature=0.6, do_sample=True, max_new_tokens=2000, top_p=0.9, token_per_tick = 500, run_type="serial"):
         global global_llm_model
         global global_tokenizer
+        global VLLM_client
         self.model_name = model_name 
         self.temperature = temperature
         self.cache_dir = cache_dir
         self.do_sample = do_sample
         self.max_new_tokens = max_new_tokens
         self.top_p = top_p
-        self.frequency_penalty = frequency_penalty
-        self.presence_penalty = presence_penalty
-        self.api_server = api_server
         
         self.token_per_tick = token_per_tick
         self.token_queue_len = 0
         self.accum = 0
-        if global_llm_model is None:
-            global_llm_model = LLM(model_name)
-            global_tokenizer = AutoTokenizer.from_pretrained(model_name)
-        self.inference_fn = self.run_openai_inference                    
+        self.run_type = run_type
+        if self.run_type == "thread":
+            assert VLLM_client is not None
+            self.client = VLLM_client
+            self.thread_id = self.client.add_new_thread()
+        else:
+            if global_llm_model is None:
+                global_llm_model = LLM(model_name)
+        global_tokenizer = AutoTokenizer.from_pretrained(model_name)
 
     def run_openai_inference(self, messages):
         self.accum += self.token_per_tick
@@ -69,16 +104,22 @@ class LLMManager:
             top_p=self.top_p,
             max_tokens=self.max_new_tokens
         )
-        
         input_text = global_tokenizer.apply_chat_template(messages, add_generation_prompt=True, tokenize=False)
         if "deepseek" not in self.model_name:
             input_text += "<think>"
         print(f"{bcolors.OKCYAN}INPUT TEXT: {input_text}{bcolors.ENDC}")
-        response = global_llm_model.generate(input_text, sampling_params)
+        
+        if self.run_type == "serial":        
+            response = global_llm_model.generate(input_text, sampling_params)
+            self.resp = response[0].outputs[0].text
+            self.token_queue_len = len(response[0].outputs[0].token_ids)
+
+        else:
+            response = self.client.generate(self.thread_id, input_text)
+            self.resp = response['text']
+            self.token_queue_len = len(response['token_ids'])
 
         print(f"{bcolors.FAIL}LLM INFERENCE TIME: {time.time() - api_call_start}{bcolors.ENDC}")
-        self.resp = response[0].outputs[0].text
-        self.token_queue_len = len(response[0].outputs[0].token_ids)
         if self.accum >= self.token_queue_len:
             self.accum = 0
             self.token_queue_len = 0
@@ -124,7 +165,7 @@ def prompt_builder(env: Env):
 
 
 class LLMAgent:
-    def __init__(self, model, max_new_tokens=2000, token_per_tick=500):
+    def __init__(self, model, max_new_tokens=2000, token_per_tick=500, run_type="serial", seed=None):
         self.max_new_tokens = max_new_tokens
         self.token_per_tick = token_per_tick
         self.DEBUG = False     
@@ -133,11 +174,16 @@ class LLMAgent:
         self.save_trajectory = True # True 
         self.log_csv_dict = {}
         self.model = model 
+        self.run_type = run_type
 
-        self.llm = LLMManager(model_name=self.model, cache_dir=os.getenv('HF_HOME'), max_new_tokens=self.max_new_tokens, token_per_tick=self.token_per_tick)
+        self.llm = LLMManager(model_name=self.model, cache_dir=os.getenv('HF_HOME'), max_new_tokens=self.max_new_tokens, token_per_tick=self.token_per_tick, run_type=self.run_type)
         
         ### LOGGING ###
-        self.time_stamp = datetime.datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
+        self.time_stamp = seed if seed is not None else datetime.datetime.now().strftime('%Y-%m-%d-%H-%M-%S')
+        print("max_new_tokens: ", self.max_new_tokens)
+        print("token_per_tick: ", self.token_per_tick)
+        print("Time stamp: ", self.time_stamp)
+        
         self.log_dir = f'logs/freeway/'
         if not os.path.exists(self.log_dir):
             os.makedirs(self.log_dir)            
@@ -248,7 +294,7 @@ Each turn, you must **analyze car positions, predict future movements, and decid
         ]
         add_to_dict_list(self.log_csv_dict, 'state_description', state_description)
 
-        action_string = self.llm.inference_fn(messages=messages)
+        action_string = self.llm.run_openai_inference(messages=messages)
         print(f"{bcolors.OKGREEN}LLM Response: {action_string}{bcolors.ENDC}")
         add_to_dict_list(self.log_csv_dict, 'llm_response', action_string)
         if "</think>" in action_string:

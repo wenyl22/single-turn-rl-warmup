@@ -180,3 +180,4 @@ results/
 
 test-r1.py
 *.sh
+count.py

@@ -3,10 +3,13 @@ from fuzzywuzzy import process
 
 def find_best_match(action_string, available_actions_list):
     if "</think>" not in action_string:
-        return "makabaka"
+        action_string = "stay in the same freeway"
     else:
         action_string = action_string.split("</think>")[-1]
-    match = re.search(r"<answer>(.*?)</answer>", action_string)
+    if action_string == "":
+        action_string = "stay in the same freeway"
+    # search for \boxed{} and extract the content
+    match = re.search(r'\\boxed\{(.+?)\}', action_string)
     if match:
         selected_match = match.group(1).strip()
     else:
@@ -16,8 +19,6 @@ def find_best_match(action_string, available_actions_list):
             return action 
     selected_move, score = process.extractOne(selected_match, available_actions_list)
     return selected_move
-
-
 
 def accuracy_reward(completions, solution, available_actions, **kwargs):
     """Reward function that checks if the completion is the same as the ground truth."""
@@ -35,8 +36,7 @@ def accuracy_reward(completions, solution, available_actions, **kwargs):
 
 
 def format_reward(completions, **kwargs):
-    """Reward function that checks if the reasoning process is enclosed within <think> and </think> tags, while the final answer is enclosed within <answer> and </answer> tags."""
-    pattern = r".*?</think>\n?<answer>.*?</answer>$"
-    completion_contents = [completion for completion in completions]
-    matches = [re.match(pattern, content, re.DOTALL | re.MULTILINE) for content in completion_contents]
+    """Reward function that checks if the reasoning process is enclosed within <think> and </think> tags, and out of the thinking process, the final answer has the answer in \\boxed{}."""
+    pattern = r".*?</think>.*?\\boxed\{.*?\}.*?"    
+    matches = [re.match(pattern, content, re.DOTALL | re.MULTILINE) for content in completions]
     return [1.0 if match else 0.0 for match in matches]

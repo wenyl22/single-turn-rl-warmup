@@ -16,10 +16,11 @@ model_name = args.model_name
 max_new_tokens = args.max_new_tokens
 token_per_tick = args.token_per_tick
 print(f'Benchmarking model: {model_name}')
-def game_loop():
+def game_loop(ModelName, MaxNewTokens, TokenPerTick, RunType="serial", seed=42):
     env = Environment('freeway', sticky_action_prob=0)
     env.reset()
-    agent = LLMAgent(model_name, max_new_tokens, token_per_tick)
+    env.seed(seed)
+    agent = LLMAgent(ModelName, MaxNewTokens, TokenPerTick, RunType, seed)
     start_time = time.time()
     terminal = False
     reward = 0
@@ -44,19 +45,19 @@ def game_loop():
         if reward > 0.5:
             print(f"Get to the otherside in {game_turn} actions!")
             break
-        if terminal or (game_turn > 150):
+        if terminal or (game_turn > 10):
             print("Fail to get to the otherside in required turns")
             break
     game_time = time.time() - start_time
     print(f"Game took: {game_time} seconds")
-    return game_turn, game_time
+    return seed, game_turn, game_time
 
 if __name__ == '__main__':
     game_turns = []
     game_times = []
     NUM_TRIALS = 5
     for i in range(NUM_TRIALS):
-        nt, game_time = game_loop()
+        _, nt, game_time = game_loop(model_name, max_new_tokens, token_per_tick, "serial", 42 + i)
         game_turns.append(nt)
         game_times.append(game_time)
     time_stamp = time.strftime("%Y-%m-%d-%H-%M-%S", time.localtime())

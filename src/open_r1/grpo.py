@@ -168,6 +168,16 @@ def main(script_args, training_args, model_args):
     train_dataset = load_dataset('parquet', data_files={'train': script_args.dataset_name.split("+")[0]})['train']
     eval_dataset = load_dataset('parquet', data_files={'eval': script_args.dataset_name.split("+")[1]})['eval']
     eval_dataset = eval_dataset.select(range(100))
+    def apply_chat_template(example):
+        if "deepseek" in tokenizer.name_or_path.lower():
+            example["prompt"] = tokenizer.apply_chat_template(example["prompt"], add_generation_prompt=True, tokenize=False)
+        else:
+            example["prompt"] = tokenizer.apply_chat_template(example["prompt"], add_special_tokens=False, tokenize=False)
+            prompt += '<|im_start|>assistant\n<think>'
+        return example
+    
+    train_dataset = train_dataset.map(apply_chat_template)
+    eval_dataset = eval_dataset.map(apply_chat_template)
 
     logger.info("*** Initializing model kwargs ***")
     torch_dtype = (

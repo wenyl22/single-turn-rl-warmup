@@ -1,56 +1,64 @@
-API_KEY = "Your API"
+API_KEYS = []
+
 
 from openai import OpenAI
 import time
-
-import datasets
+import glob
 from datasets import load_dataset
 import os
 import json
-import pandas
-client = OpenAI(api_key=API_KEY, base_url="https://api.deepseek.com")
+from concurrent.futures import ThreadPoolExecutor, as_completed
 
-train_dataset = load_dataset('parquet', data_files={'train': 'data/Freeway/DeepSeek/train.parquet'})['train']
-# eval_dataset = load_dataset('parquet', data_files={'eval': 'data/Freeway/DeepSeek/test.parquet'})['eval']
+train_dataset = load_dataset('parquet', data_files={'train': 'data/Freeway/DeepSeek-SFT/train.parquet'})['train']
 
 if not os.path.exists("data/sft"):
     os.makedirs("data/sft")
 if not os.path.exists("data/sft/train"):
     os.makedirs("data/sft/train")
     
+from itertools import cycle
 
-for i in range(len(train_dataset)):
+api_key_cycle = cycle(API_KEYS)
+
+def process_entry(i, api_key):
+    client = OpenAI(api_key=api_key, base_url="https://api.deepseek.com")
     prompt = train_dataset[i]["prompt"]
-    #print(prompt)
     solution = train_dataset[i]["solution"]
     available_actions = train_dataset[i]["available_actions"]
     start_time = time.time()
-    response = client.chat.completions.create(
-        model="deepseek-reasoner",
-        messages=prompt,
-        temperature=0.6,
-        top_p = 0.95,
-        max_tokens=8192
-    )
-    
-    # record (prompt, response, solution, available_actions) to json file
-    end_time = time.time()
-    print(f"Time taken: {end_time - start_time}")
-    print(prompt)
-    print(response)
-    print(solution)
-    print(available_actions)
-    
-    with open(f"data/sft/train/{i}.jsonl", "w") as f:
-        json.dump({
-            "instruction": prompt[1]["content"],
-            "system": prompt[0]["content"],
-            "response_content": response.choices[0].message.content,
-            "response_reasoning_content": response.choices[0].message.reasoning_content,
-            "solution": solution,
-            "available_actions": available_actions
-        }, f)
+    try:
+        response = client.chat.completions.create(
+            model="deepseek-reasoner",
+            messages=prompt,
+            temperature=0.6,
+            top_p=0.95,
+            max_tokens=8192
+        )
+        end_time = time.time()
+        print(f"Time taken for index {i}: {end_time - start_time}")
+        with open(f"data/sft/train/{i}.jsonl", "w") as f:
+            json.dump({
+                "instruction": prompt[1]["content"],
+                "system": prompt[0]["content"],
+                "response_content": response.choices[0].message.content,
+                "response_reasoning_content": response.choices[0].message.reasoning_content,
+                "solution": solution,
+                "available_actions": available_actions
+            }, f)
+    except Exception as e:
+        print(f"Error processing index {i}: {e}")
 
-    # record (prompt, response, solution, available_actions) to pickle file
-    
-        
+if __name__ == "__main__":
+    max_workers = len(API_KEYS)
+    index = glob.glob("data/sft/train/*.jsonl")
+    index = [int(file.split("/")[-1].split(".")[0]) for file in index]
+    print(f"Already processed {len(index)} entries")
+    remain_index = set(range(len(train_dataset))) - set(index)
+    print(f"Remaining {len(remain_index)} entries")
+    with ThreadPoolExecutor(max_workers=max_workers) as executor:
+        futures = [
+            executor.submit(process_entry, i, next(api_key_cycle))
+            for i in remain_index
+        ]
+        for future in as_completed(futures):
+            future.result() 
