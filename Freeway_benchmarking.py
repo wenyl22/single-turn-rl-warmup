@@ -45,7 +45,7 @@ def game_loop(ModelName, MaxNewTokens, TokenPerTick, RunType="serial", seed=42):
         if reward > 0.5:
             print(f"Get to the otherside in {game_turn} actions!")
             break
-        if terminal or (game_turn > 10):
+        if terminal or (game_turn > 150):
             print("Fail to get to the otherside in required turns")
             break
     game_time = time.time() - start_time
