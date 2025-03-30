@@ -9,6 +9,22 @@ GIT_LFS_SKIP_SMUDGE=1 uv pip install -e ".[dev]"
 sudo apt-get install git-lfs
 ```
 
+
+### Run benchmarks
+```bash
+python run.py --game [freeway/overcooked] --model {model} --budget-forcing [no/prompted/s1] 
+```
+Adjustable parameters:
+- `max_new_tokens` and `token_per_tick`
+- `budget_forcing`: see `generate.py`
+    - `no`: no budget forcing
+    - `prompted`: add `Think in less than xxx tokens` to the prompt
+    - `s1`: if thinking is not complete in `token_per_tick`, add `</think>\nThe final answer is \\boxed{` to the prompt
+- `tensor_parallel_size`: vLLM parameter, number of GPUs to use for model parallelism.
+- `max_num_seqs`: vLLM parameter, batch generation size.
+- `parallel_size`: Number of parallel environments to run, can be larger or equal to `tensor_parallel_size`.
+- `max_num_seeds`: Adjust according to desired run time.
+
 ### Login to wandb & huggingface account:
 
 ```bash

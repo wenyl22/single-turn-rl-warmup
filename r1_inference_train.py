@@ -1,4 +1,7 @@
-API_KEYS = []
+API_KEYS = ["sk-3ee8fe0163b54cdaad0989072a6126b7", "sk-04b6dc46201a4d08a3d916b623c0e358", 
+"sk-cbce3b5ed161462a9d21ff5fafbed5c4", "sk-0557a61e247c424a955be81163e49b69",
+"sk-62f7309ab6e84ea387d646159eac7bc7", "sk-25c76efa199643f88645a3e624bbbd9c",
+"sk-0d0b5631acdb4736b9ca0607bceefff2", "sk-3d12683dcbd6496bb37a4ccd0f3fe0e2"]
 
 
 from openai import OpenAI
