@@ -34,13 +34,13 @@ def generate_s1(llm: LLM, tokenizer: PreTrainedTokenizer, messages: List[Dict], 
     prompt2 = []
     for output in outputs:
         if "</think>" not in output.outputs[0].text:
-            prompt2.append(output.outputs[0].text + "\n</think>\n The final answer is: \\boxed")
+            prompt2.append(output.outputs[0].text + "\n</think>\nThe final answer is: \\boxed")
     sampling_params = SamplingParams(max_tokens=20, min_tokens = 0, temperature=0.0, stop_token_ids = [tokenizer.special_tokens_map["eos_token"]])
     outputs2 = llm.generate(prompt2, sampling_params)
     index = 0
     for output in outputs:
         if "</think>" not in output.outputs[0].text:
-            output.outputs[0].text += "\n</think>\n The final answer is: \\boxed" + outputs2[index].outputs[0].text
+            output.outputs[0].text += "\n</think>\nThe final answer is: \\boxed" + outputs2[index].outputs[0].text
             index += 1
     return outputs
         
