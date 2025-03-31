@@ -74,7 +74,7 @@ class Env:
                     else:
                         self.terminal = True
         if(self.move_timer==0):
-            self.move_history.append(self.turn)
+            self.move_history.append(self.turn - 1)
             self.move_history.pop(0)
             self.move_timer = self.move_speed
             for i in range(len(self.entities)):

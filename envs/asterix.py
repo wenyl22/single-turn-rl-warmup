@@ -83,13 +83,13 @@ def llm_state_builder(env: Env):
             entity_states.append((entity[0], entity[1], 'right' if entity[2] else 'left', 'treasure' if entity[3] else 'monster'))
     available_actions = []
     if env.player_x > 0:
-        available_actions.append(f"Move left to {env.player_x - 1, env.player_y}")
+        available_actions.append(f"Move LEFT to {env.player_x - 1, env.player_y}")
     if env.player_x < 9:
-        available_actions.append(f"Move right to {env.player_x + 1, env.player_y}")
+        available_actions.append(f"Move RIGHT to {env.player_x + 1, env.player_y}")
     if env.player_y > 1:
-        available_actions.append(f"Move up to {env.player_x, env.player_y - 1}")
+        available_actions.append(f"Move UP to {env.player_x, env.player_y - 1}")
     if env.player_y < 8:
-        available_actions.append(f"Move down to {env.player_x, env.player_y + 1}")
+        available_actions.append(f"Move DOWN to {env.player_x, env.player_y + 1}")
     available_actions.append(f"Stay at {env.player_x, env.player_y}")
     move_history = env.move_history
     state_for_llm = {
@@ -115,11 +115,8 @@ def state_to_description(state_for_llm):
     return description
 
 def get_available_actions(state_for_llm):
-    available_actions_list = []
     description = ''
     for i, action in enumerate(state_for_llm['available_actions']):
-        available_actions_list.append(f'{chr(65+i)} {action}')
-    for action in available_actions_list:
-        description += f'{action}\n'
+        description += f'{chr(65+i)}. {action}\n'
     return description
 

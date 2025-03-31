@@ -110,11 +110,8 @@ def state_to_description(state_for_llm):
     return description
 
 def get_available_actions(state_for_llm):
-    available_actions_list = []
     description = ''
     for i, action in enumerate(state_for_llm['available_actions']):
-        available_actions_list.append(f'{chr(65+i)} {action}')
-    for action in available_actions_list:
-        description += f'{action}\n'
+        description += f'{chr(65+i)}. {action}\n'
     return description
 

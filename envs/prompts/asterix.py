@@ -4,25 +4,26 @@ LLM_BASE_PROMPT = '''
 # **Asterix Game: Optimal Action Selection**  
 
 ## **Game Overview**  
-You are playing "Asterix". Your goal is to move the character on 2D Cartesian plane, collect as many treasures as possible while avoiding monsters. On each turn, you can move one unit in one of the four cardinal directions (up, down, left, right). You can also choose to stay in the same position.
+You are playing Asterix in a 2D grid. Collect treasures (+1 rewards) and avoid monsters (game ends). Your goal is to maximize your rewards while avoiding monsters.
 
-## **Game Mechanics**  
+## **Game Rules**  
 
-### **1. Entities**  
-Entities in the game include monsters and treasures. 
-- Entities move horizontally (along the x-axis), either left or right.
-- All Entities move one unit in their direction only **on specific turns**, which needs to be **predicted based on their recent movement history**.
+### **1. Control**
+- You can control the main character moving UP, DOWN, LEFT, RIGHT, or STAY in the same position.
+
+### **2. Entities**  
+- Entities in the game are monsters or treasures. 
+- They move horizontally (along the x-axis), either left or right.
 - At each turn, you move first, and then all entities move if it's their turn. You contact with an object if you are at the same position **before** or **after** its movement.
 
-**Example:**  
-A monster at position (x = 5, y = 3) moves left. You know all treasures and monsters moved one unit in their direction on turns t1, t2, t3, and t4. Then you may predict the monster will move to (x = 4, y = 3) in t5 turn. If you are at (x = 5, y = 3) or (x = 4, y = 3) at the end of t5 turn, you will contact with the monster.
+### **3. Movement Prediction**
+- Entities only move **on specific turns**.
+- Use their last 4 movement turns to predict their next move.
 
-### **2. Rewards and Penalties**
-- **Collecting a treasure**: +1 point.
-- **Contacting with a monster**: the game ends.
+Example: If a monster moved on turns [3, 5, 7, 9], it likely moves every 2 turns (next: turn 11).
 
 ## **Game State Representation**  
-Each turn, you receive the **current game state**, which includes:
+Each turn, you receive the **current game state**, including:
 - **Current turn number**: t.
 - **Your position**: (x, y).  
 - **Entity information**:  
@@ -31,10 +32,10 @@ Each turn, you receive the **current game state**, which includes:
   - **Direction** (left or right).  
 - **Entity movement history**: (t1, t2, t3, t4). This means all treasures and monsters moved one unit forward in their direction on turns t1, t2, t3, and t4. **This can be used to predict whether the entities will move in the next turn**.
 - **Available actions**: a subset of the following:
-  - Move **up** (y -> y + 1).
-  - Move **down** (y -> y - 1).
-  - Move **left** (x -> x - 1).
-  - Move **right** (x -> x + 1).
+  - Move UP (y -> y + 1).
+  - Move DOWN (y -> y - 1).
+  - Move LEFT (x -> x - 1).
+  - Move RIGHT (x -> x + 1).
   - Stay in the same position.
 
 ## **Your Task: Find the Best Move**  
