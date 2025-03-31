@@ -34,18 +34,13 @@ if __name__ == "__main__":
     if not os.path.exists(f"logs/{game}/{model_name}"):
         os.makedirs(f"logs/{game}/{model_name}")
     time_stamp = datetime.datetime.now().strftime("%Y-%m-%d-%H-%M-%S")      
-    log_file = f"logs/{game}/{model_name}/benchmarking_{time_stamp}.log"
+    log_file = f"logs/{game}/{model_name}/benchmarking_{args.budget_forcing}_{time_stamp}_{token_per_tick}.log"
     SEEDS = [i + 1 for i in range(args.start_seed, args.start_seed + args.max_num_seeds)] 
     with open(log_file, 'a') as f:
         f.write("Arguments:\n")
         for arg, value in vars(args).items():
             f.write(f"{arg}: {value}\n")
         f.write("\n")
-
-    if game == "freeway":
-        from envs.freeway import freeway_game_loop as game_func, setup_thread_VLLM_client, get_thread_VLLM_client
-    elif game == "overcooked":
-        from envs.overcooked import overcooked_game_loop as game_func, setup_thread_VLLM_client, get_thread_VLLM_client
         
     if args.budget_forcing == "no":
         from generate import generate_vanilla as generate_func
@@ -53,6 +48,13 @@ if __name__ == "__main__":
         from generate import generate_prompted as generate_func
     elif args.budget_forcing == "s1":
         from generate import generate_s1 as generate_func
+
+    if game == "freeway":
+        from envs.freeway import freeway_game_loop as game_func, setup_thread_VLLM_client, get_thread_VLLM_client
+    elif game == "overcooked":
+        from envs.overcooked import overcooked_game_loop as game_func, setup_thread_VLLM_client, get_thread_VLLM_client
+    elif game == "asterix":
+        from envs.asterix import asterix_game_loop as game_func, setup_thread_VLLM_client, get_thread_VLLM_client
 
     setup_thread_VLLM_client(token_per_tick)
     client = get_thread_VLLM_client()
@@ -70,7 +72,7 @@ if __name__ == "__main__":
             result = game_func(*args)
             return_queue.put(result)
         for s in batch:
-            s_log_file = f"logs/{game}/{model_name}/{time_stamp}_{max_new_tokens}_{token_per_tick}_{s}.csv"
+            s_log_file = f"logs/{game}/{model_name}/{time_stamp}_{args.budget_forcing}_{token_per_tick}_{s}.csv"
             thread = threading.Thread(target=thread_target, args=(s_log_file, s))
             threads.append(thread)
             thread.start()

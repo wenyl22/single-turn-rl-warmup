@@ -10,10 +10,9 @@ import numpy as np
 # Constants
 #
 #####################################################################################################################
-ramp_interval = 100
-init_spawn_speed = 10
-init_move_interval = 5
-shot_cool_down = 5
+ramp_interval = 10
+init_spawn_speed = 5 # entity spawn speed
+init_move_interval = 3 # entity speed
 
 
 #####################################################################################################################
@@ -37,9 +36,12 @@ class Env:
         self.ramping = ramping
         self.random = np.random.RandomState()
         self.reset()
+        self.turn = 0
+        self.move_history = [0,0,0,0]
 
     # Update environment according to agent action
     def act(self, a):
+        self.turn += 1
         r = 0
         if(self.terminal):
             return r, self.terminal
@@ -72,6 +74,8 @@ class Env:
                     else:
                         self.terminal = True
         if(self.move_timer==0):
+            self.move_history.append(self.turn)
+            self.move_history.pop(0)
             self.move_timer = self.move_speed
             for i in range(len(self.entities)):
                 x = self.entities[i]
@@ -134,14 +138,17 @@ class Env:
 
     # Reset to start state for new episode
     def reset(self):
+        self.turn = 3 * init_move_interval + 1
+        self.move_history = [_ * init_move_interval for _ in range(4)]
         self.player_x = 5
         self.player_y = 5
         self.entities = [None]*8
-        self.shot_timer = 0
+        for i in range(10):
+            self._spawn_entity()
         self.spawn_speed = init_spawn_speed
         self.spawn_timer = self.spawn_speed
         self.move_speed = init_move_interval
-        self.move_timer = self.move_speed
+        self.move_timer = self.move_speed - 1
         self.ramp_timer = ramp_interval
         self.ramp_index = 0
         self.terminal = False

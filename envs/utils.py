@@ -75,6 +75,8 @@ def find_best_match(action_string, available_actions_list, STAY_COMPLETION):
         selected_match = match.group(1).strip()
     else:
         selected_match = action_string
+    if len(selected_match) == 1 and selected_match.isalpha():
+        return available_actions_list[ord(selected_match) - ord('A')]
     for action in available_actions_list:
         if selected_match.lower() in action.lower():
             return action 

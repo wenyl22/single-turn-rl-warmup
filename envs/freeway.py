@@ -59,7 +59,7 @@ def freeway_game_loop(log_file, seed):
         if reward > 0.5:
             print(f"Get to the otherside in {game_turn} actions!")
             break
-        if terminal or (game_turn > 150):
+        if terminal or (game_turn > 100):
             print("Fail to get to the otherside in required turns")
             break
     return {

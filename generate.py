@@ -16,7 +16,7 @@ def generate_prompted(llm: LLM, tokenizer: PreTrainedTokenizer, messages: List[D
     for message in messages:
         for m in message:
             if m["role"] == "user":
-                m["content"] += f" Think in less than {budget} tokens."
+                m["content"] += f" Think in less than {budget - 30} tokens."
     prompt = [tokenizer.apply_chat_template(message, add_generation_prompt = True, tokenize = False) for message in messages]
     outputs = llm.generate(prompt, sampling_params)
     return outputs
