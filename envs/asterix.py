@@ -29,12 +29,12 @@ def asterix_game_loop(log_file, seed):
     terminal = False
     game_turn = 0
     game_reward = 0
-    logs = {'description': [], 'llm_response': [], 'selected_action': [], 'reward':[]}
+    logs = {'description': [], 'llm_response': [], 'render':[], 'selected_action': [], 'reward':[]}
     while True:
         action = 0
         state_for_llm = llm_state_builder(env.env)
         state_description = state_to_description(state_for_llm)
-        available_actions_list = [f'{chr(65+i)} {action}' for i, action in enumerate(state_for_llm['available_actions'])]
+        available_actions_list = [f'{chr(65+i)}. {action}' for i, action in enumerate(state_for_llm['available_actions'])]
         messages = [
             {"role": "system", "content": LLM_SYSTEM_PROMPT},
             {"role": "user", "content": LLM_BASE_PROMPT + state_description}
@@ -52,13 +52,15 @@ def asterix_game_loop(log_file, seed):
             action = 1
         elif "right" in selected_action.lower():
             action = 3
+        logs['description'].append(state_description)
+        logs["llm_response"].append(response)
+        logs['render'].append('\n' + env.env.state_string())
+        logs["selected_action"].append(selected_action)
+
         reward, terminal = env.act(action)
         game_turn += 1
         game_reward += reward
             
-        logs['description'].append(state_description)
-        logs["llm_response"].append(response)
-        logs["selected_action"].append(selected_action)
         logs['reward'].append(reward)
         df = pd.DataFrame(logs)
         df.to_csv(log_file)
@@ -73,7 +75,6 @@ def asterix_game_loop(log_file, seed):
         'game_turn': game_turn,
         'game_time': time.time() - start_time
     }
-
 
 def llm_state_builder(env: Env):
     player_states = (env.player_x, env.player_y)
@@ -121,4 +122,3 @@ def get_available_actions(state_for_llm):
     for i, action in enumerate(state_for_llm['available_actions']):
         description += f'{chr(65+i)}. {action}\n'
     return description
-

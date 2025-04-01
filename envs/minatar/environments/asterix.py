@@ -72,6 +72,8 @@ class Env:
                         self.entities[i] = None
                         r+=1
                     else:
+                        self.player_x = -1
+                        self.player_y = -1
                         self.terminal = True
         if(self.move_timer==0):
             self.move_history.append(self.turn - 1)
@@ -88,6 +90,8 @@ class Env:
                             self.entities[i] = None
                             r+=1
                         else:
+                            self.player_x = -1
+                            self.player_y = -1
                             self.terminal = True
 
         # Update various timers
@@ -161,3 +165,24 @@ class Env:
     def minimal_action_set(self):
         minimal_actions = ['n','l','u','r','d']
         return [self.action_map.index(x) for x in minimal_actions]
+    def state_string(self):
+        grid_string = ""
+        for i in range(10): # rows, i.e. y
+            for j in range(10): # columns, i.e. x
+                grid_string_add = ""
+                if(self.player_x==j and self.player_y==i):
+                    grid_string_add += 'P'
+                for x in self.entities:
+                    if(x is not None and x[0]==j and x[1]==i):
+                        grid_string_add += '$' if x[3] else 'M'
+                        if x[2]:
+                            grid_string_add += '>'
+                        else:
+                            grid_string_add = '<' + grid_string_add
+                if grid_string_add == "":
+                    grid_string_add = "."
+                grid_string += grid_string_add                            
+                grid_string += "".join([" "] * (2 - len(grid_string_add)))
+                grid_string += " "
+            grid_string += "\n"
+        return grid_string

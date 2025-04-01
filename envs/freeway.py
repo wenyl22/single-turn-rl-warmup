@@ -29,13 +29,13 @@ def freeway_game_loop(log_file, seed):
     terminal = False
     reward = 0
     game_turn = 0
-    logs = {'description': [], 'llm_response': [], 'selected_action': []}
+    logs = {'description': [],  'llm_response': [], 'render':[], 'selected_action': []}
     while True:
         action = 0
         if env.env.move_timer == 0:
             state_for_llm = llm_state_builder(env.env)
             state_description = state_to_description(state_for_llm)
-            available_actions_list = [f'{chr(65+i)} {action}' for i, action in enumerate(state_for_llm['available_actions'])]
+            available_actions_list = [f'{chr(65+i)}. {action}' for i, action in enumerate(state_for_llm['available_actions'])]
             messages = [
                 {"role": "system", "content": LLM_SYSTEM_PROMPT},
                 {"role": "user", "content": LLM_BASE_PROMPT + state_description}
@@ -50,10 +50,10 @@ def freeway_game_loop(log_file, seed):
                 action = 4
             logs['description'].append(state_description)
             logs["llm_response"].append(response)
+            logs['render'].append('\n' + env.env.state_string())
             logs["selected_action"].append(selected_action)
         df = pd.DataFrame(logs)
         df.to_csv(log_file)
-            
         reward, terminal = env.act(action)
         game_turn += 1
         if reward > 0.5:

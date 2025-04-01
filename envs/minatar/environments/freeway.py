@@ -122,16 +122,16 @@ class Env:
         if(initialize):
             self.cars = []
             for i in range(8):
-                self.cars+=[[0,i+1,abs(speeds[i]),speeds[i]]]
+                self.cars+=[[0,i+1,abs(speeds[i]) - 1,speeds[i]]]
         else:
             for i in range(8):
-                self.cars[i][2:4]=[abs(speeds[i]),speeds[i]]
+                self.cars[i][2:4]=[abs(speeds[i]) - 1,speeds[i]]
 
     # Reset to start state for new episode
     def reset(self):
         self._randomize_cars(initialize=True)
         self.pos = 9
-        self.move_timer = player_speed
+        self.move_timer = player_speed - 1
         self.terminate_timer = time_limit
         self.terminal = False
 
@@ -149,3 +149,24 @@ class Env:
         self.terminate_timer = time_limit
         self.terminal = False
         self.cars = d['cars']
+        
+    def state_string(self):
+        grid_string = ""
+        for i in range(10): # rows, i.e. y
+            for j in range(10): # columns, i.e. x
+                grid_string_add = ""
+                if(j == 4 and self.pos == i):
+                    grid_string_add += 'P'
+                for car in self.cars:
+                    if(car[0] == j and car[1] == i):
+                        if car[3] > 0:
+                            grid_string_add += str(abs(car[3])) + '>'
+                        else:
+                            grid_string_add = '<' + str(abs(car[3]))
+                if grid_string_add == "":
+                    grid_string_add = "."
+                grid_string += grid_string_add                            
+                grid_string += "".join([" "] * (2 - len(grid_string_add)))
+                grid_string += " "
+            grid_string += "\n"
+        return grid_string
