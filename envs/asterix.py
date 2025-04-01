@@ -29,7 +29,7 @@ def asterix_game_loop(log_file, seed):
     terminal = False
     game_turn = 0
     game_reward = 0
-    logs = {'description': [], 'llm_response': [], 'selected_action': []}
+    logs = {'description': [], 'llm_response': [], 'selected_action': [], 'reward':[]}
     while True:
         action = 0
         state_for_llm = llm_state_builder(env.env)
@@ -52,19 +52,21 @@ def asterix_game_loop(log_file, seed):
             action = 1
         elif "right" in selected_action.lower():
             action = 3
+        reward, terminal = env.act(action)
+        game_turn += 1
+        game_reward += reward
             
         logs['description'].append(state_description)
         logs["llm_response"].append(response)
         logs["selected_action"].append(selected_action)
+        logs['reward'].append(reward)
         df = pd.DataFrame(logs)
         df.to_csv(log_file)
             
-        reward, terminal = env.act(action)
-        game_turn += 1
-        game_reward += reward
-        if terminal or (game_turn > 1000):
+        if terminal or (game_turn > 200):
             print(f"Game ends in {game_turn} turns with reward {game_reward}.")
             break
+        print(f"Turn {game_turn}: {game_reward}")
     return {
         'seed': seed,
         'game_reward': game_reward,
