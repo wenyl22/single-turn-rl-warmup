@@ -10,7 +10,7 @@ import numpy as np
 # Constants
 #
 #####################################################################################################################
-ramp_interval = 10
+ramp_interval = 20
 init_spawn_speed = 5 # entity spawn speed
 init_move_interval = 3 # entity speed
 
@@ -50,7 +50,8 @@ class Env:
 
         # Spawn enemy if timer is up
         if(self.spawn_timer==0):
-            self._spawn_entity()
+            for i in range(3):
+                self._spawn_entity()
             self.spawn_timer = self.spawn_speed
 
         # Resolve player action
@@ -97,8 +98,6 @@ class Env:
         # Update various timers
         self.spawn_timer -= 1
         self.move_timer -= 1
-
-
         #Ramp difficulty if interval has elapsed
         if self.ramping and (self.spawn_speed>1 or self.move_speed>1):
             if(self.ramp_timer>=0):
@@ -115,7 +114,7 @@ class Env:
     # Spawn a new enemy or treasure at a random location with random direction (if all rows are filled do nothing)
     def _spawn_entity(self):
         lr = self.random.rand() < 1/2
-        is_gold = self.random.rand() < 1/3
+        is_gold = self.random.rand() < 1.0/(min(2, self.ramp_index) + 1)
         x = 0 if lr else 9
         slot_options = [i for i in range(len(self.entities)) if self.entities[i]==None]
         if(not slot_options):
@@ -146,9 +145,6 @@ class Env:
         self.move_history = [_ * init_move_interval for _ in range(4)]
         self.player_x = 5
         self.player_y = 5
-        self.entities = [None]*8
-        for i in range(10):
-            self._spawn_entity()
         self.spawn_speed = init_spawn_speed
         self.spawn_timer = self.spawn_speed
         self.move_speed = init_move_interval
@@ -156,6 +152,9 @@ class Env:
         self.ramp_timer = ramp_interval
         self.ramp_index = 0
         self.terminal = False
+        self.entities = [None]*8
+        for i in range(10):
+            self._spawn_entity()
 
     # Dimensionality of the game-state (10x10xn)
     def state_shape(self):
