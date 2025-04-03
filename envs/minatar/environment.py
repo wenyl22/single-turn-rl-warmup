@@ -25,7 +25,7 @@ except:
 class Environment:
     def __init__(self, env_name, sticky_action_prob=0.1,
                 difficulty_ramping=True):
-        env_module = import_module('minatar.environments.' + env_name)
+        env_module = import_module('envs.minatar.environments.' + env_name)
         self.random = np.random.RandomState()
         self.env_name = env_name
         self.env = env_module.Env(ramping=difficulty_ramping)

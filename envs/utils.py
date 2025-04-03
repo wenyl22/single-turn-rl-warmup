@@ -68,7 +68,10 @@ def find_best_match(action_string, available_actions_list, STAY_COMPLETION):
     else:
         selected_match = action_string
     if len(selected_match) == 1 and selected_match.isalpha():
-        return available_actions_list[ord(selected_match) - ord('A')]
+        if ord(selected_match) - ord('A') < len(available_actions_list):
+            return available_actions_list[ord(selected_match) - ord('A')]
+        else:
+            return STAY_COMPLETION
     for action in available_actions_list:
         if selected_match.lower() in action.lower():
             return action 
@@ -90,7 +93,7 @@ def string_map_to_image(string_map, font_path, font_size, index):
     lines = string_map.split('\n')
     max_width = max(len(line) for line in lines)
     line_height = font_size + 5
-    img_width = max_width * font_size // 2 + 20
+    img_width = max_width * font_size // 2 + 30
     img_height = len(lines) * line_height
     image = Image.new("RGB", (img_width, img_height), "black")
     draw = ImageDraw.Draw(image)
@@ -101,7 +104,7 @@ def string_map_to_image(string_map, font_path, font_size, index):
     for i, line in enumerate(lines):
         draw.text((10, i * line_height), line, fill="white", font=font)
     index_text = f"Frame {index + 1}"
-    draw.text((10, 0), index_text, fill="white", font=font)
+    draw.text((10, img_height - line_height), index_text, fill="white", font=font)
     return image
 
 def generate_gif_from_string_map(string_map_list, gif_path, duration=1000, font_path=None, font_size=30):

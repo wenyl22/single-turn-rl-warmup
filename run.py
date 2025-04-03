@@ -9,17 +9,20 @@ import torch
 import gc
 import os
 import numpy as np
+from tqdm import tqdm
+from openai import OpenAI
 
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description='Run benchmark with a specific model.')
     parser.add_argument('--game', type=str, default='freeway', help='Game name')
     parser.add_argument('--model', type=str, default = 'deepseek-ai/DeepSeek-R1-Distill-Qwen-7B')
-    parser.add_argument('--parallel_size', default=4, type=int, help='number of parallel envs to run')
-    parser.add_argument('--max_num_seqs', default=4, type=int, help='number of parallel threads to run')
+    parser.add_argument('--api_key', type=str, default = None, help='API key for VLLM')
+    parser.add_argument('--parallel_size', default=8, type=int, help='number of parallel envs to run')
+    parser.add_argument('--max_num_seqs', default=8, type=int, help='number of parallel threads to run')
     parser.add_argument('--tensor_parallel_size', default=1, type=int, help="tensor parallel size to load model with vllm")
     parser.add_argument('--start_seed', default=1000, type=int, help='number of seeds')
-    parser.add_argument('--max_num_seeds', default=4, type=int, help='number of seeds')
+    parser.add_argument('--max_num_seeds', default=8, type=int, help='number of seeds')
     parser.add_argument('--max_new_tokens', type=int, default=8192)
     parser.add_argument('--token_per_tick', type=int, default=8192)
     parser.add_argument('--budget-forcing', type=str, default='no', choices=['no', 'prompted', 's1'], help='budget forcing method')
@@ -42,7 +45,9 @@ if __name__ == "__main__":
             f.write(f"{arg}: {value}\n")
         f.write("\n")
         
-    if args.budget_forcing == "no":
+    if args.api_key is not None:
+        from generate import generate_api as generate_func
+    elif args.budget_forcing == "no":
         from generate import generate_vanilla as generate_func
     elif args.budget_forcing == "prompted":
         from generate import generate_prompted as generate_func
@@ -58,10 +63,11 @@ if __name__ == "__main__":
 
     setup_thread_VLLM_client(token_per_tick)
     client = get_thread_VLLM_client()
-
-    llm = LLM(model, gpu_memory_utilization=0.8, tensor_parallel_size=args.tensor_parallel_size, max_num_seqs=args.max_num_seqs, disable_custom_all_reduce=True, max_model_len=16384)
-    tokenizer = AutoTokenizer.from_pretrained(args.model)
-
+    if args.api_key is None:
+        llm = LLM(model, gpu_memory_utilization=0.8, tensor_parallel_size=args.tensor_parallel_size, max_num_seqs=args.max_num_seqs, disable_custom_all_reduce=True, max_model_len=16384)
+        tokenizer = AutoTokenizer.from_pretrained(args.model)
+    else:
+        llm = OpenAI(api_key=args.api_key, base_url="https://api.deepseek.com")
     results = []
     for i in range(0, len(SEEDS), args.parallel_size):
         batch = SEEDS[i: i + args.parallel_size]
@@ -93,13 +99,16 @@ if __name__ == "__main__":
             for thread in threads:
                 if thread.is_alive():
                     num_alive_threads += 1
-            if len(queries) >= num_alive_threads:
-                turn += 1
-                print(f"Turn: {turn}\n")
-                sampling_params = SamplingParams(max_tokens=max_new_tokens, temperature=0.6, top_p=0.95)
+            if len(queries) < num_alive_threads:
+                continue
+
+            turn += 1
+            print(f"Turn: {turn}\n")
+            responses = []
+            index = 0 
+            sampling_params = SamplingParams(max_tokens=max_new_tokens, temperature=0.6, top_p=0.95)
+            if args.api_key is None:
                 outputs = generate_func(llm, tokenizer, [message for _, message in queries if len(message) != 0], sampling_params, token_per_tick)
-                responses = []
-                index = 0 
                 for output in outputs:
                     while index < len(queries) and len(queries[index][1]) == 0:
                         index += 1
@@ -108,13 +117,25 @@ if __name__ == "__main__":
                     text = output.outputs[0].text
                     token_ids = output.outputs[0].token_ids
                     responses.append(dict(text=text, token_ids=token_ids))
-                while index < len(queries):
-                    assert(len(queries[index][1]) == 0)
+            else:
+                outputs = generate_func(llm, [message for _, message in queries if len(message) != 0], token_per_tick)
+                for output in outputs:
+                    while index < len(queries) and len(queries[index][1]) == 0:
+                        index += 1
+                        responses.append(dict(text="", token_ids=[]))
                     index += 1
-                    responses.append(dict(text="", token_ids=[]))
-                for (k, query), response in zip(queries, responses):
-                    client.response_queues[k].put_nowait(response)
-                queries = []
+                    print(output)
+                    text = output[0]
+                    token_ids = output[1]
+                    print(text, token_ids)
+                    responses.append(dict(text=text, token_ids=token_ids))
+            while index < len(queries):
+                assert(len(queries[index][1]) == 0)
+                index += 1
+                responses.append(dict(text="", token_ids=[]))
+            for (k, query), response in zip(queries, responses):
+                client.response_queues[k].put_nowait(response)
+            queries = []
             time.sleep(0.05)
             gc.collect()
             torch.cuda.empty_cache()

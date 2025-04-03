@@ -152,8 +152,8 @@ class Env:
         
     def state_string(self):
         grid_string = ""
-        for i in range(10): # rows, i.e. y
-            for j in range(10): # columns, i.e. x
+        for i in range(12): # rows, i.e. y
+            for j in range(12): # columns, i.e. x
                 grid_string_add = ""
                 if(j == 4 and self.pos == i):
                     grid_string_add += 'P'

@@ -165,10 +165,11 @@ class Env:
     def minimal_action_set(self):
         minimal_actions = ['n','l','u','r','d']
         return [self.action_map.index(x) for x in minimal_actions]
+
     def state_string(self):
         grid_string = ""
         for i in range(10): # rows, i.e. y
-            for j in range(10): # columns, i.e. x
+            for j in range(11): # columns, i.e. x
                 grid_string_add = ""
                 if(self.player_x==j and self.player_y==i):
                     grid_string_add += 'P'
