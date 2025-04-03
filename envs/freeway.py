@@ -101,7 +101,7 @@ def llm_state_builder(env: Env):
     return state_for_llm
 
 def state_to_description(state_for_llm):
-    description = f"-**Your position**: (0, {state_for_llm["player_states"]}).\n"
+    description = f"-**Your position**: (0, {state_for_llm['player_states']}).\n"
     description += '-**Cars on each freeway**:\n'
     for car in state_for_llm['car_states']:
         span = 11 if car[2] == 'left' else -11
