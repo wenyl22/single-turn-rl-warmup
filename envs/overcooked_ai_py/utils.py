@@ -12,7 +12,7 @@ from pathlib import Path
 
 import numpy as np
 
-from overcooked_ai_py.static import LAYOUTS_DIR
+from envs.overcooked_ai_py.static import LAYOUTS_DIR
 
 # I/O
 

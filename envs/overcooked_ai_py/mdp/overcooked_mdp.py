@@ -6,11 +6,11 @@ from functools import reduce
 
 import numpy as np
 
-from overcooked_ai_py.mdp.actions import (
+from envs.overcooked_ai_py.mdp.actions import (
     Action,
     Direction,
 )
-from overcooked_ai_py.utils import (
+from envs.overcooked_ai_py.utils import (
     classproperty,
     pos_distance,
     read_layout_dict,
