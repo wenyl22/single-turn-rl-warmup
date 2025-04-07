@@ -15,6 +15,7 @@ from openai import OpenAI
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description='Run benchmark with a specific model.')
+    parser.add_argument('--difficulty', type=int, default=1, help='difficulty level')
     parser.add_argument('--game', type=str, default='freeway', help='Game name')
     parser.add_argument('--model', type=str, default = 'deepseek-ai/DeepSeek-R1-Distill-Qwen-7B')
     parser.add_argument('--api_key', type=str, default = None, help='API key for VLLM')
@@ -79,7 +80,7 @@ if __name__ == "__main__":
             return_queue.put(result)
         for s in batch:
             s_log_file = f"logs/{game}/{model_name}/{time_stamp}_{args.budget_forcing}_{token_per_tick}_{s}.csv"
-            thread = threading.Thread(target=thread_target, args=(s_log_file, s))
+            thread = threading.Thread(target=thread_target, args=(s_log_file, s, args.difficulty))
             threads.append(thread)
             thread.start()
             time.sleep(0.1)

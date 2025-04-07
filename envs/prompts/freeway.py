@@ -18,7 +18,7 @@ You always stay at **x = 0**, meaning you cannot move left or right. Instead, yo
 ## **Game Mechanics**  
 
 ### **1. Freeways & Cars**  
-Each freeway (from y = 1 to y = 8) has cars moving left or right.  
+Each freeway (from y = 1 to y = 8) may have cars moving left or right.  
 - **Cars move at a fixed speed per turn** (e.g., a speed of 3 means the car moves 3 units in the x-direction each turn).  
 - **Each car has a span**, which is the range of x-values it occupies.  
 - **Movement Direction**:  
