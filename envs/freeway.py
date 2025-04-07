@@ -17,12 +17,14 @@ def get_thread_VLLM_client():
     global VLLM_client
     return VLLM_client
 
-def freeway_game_loop(log_file, seed):
+def freeway_game_loop(log_file, seed, difficulty = 8):
+    assert difficulty <= 8, "Difficulty should be less than or equal to 8 for freeway game"
     client = VLLM_client
     assert client is not None, "VLLM client is not initialized. Please call setup_thread_VLLM_client() first."
     thread_id = client.add_new_thread()
-    print("Thread ID:", thread_id, "for seed:", seed, "and log file:", log_file)
+    print("Thread ID:", thread_id, "for seed:", seed, "difficulty", difficulty, "and log file:", log_file)
     env = Environment('freeway', sticky_action_prob=0)
+    env.env.difficulty = difficulty
     env.seed(seed)
     env.reset()
     start_time = time.time()
@@ -64,6 +66,7 @@ def freeway_game_loop(log_file, seed):
             break
     return {
         'seed': seed,
+        'difficulty': difficulty,
         'game_turn': game_turn,
         'game_time': time.time() - start_time
     }
@@ -73,6 +76,9 @@ def llm_state_builder(env: Env):
     player_states = 9 - env.pos
     car_states = []
     for car in env.cars:
+        if car[3] is None:
+            car_states.append((9 - car[1], None, None, None))
+            continue
         dir = 'left' if car[3] < 0 else 'right'
         speed = 12 // abs(car[3])
         pos = 12 * (car[0] - 4)
@@ -104,6 +110,9 @@ def state_to_description(state_for_llm):
     description = f"-**Your position**: (0, {state_for_llm['player_states']}).\n"
     description += '-**Cars on each freeway**:\n'
     for car in state_for_llm['car_states']:
+        if car[3] is None:
+            description += f"\t-**Freeway {car[0]}**: No car on this freeway.\n"
+            continue
         span = 11 if car[2] == 'left' else -11
         description += f"\t-**Freeway {car[0]}**: head at **x = {car[1]}**, tail at **x = {car[1] + span}**, direction = {car[2]}, speed = {car[3]}.\n"
     description += f'Available actions:\n{get_available_actions(state_for_llm)}'

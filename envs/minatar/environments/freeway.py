@@ -28,7 +28,7 @@ time_limit = 2500
 #
 #####################################################################################################################
 class Env:
-    def __init__(self, ramping=None):
+    def __init__(self, ramping=None, difficulty = 8):
         self.channels ={
             'chicken':0,
             'car':1,
@@ -38,6 +38,7 @@ class Env:
             'speed4':5,
             'speed5':6,
         }
+        self.difficulty = difficulty
         self.action_map = ['n','l','u','r','d','f']
         self.random = np.random.RandomState()
         self.reset()
@@ -65,6 +66,8 @@ class Env:
 
         # Update cars
         for car in self.cars:
+            if car[3] is None:
+                continue
             if(car[0:2]==[4,self.pos]):
                 self.pos = 9
             if(car[2]==0):
@@ -95,6 +98,8 @@ class Env:
         state = np.zeros((10,10,len(self.channels)),dtype=bool)
         state[self.pos,4,self.channels['chicken']] = 1
         for car in self.cars:
+            if car[3] is None:
+                continue
             state[car[1],car[0], self.channels['car']] = 1
             back_x = car[0]-1 if car[3]>0 else car[0]+1
             if(back_x<0):
@@ -122,13 +127,20 @@ class Env:
         if(initialize):
             self.cars = []
             for i in range(8):
-                self.cars+=[[0,i+1,abs(speeds[i]) - 1,speeds[i]]]
+                if self.chosen[i]:
+                    self.cars+=[[0,i+1,abs(speeds[i]) - 1,speeds[i]]]
+                else:
+                    self.cars += [[None, i + 1, None, None]]
         else:
             for i in range(8):
-                self.cars[i][2:4]=[abs(speeds[i]) - 1,speeds[i]]
+                if self.chosen[i]:
+                    self.cars[i][2:4]=[abs(speeds[i]) - 1,speeds[i]]
 
     # Reset to start state for new episode
     def reset(self):
+        # choose self.difficulty numbers in [1, 9] to be freeways with cars
+        self.chosen_freeways = self.random.choice(range(0, 8), self.difficulty, replace=False)
+        self.chosen = [True if i in self.chosen_freeways else False for i in range(8)]
         self._randomize_cars(initialize=True)
         self.pos = 9
         self.move_timer = player_speed - 1
@@ -158,6 +170,8 @@ class Env:
                 if(j == 4 and self.pos == i):
                     grid_string_add += 'P'
                 for car in self.cars:
+                    if car[3] is None:
+                        continue
                     if(car[0] == j and car[1] == i):
                         if car[3] > 0:
                             grid_string_add += str(abs(car[3])) + '>'

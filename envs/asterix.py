@@ -17,7 +17,7 @@ def get_thread_VLLM_client():
     global VLLM_client
     return VLLM_client
 
-def asterix_game_loop(log_file, seed):
+def asterix_game_loop(log_file, seed, difficulty = 1):
     client = VLLM_client
     assert client is not None, "VLLM client is not initialized. Please call setup_thread_VLLM_client() first."
     thread_id = client.add_new_thread()

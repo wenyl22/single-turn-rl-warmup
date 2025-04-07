@@ -9,11 +9,11 @@ GIT_LFS_SKIP_SMUDGE=1 uv pip install -e ".[dev]"
 sudo apt-get install git-lfs
 ```
 
-
 ### Run benchmarks
 ```bash
-python run.py --game [freeway/overcooked] --model {model} --budget-forcing [no/prompted/s1] 
+python run.py --game [freeway/overcooked] --model {model} --budget-forcing [no/prompted/s1] --difficulty [1-x]
 ```
+For `freeway`, difficulty ranges from [1, 8], indicating the number of cars on the road.
 Adjustable parameters:
 - `max_new_tokens` and `token_per_tick`
 - `budget_forcing`: see `generate.py`
