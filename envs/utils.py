@@ -56,18 +56,18 @@ class LocalThreadedLLMClient:
             return STAY_COMPLETION
 
 def find_best_match(action_string, available_actions_list, STAY_COMPLETION):
-    if "</think>" not in action_string:
-        action_string = STAY_COMPLETION
-    else:
+    if "</think>"  in action_string:
         action_string = action_string.split("</think>")[-1]
     if action_string == "":
         action_string = STAY_COMPLETION
     match = re.search(r'\\boxed\{(.+?)\}', action_string)
     if match:
-        selected_match = match.group(1).strip()
+        selected_match = match.group(1).strip() 
     else:
         selected_match = action_string
-    if len(selected_match) == 1 and selected_match.isalpha():
+    # Model may output words like '\boxed{A. Move up.}'. So we need to remove choose the first letter
+    selected_match = selected_match[0]
+    if selected_match.isalpha():
         if ord(selected_match) - ord('A') < len(available_actions_list):
             return available_actions_list[ord(selected_match) - ord('A')]
         else:

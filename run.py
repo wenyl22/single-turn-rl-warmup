@@ -30,7 +30,7 @@ if __name__ == "__main__":
     args = parser.parse_args()
     game = args.game
     model = args.model
-    model_name = model.split('/')[-1]
+    model_name = model.split("/")[-2] if model.endswith("/") else model.split("/")[-1]
     max_new_tokens = args.max_new_tokens
     token_per_tick = args.token_per_tick
 
