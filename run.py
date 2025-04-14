@@ -109,7 +109,7 @@ if __name__ == "__main__":
             index = 0 
             sampling_params = SamplingParams(max_tokens=max_new_tokens, temperature=0.6, top_p=0.95)
             if args.api_key is None:
-                outputs = generate_func(llm, tokenizer, [message for _, message in queries if len(message) != 0], sampling_params, token_per_tick)
+                outputs = generate_func(llm, tokenizer, [message for _, message in queries if len(message) != 0], sampling_params, max_new_tokens)
                 for output in outputs:
                     while index < len(queries) and len(queries[index][1]) == 0:
                         index += 1
@@ -119,7 +119,7 @@ if __name__ == "__main__":
                     token_ids = output.outputs[0].token_ids
                     responses.append(dict(text=text, token_ids=token_ids))
             else:
-                outputs = generate_func(llm, [message for _, message in queries if len(message) != 0], token_per_tick)
+                outputs = generate_func(llm, [message for _, message in queries if len(message) != 0], max_new_tokens)
                 for output in outputs:
                     while index < len(queries) and len(queries[index][1]) == 0:
                         index += 1

@@ -184,3 +184,5 @@ count.py
 debug.py
 *.txt
 calc_token_num.py
+*.png
+plot*
