@@ -26,7 +26,7 @@ if __name__ == "__main__":
     parser.add_argument('--max_num_seeds', default=8, type=int, help='number of seeds')
     parser.add_argument('--max_new_tokens', type=int, default=8192)
     parser.add_argument('--token_per_tick', type=int, default=8192)
-    parser.add_argument('--budget-forcing', type=str, default='no', choices=['no', 'prompted', 's1'], help='budget forcing method')
+    parser.add_argument('--budget-forcing', type=str, default='no', choices=['no', 'prompted', 's1', 'ps'], help='budget forcing method')
     args = parser.parse_args()
     game = args.game
     model = args.model
