@@ -54,6 +54,8 @@ if __name__ == "__main__":
         from generate import generate_prompted as generate_func
     elif args.budget_forcing == "s1":
         from generate import generate_s1 as generate_func
+    elif args.budget_forcing == "ps":
+        from generate import generate_prompted_s1 as generate_func
 
     if game == "freeway":
         from envs.freeway import freeway_game_loop as game_func, setup_thread_VLLM_client, get_thread_VLLM_client
