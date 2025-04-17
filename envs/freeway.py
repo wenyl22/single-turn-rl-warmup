@@ -17,7 +17,7 @@ def get_thread_VLLM_client():
     global VLLM_client
     return VLLM_client
 
-def freeway_game_loop(log_file, seed, difficulty = 8):
+def freeway_game_loop(llm, tokenizer, log_file, seed, difficulty = 8):
     assert difficulty <= 8, "Difficulty should be less than or equal to 8 for freeway game"
     client = VLLM_client
     assert client is not None, "VLLM client is not initialized. Please call setup_thread_VLLM_client() first."
@@ -43,7 +43,7 @@ def freeway_game_loop(log_file, seed, difficulty = 8):
                 {"role": "user", "content": LLM_BASE_PROMPT + state_description}
             ]
             response = client.run_inference(thread_id, messages, STAY_COMPLETION)
-            selected_action = find_best_match(response, available_actions_list, STAY_COMPLETION)
+            selected_action = find_best_match(llm, tokenizer, response, available_actions_list, STAY_COMPLETION)
             if "stay" in selected_action.lower():
                 action = 0
             elif "up" in selected_action.lower(): 

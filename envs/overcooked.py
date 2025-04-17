@@ -19,7 +19,7 @@ def setup_thread_VLLM_client(token_per_tick):
 def get_thread_VLLM_client():
     global VLLM_client
     return VLLM_client
-def overcooked_game_loop(log_file, seed, difficulty = 1):
+def overcooked_game_loop(llm, tokenizer, log_file, seed, difficulty = 1):
     client = VLLM_client
     assert client is not None, "VLLM client is not initialized. Please call setup_thread_VLLM_client() first."
     thread_id = client.add_new_thread()
@@ -48,7 +48,7 @@ def overcooked_game_loop(log_file, seed, difficulty = 1):
                 {"role": "system", "content": LLM_BASE_PROMPT.format(player_name=player_names[_], other_player_name=player_names[1-_], envDescription=EnvDescriptions[layout]) + description}
             ]
             response = client.run_inference(thread_id, messages, STAY_COMPLETION)
-            selected_action = find_best_match(response, available_actions, STAY_COMPLETION)
+            selected_action = find_best_match(llm, tokenizer, response, available_actions, STAY_COMPLETION)
             joint_action[_] = AM[_].make_next_move(state, selected_action)
             logs[_]["description"].append(description)
             logs[_]["llm_response"].append(response)
