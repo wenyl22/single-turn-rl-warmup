@@ -1,4 +1,4 @@
-LLM_SYSTEM_PROMPT = '''Please put your final answer within \\boxed{}. Do not include any extra text.'''
+LLM_SYSTEM_PROMPT = '''Please reason step and step and put your final answer within \\boxed{}.'''
 
 LLM_BASE_PROMPT = '''
 # **Asterix Game: Optimal Action Selection**  

@@ -56,25 +56,36 @@ class LocalThreadedLLMClient:
             return STAY_COMPLETION
 
 def find_best_match(action_string, available_actions_list, STAY_COMPLETION):
-    if "</think>"  in action_string:
-        action_string = action_string.split("</think>")[-1]
-    if action_string == "":
-        action_string = STAY_COMPLETION
+# for reasoning models, if "</think>" is not in the string, means the model hasn't finished reasoning
+    if "<think>"  in action_string:
+        if "</think>" in action_string:
+            action_string = action_string.split("<think>")[-1]
+            if action_string == "":
+                action_string = STAY_COMPLETION
+        else:
+            action_string = STAY_COMPLETION
+# match "\boxed{}" content if it exists
     match = re.search(r'\\boxed\{(.+?)\}', action_string)
     if match:
         selected_match = match.group(1).strip() 
     else:
         selected_match = action_string
-    # Model may output words like '\boxed{A. Move up.}'. So we need to remove choose the first letter
-    selected_match = selected_match[0]
-    if selected_match.isalpha():
-        if ord(selected_match) - ord('A') < len(available_actions_list):
-            return available_actions_list[ord(selected_match) - ord('A')]
+# remove leading characters other than 
+    selected_match = re.sub(r'^[^a-zA-Z0-9]+', '', selected_match)
+# If first word is an alpha letter
+    if len(selected_match) == 1 and selected_match.split()[0].isalpha():
+        if ord(selected_match[0]) - ord('A') < len(available_actions_list):
+            return available_actions_list[ord(selected_match[0]) - ord('A')]
         else:
             return STAY_COMPLETION
+# If first word is a digit. This may happen because s1 cuts the reasoning, and the model just randomly responds with a boxed digit.
+    if selected_match.split()[0].isdigit():
+        return STAY_COMPLETION
+# If the choice is completely written
     for action in available_actions_list:
         if selected_match.lower() in action.lower():
             return action 
+# Otherwise, use fuzzy matching
     selected_move, score = process.extractOne(selected_match, available_actions_list)
     return selected_move
 

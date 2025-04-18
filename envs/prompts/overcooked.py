@@ -1,10 +1,47 @@
-LLM_SYSTEM_PROMPT = "Please put your final answer within \\boxed{}. Do not include any extra text."
+LLM_SYSTEM_PROMPT = """You are an AI agent playing the cooperative cooking game Overcooked. Your goal is to prepare and deliver as many dishes as possible within the time limit. You must coordinate with your teammate efficiently, plan ahead, and make optimal decisions based on the current game state. Please analyze the game state carefully and select the best action from the available options. Put your final answer within \\boxed{}."""
 
-RULES = f'''Players must coordinate to make onion soups with 3 onions each. Once a soup is cooked it needs to be placed on a plate and delivered. Players can only carry one item at a time. A soup can only be loaded onto plate by a player if they are holding a plate. The goal is to maximize the number of deliveries.'''
+LLM_BASE_PROMPT="""
 
-LLM_BASE_PROMPT="""I am {player_name}. I am playing the game Overcooked with my partner {other_player_name}. {envDescription} """ + f'''Overcooked has the following rules: {RULES}. We have agreed to be efficient and prepare for the next soup while the current soup is cooking. I'll provide my current state, teammate's status, and my possible actions. Help me select the best action from the list. 
+# Overcooked LLM Agent 
 
-Given Game State:
-'''
+## Game Rules and Mechanics
+- Players can only carry one item at a time
+- The player needs to place 3 onions to in a pot, then a cook will be automatically initiated
+- Cooking time for soup is 20 time steps
+- After a soup is cooked, the player must use a clean plate to serve and deliver it
+- Delivery is only possible at designated delivery points
+- Players can place and pick up items from counters
+- Players cannot walk through each other or obstacles
 
-STAY_COMPLETION = f"""wait."""
+## Environment Details
+{env_description}
+"""
+
+GAME_STATE_PROMPT="""
+## Current Game State
+
+### Player Information
+- **You ({my_name})**
+  - Holding: {my_holding}
+
+- **Teammate ({he_name})**
+  - Holding: {he_holding}
+
+### Object Position and States
+{object_states}
+
+## Available Actions
+{available_actions}
+"""
+
+STAY_COMPLETION = "wait."
+
+MAPPING ={
+    'c': 'Pot',
+    'o': 'Onion Dispenser',
+    'p': 'Plate Dispenser',
+    'd': 'Delivery Point',
+    's': 'Storage Counter',
+    'k': 'Kitchen Counter',
+    'g': 'Gate',
+}
