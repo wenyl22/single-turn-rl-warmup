@@ -1,4 +1,5 @@
 from envs.overcooked_ai_py.mdp.llm_actions import LLMActionSet
+from envs.prompts.overcooked import GAME_STATE_PROMPT, MAPPING
 
 class LLMAgent:
     def __init__(self, player_id, layout_name):
@@ -133,169 +134,97 @@ class LLMAgent:
         if state_for_llm[self.other_player_id]['held_object'] == 'dish':
             state_for_llm[self.player_id ]['held_object'] = 'plate'
         return state_for_llm
-    
-    def _add_history(self):
-        description = f'''action history: {', '.join(self.action_history[-5:])}.\n'''
+
+    def _add_distance_info(self, obj_type, idx, d):
+        obj_name = MAPPING[obj_type[0]]
+        if d[0] == 'infinite' or "blocked" in d[0]:
+            description = f"  -{obj_name} {obj_type[0]}{idx}: Position: inaccessible from {self.player_names[int(self.player_id)]}, "
+        else:
+            description = f"  -{obj_name} {obj_type[0]}{idx}: Position: {d[0]} units away from you({self.player_names[int(self.player_id)]}), "
+        if d[1] == 'infinite' or "blocked" in d[1]:
+            description += f"inaccessible from {self.player_names[int(self.other_player_id)]}. "
+        else:
+            description += f"{d[1]} units away from {self.player_names[int(self.other_player_id)]}. "
         return description
-
-    def _add_held_object_info(self, state_for_llm):
-
-        description = f'''<Inventory>: I am holding {state_for_llm[self.player_id ]['held_object']}. {self.player_names[self.other_player_id]} is holding {state_for_llm[self.other_player_id ]['held_object']}. '''
-        if self.single_agent_ablation:
-            description = f'''<Inventory>: I am holding {state_for_llm[self.player_id ]['held_object']}. '''
-        return description
-    
-    def _add_kitchen_facility_info_single_agent_ablation(self, state_for_llm):
-        self.empty_kitchen_counters = []
-        self.empty_kitchen_counter_distances = []
-        description = f"<My location information:> "
-        for obj_type in ['onion_dispenser', 'plate_dispenser', 'delivery_zone', 'cooker', 'storage_counter', 'gate']:
-            for idx, d in enumerate(state_for_llm['distances'][obj_type]):
-                if d[0] == 'infinite':
-                    description += f"{obj_type[0]}{idx} is inaccessible. "
-                elif 'blocked' in d[0]:
-                    description += f"{obj_type[0]}{idx} is {d[0]}"
-                else:
-                    description += f"{obj_type[0]}{idx} is {d[0]} units away. "
-            
-        description += f"\n<Environment Details>: "
-        for obj_type in ['cooker', 'storage_counter', 'kitchen_counter', 'gate']:
-            for idx, d in enumerate(state_for_llm['distances'][obj_type]):
-                if obj_type == 'cooker':
-                        description += f"c{idx} contains {state_for_llm['num_onions_in_pot'][idx]} out of 3 onions. "
-                if self.enable_kitchen_counters:
-                    if obj_type == 'kitchen_counter':
-                        if state_for_llm['kitchen_counter_objects'][idx] != 'empty':
-                            if d[0] == 'infinite':
-                                description += f'k{idx} is inaccessible. '
-                            elif 'blocked' in d[0]:
-                                description += f"k{idx} is {d[0]} " 
-                            else:
-                                description += f"k{idx} is {d[0]} units away. "
-                                description += f"k{idx} contains {state_for_llm['kitchen_counter_objects'][idx]}. " 
-                            self.empty_kitchen_counter_distances.append(float('inf'))
-                        else:
-                            if d[0] in ['infinite'] or 'blocked' in d[0]:
-                                self.empty_kitchen_counter_distances.append(float('inf'))
-                            else:
-                                self.empty_kitchen_counter_distances.append(int(d[0]))
-                                self.empty_kitchen_counters.append(f'k{idx}')
-                
-                if obj_type == 'gate':
-                    if d[0] not in ['infinite']:
-                        description += f"g{idx} is {state_for_llm['gate_status'][idx]}. "
-                        if state_for_llm['gate_status'][idx] == 'open':
-                            description += f"g{idx} will stay open for {10 - state_for_llm['gate_open_time'][idx]} timesteps. "
-
-                if self.layout_name in ['forced_coordination', 'counter_circuit_o_1order', 'soup_passing']:   
-                    if obj_type == 'storage_counter':
-                        if state_for_llm['storage_counter_objects'][idx] == 'empty':
-                            description += f"s{idx} is empty. "
-                        else:
-                            description += f"s{idx} contains {state_for_llm['storage_counter_objects'][idx]}. "
-        if self.enable_kitchen_counters:
-            if len(self.empty_kitchen_counter_distances) > 0:
-                closest_kitchen_counter = self.empty_kitchen_counter_distances.index(min(self.empty_kitchen_counter_distances))
-                distance_to_closest_kitchen_counter = min(self.empty_kitchen_counter_distances)
-                if distance_to_closest_kitchen_counter != float('inf'):
-                    description += f'Closest empty kitchen counter k{closest_kitchen_counter} is {distance_to_closest_kitchen_counter} units away. '
-
-        return description
-
 
     def _add_kitchen_facility_info(self, state_for_llm):
         self.empty_kitchen_counters = []
         self.empty_kitchen_counter_distances = []
-        description = f"<My location information:> "
-        for obj_type in ['onion_dispenser', 'plate_dispenser', 'delivery_zone', 'cooker', 'storage_counter', 'gate']:
+        ## cooker states
+        description = "-**Cooking Pots**\n"
+        for idx, d in enumerate(state_for_llm['distances']['cooker']):
+            description += self._add_distance_info('cooker', idx, d)
+            description += f" Contains: **{state_for_llm['num_onions_in_pot'][idx]}** onions."
+            if state_for_llm['num_onions_in_pot'][idx] == 3:
+                description += f"Cook time remaining: {state_for_llm['soup_in_cooker_remaining_time'][idx]}."
+            description += "\n"
+        ## dispenser states
+        description += "\n-**Dispensers**\n"
+        for obj_type in ['plate_dispenser', 'onion_dispenser']:
             for idx, d in enumerate(state_for_llm['distances'][obj_type]):
-                if d[0] == 'infinite':
-                    description += f"{obj_type[0]}{idx} is inaccessible. "
-                elif 'blocked' in d[0]:
-                    description += f"{obj_type[0]}{idx} is {d[0]} by {self.player_names[self.other_player_id]}. "
-                else:
-                    description += f"{obj_type[0]}{idx} is {d[0]} units away. " 
-                       
-        if not self.single_agent_ablation:
-            description += f"\n<{self.player_names[self.other_player_id]}'s location information>: "
-            for obj_type in ['onion_dispenser', 'plate_dispenser', 'delivery_zone', 'cooker', 'storage_counter', 'gate']:
+                description += self._add_distance_info(obj_type, idx, d) + "\n"
+        ## delivery point states
+        description += "\n-**Delivery Point**\n"
+        for idx, d in enumerate(state_for_llm['distances']['delivery_zone']):
+            description += self._add_distance_info('delivery_zone', idx, d) + "\n"
+        ## kitchen counter states
+        if self.enable_kitchen_counters:
+            if len(state_for_llm['distances']['kitchen_counter']) > 0:
+                description += "\n-**Kitchen Counters with Items**\n"
+                flag = 0
                 for idx, d in enumerate(state_for_llm['distances'][obj_type]):
-                    if d[1] == 'infinite':
-                        description += f"{obj_type[0]}{idx} is inaccessible. "
-                    elif 'blocked' in d[1]:
-                        description += f"{obj_type[0]}{idx} is {d[0]} by {self.player_names[self.player_id]}. "  
-                    else:
-                        description += f"{obj_type[0]}{idx} is {d[1]} units away. "
-                    
-            
-        description += f"\n<Environment Details>: "
-        for obj_type in ['cooker', 'storage_counter', 'kitchen_counter', 'gate']:
-            for idx, d in enumerate(state_for_llm['distances'][obj_type]):
-                if obj_type == 'cooker':
-                        description += f"c{idx} contains {state_for_llm['num_onions_in_pot'][idx]} out of 3 onions. "
-                if self.enable_kitchen_counters:
-                    if obj_type == 'kitchen_counter':
-                        if state_for_llm['kitchen_counter_objects'][idx] != 'empty':
-                            if d[0] == 'infinite':
-                                description += f'k{idx} is inaccessible. '
-                            elif 'blocked' in d[0]:
-                                description += f"k{idx} is {d[0]} by {self.player_names[int(self.other_player_id)]}. " 
-                            else:
-                                description += f"k{idx} is {d[0]} units away. "
-                                description += f"k{idx} contains {state_for_llm['kitchen_counter_objects'][idx]}. " 
+                    if state_for_llm['kitchen_counter_objects'][idx] == 'empty':
+                        if d[0] in ['infinite'] or 'blocked' in d[0]:
                             self.empty_kitchen_counter_distances.append(float('inf'))
                         else:
-                            if d[0] in ['infinite'] or 'blocked' in d[0]:
-                                self.empty_kitchen_counter_distances.append(float('inf'))
-                            else:
-                                self.empty_kitchen_counter_distances.append(int(d[0]))
-                                self.empty_kitchen_counters.append(f'k{idx}')
-                
-                if obj_type == 'gate':
-                    if d[0] not in ['infinite']:
-                        description += f"g{idx} is {state_for_llm['gate_status'][idx]}. "
-                        if state_for_llm['gate_status'][idx] == 'open':
-                            description += f"g{idx} will stay open for {10 - state_for_llm['gate_open_time'][idx]} timesteps. "
-
-                if self.layout_name in ['forced_coordination', 'counter_circuit_o_1order', 'soup_passing']:   
-                    if obj_type == 'storage_counter':
-                        if state_for_llm['storage_counter_objects'][idx] == 'empty':
-                            description += f"s{idx} is empty. "
-                        else:
-                            description += f"s{idx} contains {state_for_llm['storage_counter_objects'][idx]}. "
-                # When there are no kitchen counters:
-        if self.enable_kitchen_counters:
+                            self.empty_kitchen_counter_distances.append(int(d[0]))
+                            self.empty_kitchen_counters.append(f'k{idx}')
+                        continue
+                    flag = 1
+                    description += self._add_distance_info('kitchen_counter', idx, d)
+                    description += f"Contains: {state_for_llm['kitchen_counter_objects'][idx]}\n"
+                    self.empty_kitchen_counter_distances.append(float('inf'))
+                if flag == 0:
+                    description += "  -All kitchen counters are empty.\n"
             if len(self.empty_kitchen_counter_distances) > 0:
+                description += "\n-**Empty Kitchen Counters**\n"
                 closest_kitchen_counter = self.empty_kitchen_counter_distances.index(min(self.empty_kitchen_counter_distances))
                 distance_to_closest_kitchen_counter = min(self.empty_kitchen_counter_distances)
-                # print('Number of kitchen counters: ', len(self.empty_kitchen_counter_distances))
                 if distance_to_closest_kitchen_counter != float('inf'):
-                    description += f'Closest empty kitchen counter k{closest_kitchen_counter} is {distance_to_closest_kitchen_counter} units away. '
-
+                    description += f'  -Closest empty kitchen counter k{closest_kitchen_counter} is {distance_to_closest_kitchen_counter} units away from {self.player_names[int(self.player_id)]}.\n'
+        ## Gate states
+        if len(state_for_llm['distances']['gate']) > 0:
+            description += "\n-**Gates**\n"
+            for idx, d in enumerate(state_for_llm['distances']['gate']):
+                description += self._add_distance_info('gate', idx, d)
+                if state_for_llm['gate_status'][idx] == 'open':
+                    description += f"State: Will stay open for {10 - state_for_llm['gate_open_time'][idx]} time steps.\n"
+                else:
+                    description += f"State: Closed.\n"
+        ## Storage counter states
+        if self.layout_name in ['forced_coordination', 'counter_circuit_o_1order', 'soup_passing'] and len(state_for_llm['distances']['storage_counter']) > 0:
+            description += "\n-**Storage Counters with Items**\n"
+            for idx, d in enumerate(state_for_llm['distances']['storage_counter']):
+                if state_for_llm['storage_counter_objects'][idx] == 'empty':
+                    continue
+                description += self._add_distance_info('storage_counter', idx, d)
+                description += f"Contains: {state_for_llm['storage_counter_objects'][idx]}.\n"
         return description
 
     def _state_to_description(self, state_for_llm, need_history = True):
-#        print('STATE FOR LLM: ', state_for_llm)
         state_for_llm = self._correct_dish_to_plate(state_for_llm)
-        description = "Game State\n:"
-        if need_history:
-            description = self._add_history()
-        # Add state information in natural language 
-        description += self._add_held_object_info(state_for_llm)
-        if not self.single_agent_ablation:
-            description += self._add_kitchen_facility_info(state_for_llm)
-        else:
-            description += self._add_kitchen_facility_info_single_agent_ablation(state_for_llm)
-
-
-        # get available actions based on current state and add the information to the description
+        object_states = self._add_kitchen_facility_info(state_for_llm)
         self.available_actions_list = self._get_available_actions(state_for_llm)
-        # Uncomment for ToM Reasoning LLM
-        # self.partner_inference_string = self.infer_partner_state(description)
-        # description += self.partner_inference_string
         available_actions = ""
         for i, action in enumerate(self.available_actions_list):
             available_actions += f'{chr(65 + i)}. {action}\n'
-        description += f"\nAvailable Actions:\n{available_actions}"
-
+        description = GAME_STATE_PROMPT.format(
+            my_name=self.player_names[self.player_id],
+            my_holding=state_for_llm[self.player_id]['held_object'],
+            my_action_history=f"{', '.join(self.action_history[-5:])}\n" if need_history else 'Not available',
+            he_name=self.player_names[self.other_player_id],
+            he_holding=state_for_llm[self.other_player_id]['held_object'],
+            object_states=object_states,
+            available_actions=available_actions
+        )
         return description

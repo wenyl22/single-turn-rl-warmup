@@ -19,7 +19,7 @@ def setup_thread_VLLM_client(token_per_tick):
 def get_thread_VLLM_client():
     global VLLM_client
     return VLLM_client
-def overcooked_game_loop(log_file, seed, difficulty = 1):
+def overcooked_game_loop(llm, tokenizer, log_file, seed, difficulty = 1):
     client = VLLM_client
     assert client is not None, "VLLM client is not initialized. Please call setup_thread_VLLM_client() first."
     thread_id = client.add_new_thread()
@@ -27,7 +27,7 @@ def overcooked_game_loop(log_file, seed, difficulty = 1):
     
     random.seed(seed)
     np.random.seed(seed)
-    layout = random.choice([key for key in EnvDescriptions.keys()])
+    layout = "asymmetric_advantages"
     mdp = OvercookedGridworld.from_layout_name(layout)
     state = mdp.get_standard_start_state()
     player_names = ["Alice", "Bob"]
@@ -45,10 +45,10 @@ def overcooked_game_loop(log_file, seed, difficulty = 1):
             available_actions = AM[_].llm_agent._get_available_actions(state_for_llm)
             messages = [
                 {"role": "system", "content": LLM_SYSTEM_PROMPT},
-                {"role": "system", "content": LLM_BASE_PROMPT.format(player_name=player_names[_], other_player_name=player_names[1-_], envDescription=EnvDescriptions[layout]) + description}
+                {"role": "user", "content": LLM_BASE_PROMPT.format(env_description=EnvDescriptions[layout]) + description}
             ]
             response = client.run_inference(thread_id, messages, STAY_COMPLETION)
-            selected_action = find_best_match(response, available_actions, STAY_COMPLETION)
+            selected_action = find_best_match(llm, tokenizer, response, available_actions, STAY_COMPLETION)
             joint_action[_] = AM[_].make_next_move(state, selected_action)
             logs[_]["description"].append(description)
             logs[_]["llm_response"].append(response)
@@ -61,7 +61,7 @@ def overcooked_game_loop(log_file, seed, difficulty = 1):
             logs[_]["reward"].append(infos["sparse_reward_by_agent"][_])
             df = pd.DataFrame(logs[_])
             df.to_csv(log_files[_], index=False)
-        print("Tick:", tick, "Score:", score)
+        print("Tick:", tick, "Score:", score, "Shaped Score:", shaped_score)
     return {
         "seed": seed,
         "score": score,
