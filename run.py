@@ -26,6 +26,7 @@ if __name__ == "__main__":
     parser.add_argument('--max_new_tokens', type=int, default=8192)
     parser.add_argument('--token_per_tick', type=int, default=8192)
     parser.add_argument('--budget-forcing', type=str, default='no', choices=['no', 'prompted', 's1', 'ps'], help='budget forcing method')
+    parser.add_argument('--ma', default=False, help='use multi-agent or not', action='store_true')
     args = parser.parse_args()
     game = args.game
     model = args.model
@@ -57,7 +58,11 @@ if __name__ == "__main__":
         from generate import generate_prompted_s1 as generate_func
 
     if game == "freeway":
-        from envs.freeway import freeway_game_loop as game_func, setup_thread_VLLM_client, get_thread_VLLM_client
+        from envs.freeway import setup_thread_VLLM_client, get_thread_VLLM_client
+        if not args.ma:
+            from envs.freeway import freeway_game_loop as game_func
+        else:
+            from envs.freeway import ma_freeway_game_loop as game_func
     elif game == "overcooked":
         from envs.overcooked import overcooked_game_loop as game_func, setup_thread_VLLM_client, get_thread_VLLM_client
     elif game == "asterix":
@@ -81,7 +86,7 @@ if __name__ == "__main__":
             return_queue.put(result)
         for s in batch:
             s_log_file = f"logs/{game}/{model_name}/{time_stamp}_{args.budget_forcing}_{token_per_tick}_{s}.csv"
-            thread = threading.Thread(target=thread_target, args=(llm, tokenizer, s_log_file, s, args.difficulty))
+            thread = threading.Thread(target=thread_target, args=(s_log_file, s, args.difficulty))
             threads.append(thread)
             thread.start()
             time.sleep(0.1)

@@ -15,107 +15,72 @@ sampling_params = SamplingParams(temperature=0.0,
                                 top_p=1,
                                 )
 
-EVAL_PROMPT = """You are a specialized AI that extracts a capital letter choice (A/B/C/etc.) from an action string by matching it against a list of available actions. Follow these instructions precisely:
+EVAL_PROMPT = """
+You are a specialized AI that extracts the selected answer choice (e.g., A, B, C, D) from an LLM's response to a multiple-choice question. Ignore explanations, reasoning, or other text—only extract the final chosen option. Follow these instructions precisely:
 
 ## Task Description
 Given:
-1. An `action_string` - a text that may contain or describe an action choice
-2. An `available_actions_list` - a list of possible actions, each labeled with a capital letter
+1. An `answer_string` - a string that may contain or describe a choice
+2. An `choice_list` - a list of possible choices, each labeled with a capital letter
 
-Your job is to determine which action from the available list best matches the action_string, and return ONLY the capital letter (A/B/C/etc.) of that action.
+Your job is to determine which choice from the choice_list best matches the answer_string, and return ONLY the capital letter (A/B/C/etc.) of that choice.
 
 ## Rules for Matching:
-- If the action_string contains a capital letter followed by a period (like "A." or "B."), extract that letter
-- If the action_string contains a boxed capital letter (like "\boxed{A}" or "\boxed{B}"), extract that letter
-- If the action_string doesn't contain an explicit letter but describes an action that matches one in the available_actions_list, return the letter of the matching action
+- If the answer_string contains a capital letter followed by a period (like "A." or "B."), extract that letter
+- If the answer_string contains a boxed capital letter (like "\\boxed{A}" or "\\boxed{B}"), extract that letter
+- If the answer_string doesn't contain an explicit letter but describes an action that matches one in the choice_list, return the letter of the matching action
 - If no match can be found, return 'Z'
-
-## Output Format:
-First line includes detailed analysis of the text.
-Second line includes ONLY the matching capital letter without any additional text, explanation, or formatting.
-
-## Your Task:
-Analyze the `action_string` and the `available_actions_list`.
-Determine which action matches and return only the capital letter."""
+"""
 
 FEW_SHOT_EXAMPLES = [
     {
         "role": "user",
-        "content": "action_string: \"\\boxed{B}\"\navailable_actions_list: [\"A. Move up to Freeway 4\", \"B. Move down to Freeway 2\",  \"C. Stay in the same freeway\"]"
+        "content": "answer_string: \"\\boxed{B}\"\nchoice_list: [\"A. Move up to Freeway 4\", \"B. Move down to Freeway 2\",  \"C. Stay in the same freeway\"]"
     },
-    {
-        "role": "assistant",
-        "content": "B"
-    },
+    {"role": "assistant", "content": "B"},
     {
         "role": "user",
-        "content": "action_string: \"Stay in the same freeway\"\navailable_actions_list: [\"A. Move up to Freeway 2\", \"B. Move down to Freeway 0\",  \"C. Stay in the same freeway\"]"
+        "content": "answer_string: \"Stay\"\nchoice_list: [\"A. Move up to Freeway 2\", \"B. Move down to Freeway 0\",  \"C. Stay in the same freeway\"]"
     },
-    {
-        "role": "assistant",
-        "content": "C"
-    },
+    {"role": "assistant", "content": "C"},
     {
         "role": "user",
-        "content": "action_string: \"Let's make a left turn here\"\navailable_actions_list: [\"A. Turn right\", \"B. Go straight\", \"C. Turn around\"]"
+        "content": "answer_string: \"Let's make a left turn here\"\nchoice_list: [\"A. Turn right\", \"B. Go straight\", \"C. Turn around\"]"
     },
-    {
-        "role": "assistant",
-        "content": "Z"
-    }
+    {"role": "assistant", "content": "Z"}
 ]
 
 
-def model_match(llm, tokenizer, examples):
+def model_match(client, thread_id, examples):
     """
-    This function extract the action from the action_string and match it with the available actions.
+    This function extract the selected choice from a given answer to a multi-choice question.
     Args:
-        examples (list): List of examples containing the action string and available actions.
-            action_string (str): The action string returned by the model.
-            available_actions_list (list): List of available actions.
-        STAY_COMPLETION (str): Default action if no match is found.
+        examples (list): List of examples containing the answer and the choices.
+            answer (str): The answer string containing the selected choice.
+            choice_list (list): List of choices available.
+        DEFAULT_COMPLETION (str): Default choice if no match is found.
     Returns:
-        selected_letters (char): The selected action (capital letter). If no match is found, returns 'Z'.
+        selected_letters (char): The selected chocie (capital letter). If no match is found, returns 'Z'.
     """
-
-    prompt_batch = []
-
     for example in examples:
-        messages = [
-            {
-                "role": "system",
-                "content": EVAL_PROMPT
-            }
-        ]
+        messages = [{"role": "system", "content": EVAL_PROMPT}]
         messages += FEW_SHOT_EXAMPLES
-        
-        action_string = example['action_string']
-        available_actions_list = str(example['available_actions_list'])
-        
+        answer_string = example['answer_string']
+        choice_list = str(example['choice_list'])
         messages.append({
             "role": "user",
-            "content": f"action_string: \"{action_string}\"\navailable_actions_list: {available_actions_list}"
+            "content": f"answer_string: \"{answer_string}\"\nchoice_list: {choice_list}"
         })
-        
-        print("Checking completion:")
-        print(messages[-1])
-            
-        prompt = tokenizer.apply_chat_template(messages, tokenize=False, add_generation_prompt=True)
-        prompt_batch.append(prompt)
-
-
-    completions = llm.generate(prompt_batch, sampling_params)
-    
-
-    selected_letters = []
-    for i, completion in enumerate(completions):
-        selected_letter = completion.outputs[0].text.strip()[-1]
-        print("Response: ", completion.outputs[0].text)
-        if selected_letter.isalpha():
-            selected_letters.append(selected_letter)
-        else:
-            selected_letters.append('Z')
-    return selected_letters
+    print("Answer string:", messages[-1]["content"])
+    selected_letter = client.generate(thread_id, messages)['text']
+    print("Extractor output:", selected_letter)
+    if "</think>" in selected_letter:
+        selected_letter = selected_letter.split("</think>")[-1]
+    selected_letter = extract_boxed(selected_letter)
+    while ord(selected_letter[0]) < ord('A') or ord(selected_letter[0]) > ord('Z'):
+        selected_letter = selected_letter[1:]
+    print("Selected letter:", selected_letter[0])
+    return selected_letter[0]
 
 
 class LocalThreadedLLMClient:
@@ -167,16 +132,27 @@ class LocalThreadedLLMClient:
         else:
             return STAY_COMPLETION
 
-def find_best_match(llm, tokenizer, action_string, available_actions_list, STAY_COMPLETION):
-    letter = model_match(llm, tokenizer, [{
-        'action_string': action_string,
-        'available_actions_list': available_actions_list
+def find_best_match(client, thread_id, answer_string, choice_list, DEFAULT_COMPLETION):
+    if "</think>" in answer_string:
+        answer_string = answer_string.split("</think>")[-1]
+    letter = model_match(client, thread_id, [{
+        'answer_string': answer_string, 'choice_list': choice_list
     }])[0]
-    if letter.isalpha() and ord(letter) - ord('A') < len(available_actions_list):
-        return available_actions_list[ord(letter) - ord('A')]
+    if letter.isalpha() and ord(letter) - ord('A') < len(choice_list):
+        return choice_list[ord(letter) - ord('A')]
     else:
-        return STAY_COMPLETION
+        return DEFAULT_COMPLETION
 
+def extract_boxed(text):
+    match = re.search(r'\\boxed{([^}]*)}', text)
+    if match:
+        text = match.group(1)
+    match = re.search(r'\\text{([^}]*)}', text)
+    if match:
+        text = match.group(1)
+    return text
+
+ 
 def string_map_to_image(string_map, font_path, font_size, index):
     """
     Convert a string map to an image.
