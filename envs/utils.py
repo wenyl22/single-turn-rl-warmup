@@ -34,7 +34,12 @@ class LocalThreadedLLMClient:
         self.query_queues[thread_id].put(messages)
         return self.response_queues[thread_id].get()
 
-    def run_inference(self, id, messages, STAY_COMPLETION):
+    def run_inference(self, id, messages, STAY_COMPLETION, ignore_tick_limit=False):
+        if ignore_tick_limit:
+            # 不走累积 token 的逻辑，直接生成
+            response = self.generate(id, messages)
+            return response['text']
+        
         self.accum[id] += self.token_per_tick
         if self.token_queue_len[id] > 0:
             # dummy function call, indicating the thread is alive
@@ -55,28 +60,28 @@ class LocalThreadedLLMClient:
         else:
             return STAY_COMPLETION
 
-def find_best_match(action_string, available_actions_list, STAY_COMPLETION):
-    if "</think>"  in action_string:
-        action_string = action_string.split("</think>")[-1]
-    if action_string == "":
-        action_string = STAY_COMPLETION
-    match = re.search(r'\\boxed\{(.+?)\}', action_string)
-    if match:
-        selected_match = match.group(1).strip() 
-    else:
-        selected_match = action_string
-    # Model may output words like '\boxed{A. Move up.}'. So we need to remove choose the first letter
-    selected_match = selected_match[0]
-    if selected_match.isalpha():
-        if ord(selected_match) - ord('A') < len(available_actions_list):
-            return available_actions_list[ord(selected_match) - ord('A')]
-        else:
-            return STAY_COMPLETION
-    for action in available_actions_list:
-        if selected_match.lower() in action.lower():
-            return action 
-    selected_move, score = process.extractOne(selected_match, available_actions_list)
-    return selected_move
+# def find_best_match(action_string, available_actions_list, STAY_COMPLETION):
+    # if "</think>"  in action_string:
+    #     action_string = action_string.split("</think>")[-1]
+    # if action_string == "":
+    #     action_string = STAY_COMPLETION
+    # match = re.search(r'\\boxed\{(.+?)\}', action_string)
+    # if match:
+    #     selected_match = match.group(1).strip() 
+    # else:
+    #     selected_match = action_string
+    # # Model may output words like '\boxed{A. Move up.}'. So we need to remove choose the first letter
+    # selected_match = selected_match[0]
+    # if selected_match.isalpha():
+    #     if ord(selected_match) - ord('A') < len(available_actions_list):
+    #         return available_actions_list[ord(selected_match) - ord('A')]
+    #     else:
+    #         return STAY_COMPLETION
+    # for action in available_actions_list:
+    #     if selected_match.lower() in action.lower():
+    #         return action 
+    # selected_move, score = process.extractOne(selected_match, available_actions_list)
+    # return selected_move   
 
 def string_map_to_image(string_map, font_path, font_size, index):
     """
