@@ -5,6 +5,118 @@ import queue
 import imageio
 import numpy as np
 from PIL import Image, ImageDraw, ImageFont
+import tqdm
+from vllm import LLM, SamplingParams
+from transformers import AutoTokenizer
+
+sampling_params = SamplingParams(temperature=0.0, 
+                                max_tokens=1024, 
+                                n=1,
+                                top_p=1,
+                                )
+
+EVAL_PROMPT = """You are a specialized AI that extracts a capital letter choice (A/B/C/etc.) from an action string by matching it against a list of available actions. Follow these instructions precisely:
+
+## Task Description
+Given:
+1. An `action_string` - a text that may contain or describe an action choice
+2. An `available_actions_list` - a list of possible actions, each labeled with a capital letter
+
+Your job is to determine which action from the available list best matches the action_string, and return ONLY the capital letter (A/B/C/etc.) of that action.
+
+## Rules for Matching:
+- If the action_string contains a capital letter followed by a period (like "A." or "B."), extract that letter
+- If the action_string contains a boxed capital letter (like "\boxed{A}" or "\boxed{B}"), extract that letter
+- If the action_string doesn't contain an explicit letter but describes an action that matches one in the available_actions_list, return the letter of the matching action
+- If no match can be found, return 'Z'
+
+## Output Format:
+First line includes detailed analysis of the text.
+Second line includes ONLY the matching capital letter without any additional text, explanation, or formatting.
+
+## Your Task:
+Analyze the `action_string` and the `available_actions_list`.
+Determine which action matches and return only the capital letter."""
+
+FEW_SHOT_EXAMPLES = [
+    {
+        "role": "user",
+        "content": "action_string: \"\\boxed{B}\"\navailable_actions_list: [\"A. Move up to Freeway 4\", \"B. Move down to Freeway 2\",  \"C. Stay in the same freeway\"]"
+    },
+    {
+        "role": "assistant",
+        "content": "B"
+    },
+    {
+        "role": "user",
+        "content": "action_string: \"Stay in the same freeway\"\navailable_actions_list: [\"A. Move up to Freeway 2\", \"B. Move down to Freeway 0\",  \"C. Stay in the same freeway\"]"
+    },
+    {
+        "role": "assistant",
+        "content": "C"
+    },
+    {
+        "role": "user",
+        "content": "action_string: \"Let's make a left turn here\"\navailable_actions_list: [\"A. Turn right\", \"B. Go straight\", \"C. Turn around\"]"
+    },
+    {
+        "role": "assistant",
+        "content": "Z"
+    }
+]
+
+
+def model_match(llm, tokenizer, examples):
+    """
+    This function extract the action from the action_string and match it with the available actions.
+    Args:
+        examples (list): List of examples containing the action string and available actions.
+            action_string (str): The action string returned by the model.
+            available_actions_list (list): List of available actions.
+        STAY_COMPLETION (str): Default action if no match is found.
+    Returns:
+        selected_letters (char): The selected action (capital letter). If no match is found, returns 'Z'.
+    """
+
+    prompt_batch = []
+
+    for example in examples:
+        messages = [
+            {
+                "role": "system",
+                "content": EVAL_PROMPT
+            }
+        ]
+        messages += FEW_SHOT_EXAMPLES
+        
+        action_string = example['action_string']
+        available_actions_list = str(example['available_actions_list'])
+        
+        messages.append({
+            "role": "user",
+            "content": f"action_string: \"{action_string}\"\navailable_actions_list: {available_actions_list}"
+        })
+        
+        print("Checking completion:")
+        print(messages[-1])
+            
+        prompt = tokenizer.apply_chat_template(messages, tokenize=False, add_generation_prompt=True)
+        prompt_batch.append(prompt)
+
+
+    completions = llm.generate(prompt_batch, sampling_params)
+    
+
+    selected_letters = []
+    for i, completion in enumerate(completions):
+        selected_letter = completion.outputs[0].text.strip()[-1]
+        print("Response: ", completion.outputs[0].text)
+        if selected_letter.isalpha():
+            selected_letters.append(selected_letter)
+        else:
+            selected_letters.append('Z')
+    return selected_letters
+
 
 class LocalThreadedLLMClient:
     def __init__(self, token_per_tick = 500):
@@ -55,39 +167,15 @@ class LocalThreadedLLMClient:
         else:
             return STAY_COMPLETION
 
-def find_best_match(action_string, available_actions_list, STAY_COMPLETION):
-# for reasoning models, if "</think>" is not in the string, means the model hasn't finished reasoning
-    if "<think>"  in action_string:
-        if "</think>" in action_string:
-            action_string = action_string.split("<think>")[-1]
-            if action_string == "":
-                action_string = STAY_COMPLETION
-        else:
-            action_string = STAY_COMPLETION
-# match "\boxed{}" content if it exists
-    match = re.search(r'\\boxed\{(.+?)\}', action_string)
-    if match:
-        selected_match = match.group(1).strip() 
+def find_best_match(llm, tokenizer, action_string, available_actions_list, STAY_COMPLETION):
+    letter = model_match(llm, tokenizer, [{
+        'action_string': action_string,
+        'available_actions_list': available_actions_list
+    }])[0]
+    if letter.isalpha() and ord(letter) - ord('A') < len(available_actions_list):
+        return available_actions_list[ord(letter) - ord('A')]
     else:
-        selected_match = action_string
-# remove leading characters other than 
-    selected_match = re.sub(r'^[^a-zA-Z0-9]+', '', selected_match)
-# If first word is an alpha letter
-    if len(selected_match) == 1 and selected_match.split()[0].isalpha():
-        if ord(selected_match[0]) - ord('A') < len(available_actions_list):
-            return available_actions_list[ord(selected_match[0]) - ord('A')]
-        else:
-            return STAY_COMPLETION
-# If first word is a digit. This may happen because s1 cuts the reasoning, and the model just randomly responds with a boxed digit.
-    if selected_match.split()[0].isdigit():
         return STAY_COMPLETION
-# If the choice is completely written
-    for action in available_actions_list:
-        if selected_match.lower() in action.lower():
-            return action 
-# Otherwise, use fuzzy matching
-    selected_move, score = process.extractOne(selected_match, available_actions_list)
-    return selected_move
 
 def string_map_to_image(string_map, font_path, font_size, index):
     """

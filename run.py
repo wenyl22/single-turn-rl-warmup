@@ -12,7 +12,6 @@ import numpy as np
 from tqdm import tqdm
 from openai import OpenAI
 
-
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description='Run benchmark with a specific model.')
     parser.add_argument('--difficulty', type=int, default=1, help='difficulty level')
@@ -67,7 +66,7 @@ if __name__ == "__main__":
     setup_thread_VLLM_client(token_per_tick)
     client = get_thread_VLLM_client()
     if args.api_key is None:
-        llm = LLM(model, gpu_memory_utilization=0.8, tensor_parallel_size=args.tensor_parallel_size, max_num_seqs=args.max_num_seqs, disable_custom_all_reduce=True, max_model_len=16384)
+        llm = LLM(model, gpu_memory_utilization=0.95, tensor_parallel_size=args.tensor_parallel_size, max_num_seqs=args.max_num_seqs, disable_custom_all_reduce=True, max_model_len=16384)
         tokenizer = AutoTokenizer.from_pretrained(args.model)
     else:
         llm = OpenAI(api_key=args.api_key, base_url="https://api.deepseek.com")
@@ -82,7 +81,7 @@ if __name__ == "__main__":
             return_queue.put(result)
         for s in batch:
             s_log_file = f"logs/{game}/{model_name}/{time_stamp}_{args.budget_forcing}_{token_per_tick}_{s}.csv"
-            thread = threading.Thread(target=thread_target, args=(s_log_file, s, args.difficulty))
+            thread = threading.Thread(target=thread_target, args=(llm, tokenizer, s_log_file, s, args.difficulty))
             threads.append(thread)
             thread.start()
             time.sleep(0.1)
