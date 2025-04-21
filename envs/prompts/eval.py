@@ -5,14 +5,16 @@ INPUT FORMAT:
 - action_string: A text description of an action
 
 ANALYSIS REQUIREMENTS:
-1. Analyze the action_string for key terms, direction indicators (e.g. D for down, U for up), and intent.
+1. Analyze the action_string for key terms, direction indicators, and intent.
 2. Compare the action_string with each option in the available_actions_list.
 3. Identify semantic similarities between the action_string and each available option.
 4. Specifically avoid selecting options containing words like "Stay", "Remain", "Continue", or "Same" unless no other option has any semantic match.
 
 OUTPUT FORMAT:
-Brief explanation of your reasoning process
-SINGLE letter (A/B/C/...) on the final line ONLY with no additional text"""
+Reasoning:
+{Brief explanation of your reasoning process}
+Answer:
+{a SINGLE character (A/B/C/...)}"""
 
 FEW_SHOT_EXAMPLES = [
     {
