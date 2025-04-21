@@ -1,14 +1,13 @@
-EVAL_PROMPT = """TASK: Analyze an action string and select the most appropriate option from a list of available actions.
+EVAL_PROMPT = """TASK: Analyze an input string and select the most appropriate option from a list of available choices.
 
 INPUT FORMAT:
-- available_actions_list: A list of options labeled with letters (A, B, C, etc.)
-- action_string: A text description of an action
+- choices_list: A list of options labeled with letters (A, B, C, etc.)
+- input_string: A text description of an action
 
 ANALYSIS REQUIREMENTS:
-1. Analyze the action_string for key terms, direction indicators, and intent.
-2. Compare the action_string with each option in the available_actions_list.
-3. Identify semantic similarities between the action_string and each available option.
-4. Specifically avoid selecting options containing words like "Stay", "Remain", "Continue", or "Same" unless no other option has any semantic match.
+1. Analyze the input_string for key terms, direction indicators, and intent.
+2. Compare the input_string with each option in the choices_list.
+3. Identify semantic similarities between the input_string and each available option.
 
 OUTPUT FORMAT:
 Reasoning:
