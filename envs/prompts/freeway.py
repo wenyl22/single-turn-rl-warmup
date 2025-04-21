@@ -1,4 +1,4 @@
-LLM_SYSTEM_PROMPT = '''Please reason step by step and put your final answer within \\boxed{}'''
+LLM_SYSTEM_PROMPT = '''Please think step by step. Then put your final answer, a capital letter, within \\boxed{}. (e.g. \\boxed{A})'''
 
 LLM_BASE_PROMPT = '''
 # **Freeway Game: Optimal Action Selection**  
