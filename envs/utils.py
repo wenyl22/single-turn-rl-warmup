@@ -129,7 +129,7 @@ class LocalThreadedLLMClient:
                 return STAY_COMPLETION
         response = self.generate(id, messages)
         self.resp[id] = response['text']
-        self.token_queue_len[id] = len(response['token_ids'])
+        self.token_queue_len[id] = response['token_num']
         if self.accum[id] >= self.token_queue_len[id]:
             self.accum[id] = 0
             self.token_queue_len[id] = 0
@@ -184,8 +184,8 @@ def string_map_to_image(string_map, font_path, font_size, index):
     """
     lines = string_map.split('\n')
     max_width = max(len(line) for line in lines)
-    line_height = font_size + 5
-    img_width = max_width * font_size // 2 + 30
+    line_height = font_size + 8
+    img_width = max_width * font_size // 2 + 80
     img_height = len(lines) * line_height
     image = Image.new("RGB", (img_width, img_height), "black")
     draw = ImageDraw.Draw(image)

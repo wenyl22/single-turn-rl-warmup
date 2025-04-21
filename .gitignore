@@ -187,3 +187,5 @@ calc_token_num.py
 *.png
 plot*
 *_example.py
+*.gif
+*.csv

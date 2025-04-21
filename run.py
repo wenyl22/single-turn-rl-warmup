@@ -14,19 +14,18 @@ from openai import OpenAI
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description='Run benchmark with a specific model.')
-    parser.add_argument('--difficulty', type=int, default=1, help='difficulty level')
+    parser.add_argument('--difficulty', type=int, default=8, help='difficulty level')
     parser.add_argument('--game', type=str, default='freeway', help='Game name')
     parser.add_argument('--model', type=str, default = 'deepseek-ai/DeepSeek-R1-Distill-Qwen-7B')
-    parser.add_argument('--api_key', type=str, default = None, help='API key for VLLM')
+    parser.add_argument('--api_key', type=str, default = None, help='API key')
     parser.add_argument('--parallel_size', default=8, type=int, help='number of parallel envs to run')
     parser.add_argument('--max_num_seqs', default=8, type=int, help='number of parallel threads to run')
     parser.add_argument('--tensor_parallel_size', default=1, type=int, help="tensor parallel size to load model with vllm")
-    parser.add_argument('--start_seed', default=1000, type=int, help='number of seeds')
-    parser.add_argument('--max_num_seeds', default=8, type=int, help='number of seeds')
     parser.add_argument('--max_new_tokens', type=int, default=8192)
     parser.add_argument('--token_per_tick', type=int, default=8192)
     parser.add_argument('--budget-forcing', type=str, default='no', choices=['no', 'prompted', 's1', 'ps'], help='budget forcing method')
     parser.add_argument('--ma', default=False, help='use multi-agent or not', action='store_true')
+    parser.add_argument('--seed_num', type=int, default=8, help='number of seeds to run')
     args = parser.parse_args()
     game = args.game
     model = args.model
@@ -39,16 +38,14 @@ if __name__ == "__main__":
         os.makedirs(f"logs/{game}/{model_name}")
     time_stamp = datetime.datetime.now().strftime("%Y-%m-%d-%H-%M-%S")      
     log_file = f"logs/{game}/{model_name}/benchmarking_{args.budget_forcing}_{time_stamp}_{token_per_tick}.log"
-    SEEDS = [i + 1 for i in range(args.start_seed, args.start_seed + args.max_num_seeds)] 
+    SEEDS = range(0, args.seed_num)
     with open(log_file, 'a') as f:
         f.write("Arguments:\n")
         for arg, value in vars(args).items():
             f.write(f"{arg}: {value}\n")
         f.write("\n")
         
-    if args.api_key is not None:
-        from generate import generate_api as generate_func
-    elif args.budget_forcing == "no":
+    if args.budget_forcing == "no":
         from generate import generate_vanilla as generate_func
     elif args.budget_forcing == "prompted":
         from generate import generate_prompted as generate_func
@@ -75,6 +72,7 @@ if __name__ == "__main__":
         tokenizer = AutoTokenizer.from_pretrained(args.model)
     else:
         llm = OpenAI(api_key=args.api_key, base_url="https://api.deepseek.com")
+        tokenizer = None
     results = []
     for i in range(0, len(SEEDS), args.parallel_size):
         batch = SEEDS[i: i + args.parallel_size]
@@ -114,32 +112,19 @@ if __name__ == "__main__":
             responses = []
             index = 0 
             sampling_params = SamplingParams(max_tokens=max_new_tokens, temperature=0.6, top_p=0.95)
-            if args.api_key is None:
-                outputs = generate_func(llm, tokenizer, [message for _, message in queries if len(message) != 0], sampling_params, max_new_tokens)
-                for output in outputs:
-                    while index < len(queries) and len(queries[index][1]) == 0:
-                        index += 1
-                        responses.append(dict(text="", token_ids=[]))
+            outputs = generate_func(llm, tokenizer, [message for _, message in queries if len(message) != 0], sampling_params, max_new_tokens)
+            for output in outputs:
+                while index < len(queries) and len(queries[index][1]) == 0:
                     index += 1
-                    text = output.outputs[0].text
-                    token_ids = output.outputs[0].token_ids
-                    responses.append(dict(text=text, token_ids=token_ids))
-            else:
-                outputs = generate_func(llm, [message for _, message in queries if len(message) != 0], max_new_tokens)
-                for output in outputs:
-                    while index < len(queries) and len(queries[index][1]) == 0:
-                        index += 1
-                        responses.append(dict(text="", token_ids=[]))
-                    index += 1
-                    print(output)
-                    text = output[0]
-                    token_ids = output[1]
-                    print(text, token_ids)
-                    responses.append(dict(text=text, token_ids=token_ids))
+                    responses.append(dict(text="", token_num=[]))
+                index += 1
+                text = output[0]
+                token_num = output[1]
+                responses.append(dict(text=text, token_num=token_num))
             while index < len(queries):
                 assert(len(queries[index][1]) == 0)
                 index += 1
-                responses.append(dict(text="", token_ids=[]))
+                responses.append(dict(text="", token_num=0))
             for (k, query), response in zip(queries, responses):
                 client.response_queues[k].put_nowait(response)
             queries = []

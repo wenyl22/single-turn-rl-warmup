@@ -9,7 +9,16 @@ from prompts.freeway import LLM_SYSTEM_PROMPT, LLM_BASE_PROMPT, STAY_COMPLETION
 from prompts.eval import EVAL_PROMPT, FEW_SHOT_EXAMPLES
 from utils import LocalThreadedLLMClient
 VLLM_client = None 
-
+seed_mapping = {
+    0: (2152, 18, 2),
+    1: (1025, 17, 13),
+    2: (1074, 18, 3),
+    3: (1312, 17, 14),
+    4: (1420, 20, 1),
+    5: (1526, 17, 14),
+    6: (1597, 17, 52),
+    7: (1668, 18, 58)
+}
 def setup_thread_VLLM_client(token_per_tick):
     global VLLM_client
     VLLM_client = LocalThreadedLLMClient(token_per_tick=token_per_tick)
@@ -27,13 +36,20 @@ def freeway_game_loop(log_file, seed, difficulty = 8):
     thread_id = client.add_new_thread()
     env = Environment('freeway', sticky_action_prob=0)
     env.env.difficulty = difficulty
-    env.seed(seed)
-    env.reset()
+    if seed in seed_mapping:
+        seed = seed_mapping[seed]
+        env.seed(seed[0])
+        env.reset()
+        for i in range(seed[2]):
+            env.act(0)
+    else:
+        env.seed(seed)
+        env.reset()
     start_time = time.time()
     terminal = False
     reward = 0
     game_turn = 0
-    logs = {'description': [],  'llm_response': [], 'render':[], 'selected_action': []}
+    logs = {'description': [], 'render':[], 'llm_response': [],  'selected_action': []}
     while True:
         action = 0
         if env.env.move_timer == 0:
@@ -108,6 +124,25 @@ def freeway_game_loop(log_file, seed, difficulty = 8):
             logs["llm_response"].append(response)
             logs['render'].append('\n' + env.env.state_string())
             logs["selected_action"].append(selected_action)
+        state_for_llm = llm_state_builder(env.env)
+        state_description = state_to_description(state_for_llm)
+        available_actions_list = [f'{chr(65+i)}. {action}' for i, action in enumerate(state_for_llm['available_actions'])]
+        messages = [
+            {"role": "system", "content": LLM_SYSTEM_PROMPT},
+            {"role": "user", "content": LLM_BASE_PROMPT + state_description}
+        ]
+        response = client.run_inference(thread_id, messages, STAY_COMPLETION)
+        selected_action = find_best_match(client, thread_id, response, available_actions_list, STAY_COMPLETION)
+        if "stay" in selected_action.lower():
+            action = 0
+        elif "up" in selected_action.lower(): 
+            action = 2
+        elif "down" in selected_action.lower():
+            action = 4
+        logs['description'].append(state_description)
+        logs['render'].append('\n' + env.env.state_string())
+        logs["llm_response"].append(response)
+        logs["selected_action"].append(selected_action)
         df = pd.DataFrame(logs)
         df.to_csv(log_file)
         reward, terminal = env.act(action)
@@ -134,8 +169,15 @@ def ma_freeway_game_loop(log_file, seed, difficulty = 8):
     thread_id = client.add_new_thread()
     env = Environment('freeway', sticky_action_prob=0)
     env.env.difficulty = difficulty
-    env.seed(seed)
-    env.reset()
+    if seed in seed_mapping:
+        seed = seed_mapping[seed]
+        env.seed(seed[0])
+        env.reset()
+        for i in range(seed[2]):
+            env.act(0)
+    else:
+        env.seed(seed)
+        env.reset()
     reward = 0
     game_turn = 0
     scratch_pad = ""
@@ -153,9 +195,7 @@ def ma_freeway_game_loop(log_file, seed, difficulty = 8):
             {"role": "system", "content": LLM_SYSTEM_PROMPT},
             {"role": "user", "content": LLM_BASE_PROMPT + SUPERVISOR_PORMPT + state_description}
         ]
-        print("Supervisor message:", messages[-1]["content"])
         response = client.generate(thread_id, messages)['text']
-        print("Supervisor response:", response)
         logs['supervisor_response'].append(response)
         # parse the response
         selected_agent = find_best_match(client, thread_id, response, ["A. Plan Agent", "B. Follow Plan Agent", "C. React Agent"], "C. React Agent")
@@ -213,21 +253,23 @@ def llm_state_builder(env: Env):
     player_states = 9 - env.pos
     car_states = []
     for car in env.cars:
+        # car: [x, y, timer, speed, length]
         if car[3] is None:
-            car_states.append((9 - car[1], None, None, None))
+            car_states.append((9 - car[1], None, None, None, None))
             continue
         dir = 'left' if car[3] < 0 else 'right'
-        speed = 12 // abs(car[3])
+        speed = int(12 / abs(car[3]))
         pos = 12 * (car[0] - 4)
-        if dir == 'left':
-            pos -= (abs(car[3]) - car[2] - 1) * speed
+        if abs(car[3]) >= 1:
+            if dir == 'left':
+                pos -= (abs(car[3]) - car[2] - 1) * speed
+            else:
+                pos += (abs(car[3]) - car[2] - 1) * speed
         else:
-            pos += (abs(car[3]) - car[2] - 1) * speed
+            pass
         assert car[2] < abs(car[3])
-        car_states.append(
-            (9 - car[1], pos, dir, speed)
-        )
-    car_states = car_states[::-1]
+        car_states.append( (9 - car[1], pos, dir, speed, car[4] * 12) )
+    car_states.sort(key=lambda x: x[0])
     available_actions = []
 
     if env.move_timer == 0:
@@ -244,16 +286,23 @@ def llm_state_builder(env: Env):
     return state_for_llm
 
 def state_to_description(state_for_llm, scratch_pad = None):
+    # (9 - car[1], pos, dir, speed, car[4] * 12 - 1)
+
     description = f"- Player Position: (0, {state_for_llm['player_states']}).\n"
     if scratch_pad is not None:
         description += f'- Plan Scratch Pad: {scratch_pad if scratch_pad != "" else "Empty"}.\n'
-    description += '- Cars on each freeway:\n'
+    description += '- Cars on Each Freeway:\n'
+    las_car = -1
+    num = [0] * 9
     for car in state_for_llm['car_states']:
-        if car[3] is None:
-            description += f"\t- Freeway {car[0]}: No car on this freeway.\n"
-            continue
-        span = 11 if car[2] == 'left' else -11
-        description += f"\t- Freeway {car[0]}: head at **x = {car[1]}**, tail at **x = {car[1] + span}**, direction = {car[2]}, speed = {car[3]}.\n"
+        if car[1] is not None:
+            num[car[0]] += 1
+    for car in state_for_llm['car_states']:
+        span = car[4] if car[2] == 'left' else -car[4]
+        if las_car != car[0]:
+            description += f"\t- Freeway {car[0]}: {num[car[0]]} cars.\n"
+            las_car = car[0]
+        description += f"\t\t - Head at **x = {car[1]}**, tail at **x = {car[1] + span}**, direction = {car[2]}, speed = {car[3]}.\n"
     description += f'- Available actions:\n{get_available_actions(state_for_llm)}'
     return description
 
