@@ -98,3 +98,10 @@ class Environment:
     def close_display(self):
         plt.close()
         self.closed = True
+    def deep_copy(self):
+        env = Environment(self.env_name, self.sticky_action_prob)
+        env.env = self.env.deep_copy()
+        env.random = self.random
+        env.n_channels = self.n_channels
+        env.env = self.env.deep_copy()
+        return env

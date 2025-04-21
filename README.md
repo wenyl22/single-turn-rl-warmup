@@ -9,6 +9,8 @@ GIT_LFS_SKIP_SMUDGE=1 uv pip install -e ".[dev]"
 sudo apt-get install git-lfs
 ```
 
+### About Game Seed
+
 ### Run benchmarks
 ```bash
 python run.py --game [freeway/overcooked] --model {model} --budget-forcing [no/prompted/s1] --difficulty [1-x]
