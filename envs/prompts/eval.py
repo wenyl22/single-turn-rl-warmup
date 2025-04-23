@@ -1,17 +1,19 @@
-EVAL_PROMPT = """TASK: Extract the selected choice (e.g., A, B, C) from an LLM's answer to a multiple-choice question.
+EVAL_PROMPT = """TASK: Analyze an input string and select the most appropriate option from a list of available choices.
 
 INPUT FORMAT:
-- answer_string: A text description of LLM's answer.
-- choice_list: A list of options labeled with letters (A, B, C, etc.)
+- choices_list: A list of options labeled with letters (A, B, C, etc.)
+- input_string: A text description of an action
 
 ANALYSIS REQUIREMENTS:
-1. If the answer_string explicitly mentions some letter (e.g., "A", "B", "C"), select that option.
-2. Identify semantic similarities between the answer_string and each available option. Choose the option that best matches the answer_string based on the analysis.
-3. If answer_string doesn't make a clear choice, return 'Z' (indicating no valid choice).
+1. Analyze the input_string for key terms, direction indicators, and intent.
+2. Compare the input_string with each option in the choices_list.
+3. Identify semantic similarities between the input_string and each available option.
 
 OUTPUT FORMAT:
-Brief explanation of your reasoning process
-SINGLE letter (A/B/C/...) on the final line ONLY with no additional text"""
+Reasoning:
+{Brief explanation of your reasoning process}
+Answer:
+{a SINGLE character (A/B/C/...)}"""
 
 FEW_SHOT_EXAMPLES = [
     {
