@@ -10,14 +10,14 @@ from prompts.eval import EVAL_PROMPT, FEW_SHOT_EXAMPLES
 from utils import LocalThreadedLLMClient, find_best_match
 VLLM_client = None 
 seed_mapping = {
-    0: (2152, 18, 2),
-    1: (1025, 17, 13),
-    2: (1074, 18, 3),
-    3: (1312, 17, 14),
-    4: (1420, 20, 1),
-    5: (1526, 17, 14),
-    6: (1597, 17, 52),
-    7: (1668, 18, 58)
+    0: (1026, 13, 5), 
+    1: (1536, 13, 1), 
+    2: (1732, 14, 2), 
+    3: (1798, 13, 9), 
+    4: (1858, 13, 3), 
+    5: (2408, 15, 4), 
+    6: (2499, 13, 0), 
+    7: (2950, 13, 2)
 }
 def setup_thread_VLLM_client(token_per_tick):
     global VLLM_client
