@@ -123,12 +123,12 @@ class Env:
         for car in self.cars:
             if car[3] is None:
                 continue
-            dir = 1 if car[3] > 0 else -1
-            # collision check
-            for l in range(car[4]):
-                if car[0] + l*dir == 4 and self.pos == car[1]:
-                    self.pos = 9
-                    r = -1
+            dir = -1 if car[3] > 0 else 1
+            # # collision check
+            # for l in range(car[4]):
+            #     if car[0] + l*dir == 4 and self.pos == car[1]:
+            #         self.pos = 9
+            #         r = -1
             if(car[0:2] == [4, self.pos]):
                 self.pos = 9
             if(car[0] < 0):
