@@ -1,4 +1,4 @@
-LLM_SYSTEM_PROMPT = '''Please reason step by step and put your final answer within \\boxed{}'''
+LLM_SYSTEM_PROMPT = '''Please reason step by step and put your final answer within \boxed{}'''
 
 LLM_BASE_PROMPT = """
 # **Game Overview**  
@@ -66,7 +66,7 @@ Your **only task** is to select which agent should act **this turn** based on th
    - **NO**: Choose **Plan Agent**.  
 
 ### **Output Format**:  
-\\boxed\{[Plan Agent | Follow Plan Agent | React Agent]\}  
+\boxed\{[Plan Agent | Follow Plan Agent | React Agent]\}  
 
 ## **Current Game State**:  
 """
@@ -79,7 +79,7 @@ Analyze the current game state and create or update a strategic plan for crossin
 - 2. Overwrite the plan scratch pad with your summarized reasoning and plan
 
 ## **Answer Format**:
-\\boxed\{[new scratch pad content]\}
+\boxed\{[new scratch pad content]\}
 
 ## **Current Game State**:
 """
@@ -90,7 +90,7 @@ FOLLOW_PLAN_PROMPT = """
 Read the plan on the scratch pad and act accordingly. You are short in time, so do not overthink or plan for the future.
 
 ## **Answer Format**:  
-\\boxed\{[MOVE UP/DOWN/STAY]\}  
+\boxed\{[MOVE UP/DOWN/STAY]\}  
 ## **Current Game State**:
 """
 # React agent, react to the game state
@@ -99,7 +99,7 @@ REACT_PROMPT = """
 Analyze the current game state and take immediate action to avoid a collision. You are short in time, so do not overthink or plan for the future.
 
 ## **Answer Format**:
-\\boxed\{[MOVE UP/DOWN/STAY]\}  
+\boxed\{[MOVE UP/DOWN/STAY]\}  
 """
 
 STAY_COMPLETION = f"""Stay in the same freeway"""
