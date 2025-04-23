@@ -8,7 +8,7 @@ def generate_vanilla(llm: LLM | OpenAI, tokenizer: PreTrainedTokenizer | None, m
     """
     Generate with no budget forcing.
     """
-    if tokenizer is not None:
+    if isinstance(llm, LLM):
         prompt = [tokenizer.apply_chat_template(message, add_generation_prompt = True, tokenize = False) for message in messages]
         outputs = llm.generate(prompt, sampling_params)
         for i in range(len(outputs)):

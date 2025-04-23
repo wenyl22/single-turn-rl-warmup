@@ -39,6 +39,7 @@ if __name__ == "__main__":
     time_stamp = datetime.datetime.now().strftime("%Y-%m-%d-%H-%M-%S")      
     log_file = f"logs/{game}/{model_name}/benchmarking_{args.budget_forcing}_{time_stamp}_{token_per_tick}.log"
     SEEDS = range(0, args.seed_num)
+
     with open(log_file, 'a') as f:
         f.write("Arguments:\n")
         for arg, value in vars(args).items():
@@ -91,28 +92,32 @@ if __name__ == "__main__":
         
         num_alive_threads = len(threads)
         queries = []
-        turn = 0
         while num_alive_threads > 0:
             for k in client.query_queues.keys():
                 try:
-                    query = client.query_queues[k].get_nowait()
-                    queries.append((k, query))
+                    query, tp = client.query_queues[k].get_nowait()
+                    queries.append((k, query, tp))
                 except queue.Empty:
-                    pass
-            
+                    pass            
             num_alive_threads = 0
             for thread in threads:
                 if thread.is_alive():
                     num_alive_threads += 1
             if len(queries) < num_alive_threads:
                 continue
+            if num_alive_threads == 0:
+                break
+            tp = queries[0][2]
+            assert tp in ["reasoning", "supervise"]
+            if tp == "reasoning": # use args.model, i.e. llm
+                sampling_params = SamplingParams(max_tokens=max_new_tokens, temperature=0.6, top_p=0.95)
+                outputs = generate_func(llm, tokenizer, [message for _, message, __ in queries if len(message) != 0], sampling_params, max_new_tokens)
+            elif tp == "supervise": # use args.model, i.e. llm
+                sampling_params = SamplingParams(max_tokens=1024, temperature=0.6, top_p=0.95)
+                outputs = generate_func(llm, tokenizer, [message for _, message, __ in queries if len(message) != 0], sampling_params, 512)
 
-            turn += 1
-            print(f"Turn: {turn}\n")
             responses = []
             index = 0 
-            sampling_params = SamplingParams(max_tokens=max_new_tokens, temperature=0.6, top_p=0.95)
-            outputs = generate_func(llm, tokenizer, [message for _, message in queries if len(message) != 0], sampling_params, max_new_tokens)
             for output in outputs:
                 while index < len(queries) and len(queries[index][1]) == 0:
                     index += 1
@@ -125,9 +130,10 @@ if __name__ == "__main__":
                 assert(len(queries[index][1]) == 0)
                 index += 1
                 responses.append(dict(text="", token_num=0))
-            for (k, query), response in zip(queries, responses):
+            for (k, query, tp), response in zip(queries, responses):
                 client.response_queues[k].put_nowait(response)
             queries = []
+
             time.sleep(0.05)
             gc.collect()
             torch.cuda.empty_cache()

@@ -42,10 +42,10 @@ if __name__ == "__main__":
     env.env.pos = 0
     env.env.special_pattern = True
     optimal_path = []
-    logs = {
-        'seed': [],
-        'action': [],
-    }
+    # logs = {
+    #     'seed': [],
+    #     'action': [],
+    # }
     # for seed in range(1001, 3000):
     #     env.seed(seed)
     #     env.env.special_pattern = True
@@ -56,28 +56,30 @@ if __name__ == "__main__":
     #     optimal_path.append(best_action)
     #     logs['seed'].append(seed)
     #     logs['action'].append(best_action)
+    #     print(f"Seed: {seed}, Path: {best_action}")
     # df = pd.DataFrame(logs)
     # df.to_csv('optimal_path.csv', index=False)
-    # df = pd.read_csv('optimal_path.csv')
-    # optimal_paths = []
-    # for i in range(len(df)):
-    #     temp = eval(df['action'][i])
-    #     while temp[0] == 0:
-    #         temp = temp[1:]
-    #     optimal_paths.append(temp)
-    #     if len(temp) >= 16:
-    #         print(f"Seed: {df['seed'][i]}, Path: {temp}")
-    # length = []
-    # for i in range(len(optimal_paths)):
-    #     length.append(len(optimal_paths[i]))
-    # import matplotlib.pyplot as plt
-    # counts, bins, _ = plt.hist(length, bins=max(length) - min(length), edgecolor='black')
-    # for i in range(len(bins) - 1):
-    #     print(f"Range: {bins[i]} - {bins[i+1]}, Height: {counts[i]}") 
-    # plt.savefig('histogram.png')
+    df = pd.read_csv('optimal_path.csv')
+    optimal_paths = []
+    for i in range(len(df)):
+        temp = eval(df['action'][i])
+        while temp[0] == 0:
+            temp = temp[1:]
+        optimal_paths.append(temp)
+        if len(temp) >= 16:
+            print(f"Seed: {df['seed'][i]}, Path: {temp}")
+    length = []
+    for i in range(len(optimal_paths)):
+        length.append(len(optimal_paths[i]))
+    import matplotlib.pyplot as plt
+    counts, bins, _ = plt.hist(length, bins=max(length) - min(length), edgecolor='black')
+    for i in range(len(bins) - 1):
+        print(f"Range: {bins[i]} - {bins[i+1]}, Height: {counts[i]}") 
+    plt.savefig('histogram.png')
 font_path = '/usr/share/fonts/truetype/dejavu/DejaVuSansMono.ttf'
-seeds = [1025, 1074, 1312, 1420, 1526, 1597, 1668, 2152]
-for seed in seeds:
+seeds = [1025, 1055, 1312, 1420, 1526, 1597, 1676, 2174]
+seed_mapping_list = {}
+for i, seed in enumerate(seeds):
     env.seed(seed)
     env.reset()
     best_action = bfs(env, max_steps=100)
@@ -95,4 +97,6 @@ for seed in seeds:
             continue
         flag = True
     print(len(string_maps), tmp)
+    seed_mapping_list[i] = (seed, len(string_maps), tmp)
     generate_gif_from_string_map(string_maps, f"freeway_{seed}.gif", font_path=font_path, font_size=20)
+print(seed_mapping_list)

@@ -69,7 +69,7 @@ Your **only task** is to select which agent should act **this turn** based on th
 
 ## **Current Game State**:  
 - Player Position: (0, 0).
-- Plan Scratch Pad: [Move down to Freeway 8 in Turn 8, then up to Freeway 9 in Turn 9, and stay there for the final move to Freeway 10 (y = 9).].
+- Plan Scratch Pad: Empty.
 - Cars on each freeway:
         - Freeway 1: head at **x = 8**, tail at **x = -3**, direction = right, speed = 4.
         - Freeway 2: head at **x = 36**, tail at **x = 25**, direction = right, speed = 6.

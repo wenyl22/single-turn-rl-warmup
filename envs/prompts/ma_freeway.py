@@ -1,6 +1,6 @@
-LLM_SYSTEM_PROMPT = '''Please reason step by step and put your final answer within \\boxed{}'''
+LLM_SYSTEM_PROMPT = r'''Please reason step by step and put your final answer within \boxed{}'''
 
-LLM_BASE_PROMPT = """
+LLM_BASE_PROMPT = r"""
 # **Game Overview**  
 **Freeway** is a game where the player must guide the character safely across multiple lanes of moving traffic. The goal is to **reach the destination (y = 9) from the starting point (y = 0) in fewest turns while avoiding collisions with cars.**  
 
@@ -29,7 +29,7 @@ A car on Freeway 2 with a **head position at x = 18** and a **tail position at x
 - After **two turns**, its span will be **[head: 6, tail: 17]**.  
 
 ## **2. Collisions**  
-A **collision happens if, at any point before or after the player's move, its position (x = 0, y) overlaps with a car's span**.  
+A **collision happens if, at any point after the player's move, its position (x = 0, y) overlaps with a car's span**.  
 - If a collision occurs, the player is **reset to the starting position (0, 0)**.  
 - To avoid collisions, the player must predict car movements and time its actions carefully.  
 
@@ -46,7 +46,7 @@ Each turn, the player receive the **current game state**, which includes:
 """
 
 
-SUPERVISOR_PORMPT = """
+SUPERVISOR_PORMPT = r"""
 ## **Role**: 
 
 You are the **Supervisor Agent** in the Freeway game.  
@@ -66,42 +66,43 @@ Your **only task** is to select which agent should act **this turn** based on th
    - **NO**: Choose **Plan Agent**.  
 
 ### **Output Format**:  
-\\boxed\{[Plan Agent | Follow Plan Agent | React Agent]\}  
+\\boxed{{[Plan Agent | Follow Plan Agent | React Agent]}}  
 
 ## **Current Game State**:  
 """
 # Plan agent, plan and modify the plan scratch pad
-PLAN_PROMPT = """
+PLAN_PROMPT = r"""
 ## **Your Task**:
-Analyze the current game state and create or update a strategic plan for crossing the road safely. Plan also takes time, so be efficient and correct.
+Analyze the current game state and create or update a strategic plan for crossing the road safely. You can write your plan about how to getting to the otherside on a scratch pad, so that later you can read the scratch pad and re-use the reasoning you make in this turn. Plan also takes time, so be efficient and correct.
+
 **Instructions**:
 - 1. Predict car movements and plan the safest route to the destination.
 - 2. Overwrite the plan scratch pad with your summarized reasoning and plan
 
 ## **Answer Format**:
-\\boxed\{[new scratch pad content]\}
+\boxed{[new scratch pad content]}
 
 ## **Current Game State**:
 """
 
 # Follow plan agent, follow the plan scratch pad
-FOLLOW_PLAN_PROMPT = """
+FOLLOW_PLAN_PROMPT = r"""
 ## **Your Task**: 
 Read the plan on the scratch pad and act accordingly. You are short in time, so do not overthink or plan for the future.
 
 ## **Answer Format**:  
-\\boxed\{[MOVE UP/DOWN/STAY]\}  
+\boxed{[selected action]}
 ## **Current Game State**:
 """
 # React agent, react to the game state
-REACT_PROMPT = """
+REACT_PROMPT = r"""
 ## **Your Task**: 
-Analyze the current game state and take immediate action to avoid a collision. You are short in time, so do not overthink or plan for the future.
+Analyze the current game state and take immediate action to avoid a collision. You don't have to follow the content on the scratch bad as it may be out-dated. You are short in time, so do not overthink or plan for the future.
 
 ## **Answer Format**:
-\\boxed\{[MOVE UP/DOWN/STAY]\}  
+\boxed{[selected action]} 
 """
 
-STAY_COMPLETION = f"""Stay in the same freeway"""
+STAY_COMPLETION = r"""Stay in the same freeway"""
 
 
