@@ -7,26 +7,31 @@ from minatar.environment import Environment
 from minatar.environments.freeway import Env
 from utils import LocalThreadedLLMClient, find_best_match, extract_boxed
 VLLM_client = None 
-seed_mapping = {0: (1025, 17, 13), 1: (1055, 19, 48), 2: (1312, 17, 14), 3: (1420, 19, 2), 4: (1526, 17, 14), 5: (1597, 17, 12), 6: (1676, 17, 13), 7: (2174, 17, 13)}
+seed_mapping = {
+    0: (1026, 13, 5), 
+    1: (1536, 13, 1), 
+    2: (1732, 14, 2), 
+    3: (1798, 13, 9), 
+    4: (1858, 13, 3), 
+    5: (2408, 15, 4), 
+    6: (2499, 13, 0), 
+    7: (2950, 13, 2)
+}
 def setup_thread_VLLM_client(token_per_tick):
-    global main_client
-    global extractor_client
-    main_client = LocalThreadedLLMClient(token_per_tick=token_per_tick)
-    extractor_client = LocalThreadedLLMClient()
-
+    global VLLM_client
+    VLLM_client = LocalThreadedLLMClient(token_per_tick=token_per_tick)
+   
 def get_thread_VLLM_client():
-    global main_client
-    global extractor_client
-
-    return main_client, extractor_client
+    global VLLM_client
+    return VLLM_client
 
 def freeway_game_loop(log_file, seed, difficulty = 8):
     """
     Freeway Game Loop in Single-Agent System.
     """
     from prompts.freeway import LLM_SYSTEM_PROMPT, LLM_BASE_PROMPT, STAY_COMPLETION
-    main_thread_id = main_client.add_new_thread()
-    extractor_thread_id = extractor_client.add_new_thread()
+    client = VLLM_client
+    thread_id = client.add_new_thread()
     env = Environment('freeway', sticky_action_prob=0)
     env.env.difficulty = difficulty
     if seed in seed_mapping:
@@ -52,8 +57,8 @@ def freeway_game_loop(log_file, seed, difficulty = 8):
             {"role": "system", "content": LLM_SYSTEM_PROMPT},
             {"role": "user", "content": LLM_BASE_PROMPT + state_description}
         ]
-        response = main_client.run_inference(main_thread_id, messages, STAY_COMPLETION)
-        selected_action = find_best_match(extractor_client, extractor_thread_id, response, available_actions_list, STAY_COMPLETION)
+        response = client.run_inference(thread_id, messages, STAY_COMPLETION)
+        selected_action = find_best_match(client, thread_id, response, available_actions_list, STAY_COMPLETION)
         if "stay" in selected_action.lower():
             action = 0
         elif "up" in selected_action.lower(): 
@@ -86,8 +91,8 @@ def ma_freeway_game_loop(log_file, seed, difficulty = 8):
     Freeway Game Loop in Single-Agent System.
     """
     from prompts.ma_freeway import LLM_SYSTEM_PROMPT, LLM_BASE_PROMPT, STAY_COMPLETION, SUPERVISOR_PORMPT, PLAN_PROMPT, REACT_PROMPT, FOLLOW_PLAN_PROMPT
-    main_thread_id = main_client.add_new_thread()
-    extractor_thread_id = extractor_client.add_new_thread()
+    client = VLLM_client
+    thread_id = client.add_new_thread()
     env = Environment('freeway', sticky_action_prob=0)
     env.env.difficulty = difficulty
     if seed in seed_mapping:
@@ -116,10 +121,10 @@ def ma_freeway_game_loop(log_file, seed, difficulty = 8):
             {"role": "system", "content": LLM_SYSTEM_PROMPT},
             {"role": "user", "content": LLM_BASE_PROMPT + SUPERVISOR_PORMPT + state_description}
         ]
-        response = main_client.generate(main_client, messages)['text']
+        response = client.generate(thread_id, messages)['text']
         logs['supervisor_response'].append(response)
         # parse the response
-        selected_agent = find_best_match(extractor_client, extractor_thread_id, response, ["A. Plan Agent", "B. Follow Plan Agent", "C. React Agent"], "C. React Agent")
+        selected_agent = find_best_match(client, thread_id, response, ["A. Plan Agent", "B. Follow Plan Agent", "C. React Agent"], "C. React Agent")
         logs['selected_agent'].append(selected_agent)
         if "plan" in selected_agent.lower() and "follow" not in selected_agent.lower():
             ## call plan agent
@@ -127,7 +132,7 @@ def ma_freeway_game_loop(log_file, seed, difficulty = 8):
                 {"role": "system", "content": LLM_SYSTEM_PROMPT},
                 {"role": "user", "content": LLM_BASE_PROMPT + PLAN_PROMPT + state_description}
             ]
-            response = main_client.generate(main_thread_id, messages)['text']
+            response = client.generate(thread_id, messages)['text']
             logs['plan_agent_response'].append(response)
             scratch_pad = extract_boxed(response)
         else:
@@ -138,16 +143,16 @@ def ma_freeway_game_loop(log_file, seed, difficulty = 8):
                 {"role": "system", "content": LLM_SYSTEM_PROMPT},
                 {"role": "user", "content": LLM_BASE_PROMPT + FOLLOW_PLAN_PROMPT + state_description}
             ]
-            response = main_client.generate(main_thread_id, messages)['text']
+            response = client.generate(thread_id, messages)['text']
         else:
             ## call react agent
             messages = [
                 {"role": "system", "content": LLM_SYSTEM_PROMPT},
                 {"role": "user", "content": LLM_BASE_PROMPT + REACT_PROMPT + state_description}
             ]
-            response = main_client.generate(main_thread_id, messages)['text']
+            response = client.generate(thread_id, messages)['text']
             
-        selected_action = find_best_match(extractor_client, extractor_thread_id, response, available_actions_list, STAY_COMPLETION)
+        selected_action = find_best_match(client, thread_id, response, available_actions_list, STAY_COMPLETION)
         if "stay" in selected_action.lower():
             action = 0
         elif "up" in selected_action.lower(): 
@@ -210,8 +215,7 @@ def llm_state_builder(env: Env):
     return state_for_llm
 
 def state_to_description(state_for_llm, scratch_pad = None):
-    # (9 - car[1], pos, dir, speed, car[4] * 12)
-
+    # (9 - car[1], pos, dir, speed, car[4] * 12 - 1)
     description = f"- Player Position: (0, {state_for_llm['player_states']}).\n"
     if scratch_pad is not None:
         description += f'- Plan Scratch Pad: {scratch_pad if scratch_pad != "" else "Empty"}.\n'

@@ -7,64 +7,8 @@ from PIL import Image, ImageDraw, ImageFont
 import tqdm
 from vllm import LLM, SamplingParams
 from transformers import AutoTokenizer
+from envs.prompts.eval import EVAL_PROMPT
 
-sampling_params = SamplingParams(temperature=0.0, 
-                                max_tokens=1024, 
-                                n=1,
-                                top_p=1,
-                                )
-
-EVAL_PROMPT = """TASK: Analyze an input string and select the most appropriate option from a list of available choices.
-
-INPUT FORMAT:
-- choices_list: A list of options labeled with letters (A, B, C, etc.)
-- input_string: A text description of an action
-
-ANALYSIS REQUIREMENTS:
-1. Analyze the input_string for key terms, direction indicators, and intent.
-2. Compare the input_string with each option in the choices_list.
-3. Identify semantic similarities between the input_string and each available option.
-
-OUTPUT FORMAT:
-Reasoning:
-{Brief explanation of your reasoning process}
-Answer:
-{a SINGLE character (A/B/C/...)}"""
-
-def find_best_match(client, thread_id, response, choices, default_completion):
-    """
-    This function finds the best match for a given response from a list of choices.
-    Args:
-        client: The LLM client to use for generating responses.
-        thread_id: The ID of the thread to use for generating responses.
-        response (str): The response string to match against the choices.
-        choices (list): List of available choices.
-        default_completion (str): Default choice if no match is found.
-    Returns:
-        selected_choice (str): The selected choice from the list of choices.
-    """
-
-    extract_response = response
-    if "</think>" in extract_response:
-        extract_response = extract_response.split("</think>")[-1]
-    extract_response = extract_boxed(extract_response)
-
-    input_string = "CHOICE_LIST: " + str(choices) + "\n" + "INPUT_STRING: " + extract_response
-    print("Input string:", input_string)
-    messages = [
-        {"role": "system", "content": EVAL_PROMPT},
-        {"role": "user", "content": input_string}
-    ]
-    response = client.generate(thread_id, messages)
-    print("Extractor output:", response['text'])
-
-    extract_letter = response['text'].split("\n")[-1].strip()
-    no = ord(extract_letter[0]) - ord('A')
-    if no < 0 or no >= len(choices):
-        print("No valid letter found, defaulting to 'Z'")
-        no = len(choices) - 1
-    
-    return choices[no]
     
 
 class LocalThreadedLLMClient:
@@ -96,7 +40,6 @@ class LocalThreadedLLMClient:
         return self.response_queues[thread_id].get()
 
     def run_inference(self, id, messages, DEFAULT_COMPLETION):        
-    def run_inference(self, id, messages, STAY_COMPLETION):
         self.accum[id] += self.token_per_tick
         if self.token_queue_len[id] > 0:
             # dummy function call, indicating the thread is alive
@@ -116,8 +59,6 @@ class LocalThreadedLLMClient:
             return self.resp[id]
         else:
             return DEFAULT_COMPLETION
- 
-            return STAY_COMPLETION
 
 def extract_boxed(text):
     """
@@ -142,16 +83,12 @@ def model_match(client, thread_id, example):
             _ = client.generate(thread_id, [])
             return choice
     messages = [{"role": "system", "content": EVAL_PROMPT}]
-    messages += FEW_SHOT_EXAMPLES
     answer_string = example['answer_string']
     choice_list = str(example['choice_list'])
     messages.append({
-        "role": "user", "content": f"answer_string: \"{answer_string}\"\nchoice_list: {choice_list}"
+        "role": "user", "content": f"CHOICE_LIST: \"{choice_list}\"\nINPUT_STRING: {answer_string}"
     })
-    selected_letter = client.generate(thread_id, messages)['text']
-    if "</think>" in selected_letter:
-        selected_letter = selected_letter.split("</think>")[-1]
-    selected_letter = extract_boxed(selected_letter).strip()
+    selected_letter = client.generate(thread_id, messages)['text'].split("</think>")[-1].strip()
     if selected_letter == "":
         selected_letter = "Z"
     return selected_letter[0]
@@ -166,7 +103,8 @@ def find_best_match(client, thread_id, answer_string, choice_list, DEFAULT_COMPL
         return choice_list[ord(letter) - ord('A')]
     else:
         return DEFAULT_COMPLETION
- 
+
+
 def string_map_to_image(string_map, font_path, font_size, index):
     """
     Convert a string map to an image.

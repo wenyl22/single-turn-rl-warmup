@@ -66,7 +66,7 @@ if __name__ == "__main__":
         while temp[0] == 0:
             temp = temp[1:]
         optimal_paths.append(temp)
-        if len(temp) >= 16:
+        if len(temp) >= 13:
             print(f"Seed: {df['seed'][i]}, Path: {temp}")
     length = []
     for i in range(len(optimal_paths)):
@@ -77,7 +77,7 @@ if __name__ == "__main__":
         print(f"Range: {bins[i]} - {bins[i+1]}, Height: {counts[i]}") 
     plt.savefig('histogram.png')
 font_path = '/usr/share/fonts/truetype/dejavu/DejaVuSansMono.ttf'
-seeds = [1025, 1055, 1312, 1420, 1526, 1597, 1676, 2174]
+seeds = [1026, 1536, 1732, 1798, 1858, 2408, 2499, 2950]
 seed_mapping_list = {}
 for i, seed in enumerate(seeds):
     env.seed(seed)
@@ -98,5 +98,5 @@ for i, seed in enumerate(seeds):
         flag = True
     print(len(string_maps), tmp)
     seed_mapping_list[i] = (seed, len(string_maps), tmp)
-    generate_gif_from_string_map(string_maps, f"freeway_{seed}.gif", font_path=font_path, font_size=20)
+    generate_gif_from_string_map(string_maps, f"example_gifs/freeway_{seed}.gif", font_path=font_path, font_size=20)
 print(seed_mapping_list)
