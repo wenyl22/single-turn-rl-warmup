@@ -7,7 +7,7 @@ from minatar.environment import Environment
 from minatar.environments.freeway import Env
 from prompts.freeway import LLM_SYSTEM_PROMPT, LLM_BASE_PROMPT, STAY_COMPLETION
 from prompts.eval import EVAL_PROMPT, FEW_SHOT_EXAMPLES
-from utils import LocalThreadedLLMClient, find_best_match
+from utils import LocalThreadedLLMClient, find_best_match, extract_boxed
 VLLM_client = None 
 seed_mapping = {
     0: (1026, 13, 5), 
