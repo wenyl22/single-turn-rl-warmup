@@ -1,6 +1,6 @@
-LLM_SYSTEM_PROMPT = r'''Please reason step by step and put your final answer within \boxed{}'''
+LLM_SYSTEM_PROMPT = '''Please reason step by step and put your final answer within \boxed{}'''
 
-LLM_BASE_PROMPT = r"""
+LLM_BASE_PROMPT = """
 # **Game Overview**  
 **Freeway** is a game where the player must guide the character safely across multiple lanes of moving traffic. The goal is to **reach the destination (y = 9) from the starting point (y = 0) in fewest turns while avoiding collisions with cars.**  
 
@@ -46,7 +46,7 @@ Each turn, the player receive the **current game state**, which includes:
 """
 
 
-SUPERVISOR_PORMPT = r"""
+SUPERVISOR_PORMPT = """
 ## **Role**: 
 
 You are the **Supervisor Agent** in the Freeway game.  
@@ -66,12 +66,12 @@ Your **only task** is to select which agent should act **this turn** based on th
    - **NO**: Choose **Plan Agent**.  
 
 ### **Output Format**:  
-\\boxed{{[Plan Agent | Follow Plan Agent | React Agent]}}  
+\boxed{Plan Agent | Follow Plan Agent | React Agent}  
 
 ## **Current Game State**:  
 """
 # Plan agent, plan and modify the plan scratch pad
-PLAN_PROMPT = r"""
+PLAN_PROMPT = """
 ## **Your Task**:
 Analyze the current game state and create or update a strategic plan for crossing the road safely. You can write your plan about how to getting to the otherside on a scratch pad, so that later you can read the scratch pad and re-use the reasoning you make in this turn. Plan also takes time, so be efficient and correct.
 
@@ -80,29 +80,29 @@ Analyze the current game state and create or update a strategic plan for crossin
 - 2. Overwrite the plan scratch pad with your summarized reasoning and plan
 
 ## **Answer Format**:
-\boxed{[new scratch pad content]}
+\boxed{new scratch pad content}
 
 ## **Current Game State**:
 """
 
 # Follow plan agent, follow the plan scratch pad
-FOLLOW_PLAN_PROMPT = r"""
+FOLLOW_PLAN_PROMPT = """
 ## **Your Task**: 
 Read the plan on the scratch pad and act accordingly. You are short in time, so do not overthink or plan for the future.
 
 ## **Answer Format**:  
-\boxed{[selected action]}
+\boxed{selected action}
 ## **Current Game State**:
 """
 # React agent, react to the game state
-REACT_PROMPT = r"""
+REACT_PROMPT = """
 ## **Your Task**: 
 Analyze the current game state and take immediate action to avoid a collision. You don't have to follow the content on the scratch bad as it may be out-dated. You are short in time, so do not overthink or plan for the future.
 
 ## **Answer Format**:
-\boxed{[selected action]} 
+\boxed{selected action} 
 """
 
-STAY_COMPLETION = r"""Stay in the same freeway"""
+STAY_COMPLETION = """Stay in the same freeway"""
 
 

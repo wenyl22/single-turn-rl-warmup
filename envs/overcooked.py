@@ -4,7 +4,7 @@ from envs.overcooked_ai_py.mdp.overcooked_mdp import OvercookedGridworld
 from envs.agent.overcooked_action_manger import LLMActionManager
 from envs.overcooked_ai_py.mdp.actions import Action
 from envs.prompts.overcooked import LLM_SYSTEM_PROMPT, LLM_BASE_PROMPT, STAY_COMPLETION
-from envs.utils import find_best_match, LocalThreadedLLMClient
+from envs.client_utils import find_best_match, LocalThreadedLLMClient
 import time 
 import numpy as np 
 from tqdm import tqdm 

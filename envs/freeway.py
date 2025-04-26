@@ -5,7 +5,9 @@ import time
 import pandas as pd
 from minatar.environment import Environment
 from minatar.environments.freeway import Env
-from utils import LocalThreadedLLMClient, find_best_match, extract_boxed
+from extract_utils import find_best_match, extract_boxed
+from envs.client_utils import LocalThreadedLLMClient, ApiThreadedLLMClient
+from vllm import SamplingParams
 VLLM_client = None 
 seed_mapping = {
     0: (1026, 13, 5), 
@@ -17,15 +19,18 @@ seed_mapping = {
     6: (2499, 13, 0), 
     7: (2950, 13, 2)
 }
-def setup_thread_VLLM_client(token_per_tick):
+def setup_thread_VLLM_client(token_per_tick, args):
     global VLLM_client
-    VLLM_client = LocalThreadedLLMClient(token_per_tick=token_per_tick)
+    if args.api_keys == []:
+        VLLM_client = LocalThreadedLLMClient(token_per_tick)
+    else:
+        VLLM_client = ApiThreadedLLMClient(token_per_tick, args) 
    
 def get_thread_VLLM_client():
     global VLLM_client
     return VLLM_client
-
-def freeway_game_loop(log_file, seed, difficulty = 8):
+    
+def freeway_game_loop(log_file, seed, difficulty = 8, max_tokens = 1000):
     """
     Freeway Game Loop in Single-Agent System.
     """
@@ -57,7 +62,12 @@ def freeway_game_loop(log_file, seed, difficulty = 8):
             {"role": "system", "content": LLM_SYSTEM_PROMPT},
             {"role": "user", "content": LLM_BASE_PROMPT + state_description}
         ]
-        response = client.run_inference(thread_id, messages, STAY_COMPLETION)
+        sampling_params = SamplingParams(
+            temperature=0.6,
+            top_p=0.9,
+            max_tokens=max_tokens
+        )
+        response = client.run_inference(thread_id, messages, STAY_COMPLETION, sampling_params)
         selected_action = find_best_match(client, thread_id, response, available_actions_list, STAY_COMPLETION)
         if "stay" in selected_action.lower():
             action = 0
@@ -79,6 +89,7 @@ def freeway_game_loop(log_file, seed, difficulty = 8):
         if terminal or (game_turn > 100):
             print("Fail to get to the otherside in required turns")
             break
+        print(f"Thread {thread_id} - Game Turn: {game_turn}, Position: {env.env.pos}")
     return {
         'seed': seed,
         'difficulty': difficulty,
@@ -86,7 +97,7 @@ def freeway_game_loop(log_file, seed, difficulty = 8):
         'game_time': time.time() - start_time
     }
 
-def ma_freeway_game_loop(log_file, seed, difficulty = 8):
+def ma_freeway_game_loop(log_file, seed, difficulty = 8, max_tokens = 1000):
     """
     Freeway Game Loop in Single-Agent System.
     """
@@ -121,36 +132,55 @@ def ma_freeway_game_loop(log_file, seed, difficulty = 8):
             {"role": "system", "content": LLM_SYSTEM_PROMPT},
             {"role": "user", "content": LLM_BASE_PROMPT + SUPERVISOR_PORMPT + state_description}
         ]
-        response = client.generate(thread_id, messages)['text']
+        sampling_params = SamplingParams(
+            temperature=0.6,
+            top_p=0.9,
+            max_tokens=max_tokens
+        )
+        response = client.generate(thread_id, messages, sampling_params)['text']
         logs['supervisor_response'].append(response)
         # parse the response
         selected_agent = find_best_match(client, thread_id, response, ["A. Plan Agent", "B. Follow Plan Agent", "C. React Agent"], "C. React Agent")
         logs['selected_agent'].append(selected_agent)
+        sampling_params = SamplingParams(
+            temperature=0.6,
+            top_p=0.9,
+            max_tokens=max_tokens - 30
+        )
         if "plan" in selected_agent.lower() and "follow" not in selected_agent.lower():
             ## call plan agent
             messages = [
                 {"role": "system", "content": LLM_SYSTEM_PROMPT},
                 {"role": "user", "content": LLM_BASE_PROMPT + PLAN_PROMPT + state_description}
             ]
-            response = client.generate(thread_id, messages)['text']
+            
+            response = client.generate(thread_id, messages, sampling_params)['text']
             logs['plan_agent_response'].append(response)
             scratch_pad = extract_boxed(response)
+            state_description = state_to_description(state_for_llm, scratch_pad)
         else:
+            # dummy function call, indicating the thread is alive
+            _ = client.generate(thread_id, [], sampling_params)
             logs['plan_agent_response'].append("")
+        sampling_params = SamplingParams(
+            temperature=0.6,
+            top_p=0.9,
+            max_tokens=max_tokens
+        )
         if "plan" in selected_agent.lower():
             ## call follow plan agent
             messages = [
                 {"role": "system", "content": LLM_SYSTEM_PROMPT},
                 {"role": "user", "content": LLM_BASE_PROMPT + FOLLOW_PLAN_PROMPT + state_description}
             ]
-            response = client.generate(thread_id, messages)['text']
+            response = client.generate(thread_id, messages, sampling_params)['text']
         else:
             ## call react agent
             messages = [
                 {"role": "system", "content": LLM_SYSTEM_PROMPT},
                 {"role": "user", "content": LLM_BASE_PROMPT + REACT_PROMPT + state_description}
             ]
-            response = client.generate(thread_id, messages)['text']
+            response = client.generate(thread_id, messages, sampling_params)['text']
             
         selected_action = find_best_match(client, thread_id, response, available_actions_list, STAY_COMPLETION)
         if "stay" in selected_action.lower():

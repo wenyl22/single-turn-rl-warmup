@@ -6,7 +6,8 @@ import pandas as pd
 from minatar.environment import Environment
 from minatar.environments.asterix import Env
 from prompts.asterix import LLM_SYSTEM_PROMPT, LLM_BASE_PROMPT, STAY_COMPLETION
-from utils import find_best_match, LocalThreadedLLMClient
+from envs.client_utils import LocalThreadedLLMClient
+from envs.extract_utils import find_best_match
 VLLM_client = None 
 
 def setup_thread_VLLM_client(token_per_tick):

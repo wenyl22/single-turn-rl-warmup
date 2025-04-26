@@ -1,5 +1,5 @@
 from envs.minatar.environment import Environment
-from envs.utils import generate_gif_from_string_map
+from envs.visualize_utils import generate_gif_from_string_map
 
 # Bfs to find the best action
 def bfs(env, max_steps=100):
@@ -66,19 +66,21 @@ if __name__ == "__main__":
         while temp[0] == 0:
             temp = temp[1:]
         optimal_paths.append(temp)
-        if len(temp) >= 13:
+        if len(temp) == 22:
             print(f"Seed: {df['seed'][i]}, Path: {temp}")
     length = []
     for i in range(len(optimal_paths)):
         length.append(len(optimal_paths[i]))
-    import matplotlib.pyplot as plt
-    counts, bins, _ = plt.hist(length, bins=max(length) - min(length), edgecolor='black')
-    for i in range(len(bins) - 1):
-        print(f"Range: {bins[i]} - {bins[i+1]}, Height: {counts[i]}") 
-    plt.savefig('histogram.png')
+    # import matplotlib.pyplot as plt
+    # counts, bins, _ = plt.hist(length, bins=max(length) - min(length), edgecolor='black')
+    # for i in range(len(bins) - 1):
+    #     print(f"Range: {bins[i]} - {bins[i+1]}, Height: {counts[i]}") 
+    # plt.savefig('histogram.png')
 font_path = '/usr/share/fonts/truetype/dejavu/DejaVuSansMono.ttf'
 seeds = [1026, 1536, 1732, 1798, 1858, 2408, 2499, 2950]
+# seeds = [1518, 1654, 1692, 1798, 1826, 2293, 2867, 2915]
 seed_mapping_list = {}
+
 for i, seed in enumerate(seeds):
     env.seed(seed)
     env.reset()

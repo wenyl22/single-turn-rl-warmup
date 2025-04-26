@@ -130,8 +130,6 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser(description='Run benchmark with a specific model.')
     parser.add_argument('--difficulty', type=int, default=8, help='difficulty level')
     parser.add_argument('--game', type=str, default='freeway', help='Game name')
-    parser.add_argument('--model', type=str, default = 'deepseek-ai/DeepSeek-R1-Distill-Qwen-1.5B')
-    parser.add_argument('--api_key', type=str, default = None, help='API key')
     parser.add_argument('--parallel_size', default=8, type=int, help='number of parallel envs to run')
     parser.add_argument('--max_num_seqs', default=8, type=int, help='number of parallel threads to run')
     parser.add_argument('--tensor_parallel_size', default=4, type=int, help="tensor parallel size to load model with vllm")
@@ -140,6 +138,10 @@ if __name__ == "__main__":
     parser.add_argument('--budget-forcing', type=str, default='no', choices=['no', 'prompted', 's1', 'ps'], help='budget forcing method')
     parser.add_argument('--ma', default=False, help='use multi-agent or not', action='store_true')
     parser.add_argument('--seed_num', type=int, default=8, help='number of seeds to run')
+    parser.add_argument('--api_keys', nargs='+', type=str, default=[], help='List of API keys for OpenAI')
+    parser.add_argument('--base_url', type=str, default=None, help='URL of the model server')
+    parser.add_argument('--model', type=str, default = 'deepseek-ai/DeepSeek-R1-Distill-Qwen-1.5B')
+
     args = parser.parse_args()
     game = args.game
     model = args.model
@@ -181,18 +183,14 @@ if __name__ == "__main__":
     elif game == "asterix":
         from envs.asterix import asterix_game_loop as game_func, setup_thread_VLLM_client, get_thread_VLLM_client
 
-    setup_thread_VLLM_client(token_per_tick)
+    setup_thread_VLLM_client(token_per_tick, args)
     client = get_thread_VLLM_client()
-    print("233")
 
-    if args.api_key is None:
-        print("Loading model from local path...", model)
+    if args.api_keys == []:
         llm = LLM(model, gpu_memory_utilization=0.95, tensor_parallel_size=args.tensor_parallel_size, max_num_seqs=args.max_num_seqs, disable_custom_all_reduce=True, max_model_len=16384)
         tokenizer = AutoTokenizer.from_pretrained(args.model)
     else:
-        llm = OpenAI(api_key=args.api_key, base_url="https://api.deepseek.com")
         tokenizer = None
-    print("233")
     results = []
     for i in range(0, len(SEEDS), args.parallel_size):
         batch = SEEDS[i: i + args.parallel_size]
@@ -203,12 +201,11 @@ if __name__ == "__main__":
             result = game_func(*args)
             return_queue.put(result)
         for s in batch:
-            s_log_file = f"logs/{game}/{model_name}/{time_stamp}_{args.budget_forcing}_{token_per_tick}_{s}.csv"
-            thread = threading.Thread(target=thread_target, args=(s_log_file, s, args.difficulty))
+            s_log_file = f"logs/{game}/{model_name}/{time_stamp}_{max_new_tokens}_{s}.csv"
+            thread = threading.Thread(target=thread_target, args=(s_log_file, s, args.difficulty, max_new_tokens))
             threads.append(thread)
             thread.start()
             time.sleep(0.1)
-        
         num_alive_threads = len(threads)
         queries = []
         while num_alive_threads > 0:
@@ -226,14 +223,8 @@ if __name__ == "__main__":
                 continue
             if num_alive_threads == 0:
                 break
-            tp = queries[0][2]
-            assert tp in ["reasoning", "supervise"]
-            if tp == "reasoning": # use args.model, i.e. llm
-                sampling_params = SamplingParams(max_tokens=max_new_tokens, temperature=0.6, top_p=0.95)
-                outputs = generate_func(llm, tokenizer, [message for _, message, __ in queries if len(message) != 0], sampling_params, max_new_tokens)
-            elif tp == "supervise": # use args.model, i.e. llm
-                sampling_params = SamplingParams(max_tokens=1024, temperature=0.6, top_p=0.95)
-                outputs = generate_func(llm, tokenizer, [message for _, message, __ in queries if len(message) != 0], sampling_params, 512)
+            sampling_params = queries[0][2]
+            outputs = generate_func(llm, tokenizer, [message for _, message, __ in queries if len(message) != 0], sampling_params)
 
             responses = []
             index = 0 
