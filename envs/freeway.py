@@ -201,6 +201,7 @@ def ma_freeway_game_loop(log_file, seed, difficulty = 8, max_tokens = 1000):
         if terminal or (game_turn > 100):
             print("Fail to get to the otherside in required turns")
             break
+        print(f"Thread {thread_id} - Game Turn: {game_turn}, Position: {env.env.pos}")
     return {
         'seed': seed,
         'difficulty': difficulty,

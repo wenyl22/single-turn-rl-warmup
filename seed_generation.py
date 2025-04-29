@@ -19,7 +19,7 @@ def bfs(env, max_steps=100):
         if steps >= max_steps:
             continue
 
-        for action in [0, 2, 4]:
+        for action in [2, 0, 4]:
             new_env = env_list[steps].deep_copy()
             new_env.env.pos = pos
             r, terminal = new_env.act(action)
@@ -71,14 +71,14 @@ if __name__ == "__main__":
     length = []
     for i in range(len(optimal_paths)):
         length.append(len(optimal_paths[i]))
-    # import matplotlib.pyplot as plt
-    # counts, bins, _ = plt.hist(length, bins=max(length) - min(length), edgecolor='black')
-    # for i in range(len(bins) - 1):
-    #     print(f"Range: {bins[i]} - {bins[i+1]}, Height: {counts[i]}") 
-    # plt.savefig('histogram.png')
+    import matplotlib.pyplot as plt
+    counts, bins, _ = plt.hist(length, bins=max(length) - min(length), edgecolor='black')
+    for i in range(len(bins) - 1):
+        print(f"Range: {bins[i]} - {bins[i+1]}, Height: {counts[i]}") 
+    plt.savefig('histogram.png')
 font_path = '/usr/share/fonts/truetype/dejavu/DejaVuSansMono.ttf'
-seeds = [1026, 1536, 1732, 1798, 1858, 2408, 2499, 2950]
-# seeds = [1518, 1654, 1692, 1798, 1826, 2293, 2867, 2915]
+seeds = [1004, 1026, 1536, 1798, 1858, 2408, 2499, 2867]
+
 seed_mapping_list = {}
 
 for i, seed in enumerate(seeds):
@@ -90,15 +90,18 @@ for i, seed in enumerate(seeds):
     string_maps = []
     flag = False
     tmp = 0
+    print(f"--------------------Seed{seed}--------------------")
     for action in best_action:
-        string_maps.append(env.env.state_string())
+        str_mp = env.env.state_string()
+        string_maps.append(str_mp)
         env.act(action)
-        if action == 0 and flag == False:
-            string_maps = []
-            tmp += 1
-            continue
+        if seed == 1798:
+            if tmp < 5:
+                string_maps = []
+                tmp += 1
+                continue
+        print(str_mp)
         flag = True
-    print(len(string_maps), tmp)
     seed_mapping_list[i] = (seed, len(string_maps), tmp)
-    generate_gif_from_string_map(string_maps, f"example_gifs/freeway_{seed}.gif", font_path=font_path, font_size=20)
+    generate_gif_from_string_map(string_maps, f"example_gifs/{seed}.gif", font_path=font_path, font_size=20)
 print(seed_mapping_list)
