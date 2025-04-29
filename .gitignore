@@ -188,3 +188,4 @@ calc_token_num.py
 plot*
 *_example.py
 *.csv
+*.html
