@@ -77,10 +77,13 @@ Analyze the current game state and create or update a strategic plan for crossin
 
 **Instructions**:
 - 1. Predict car movements and plan the safest route to the destination.
-- 2. Overwrite the plan scratch pad with your summarized reasoning and plan
+- 2. Output the series of actions for next turns you plan that will help reach the opposite shore most quickly and safely, represented by the three letters 'U' 'D' 'S', where:
+    - U: Move up to a higher-numbered freeway
+    - D: Move down to a lower-numbered freeway
+    - S: Stay on the current freeway
 
 ## **Answer Format**:
-\boxed{new scratch pad content}
+\boxed{A string of 'U', 'D' and 'S', representing actions for next turns}
 
 ## **Current Game State**:
 """
