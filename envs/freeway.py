@@ -408,7 +408,9 @@ def reaction_to_collision(state_for_llm, next_action_char):
     next_action_ind = 0 if next_action_char == 'S' else 1 if next_action_char == 'U' else 2
 
     for car in state_for_llm['car_states']:
-        head, tail = car[1], car[4]
+        head = car[1]
+        span = car[4] if car[2] == 'left' else -car[4]
+        tail = head + span
         
         # Change the range of x-values to check for collision
         if car[2] == 'left':
