@@ -121,8 +121,13 @@ html_content += """
     <button onclick="nextPage()">Next</button>
 """
 
+import argparse
+parser = argparse.ArgumentParser(description='Visualize LLM responses from CSV files.')
+parser.add_argument('--f', type=str, default='deepseek-reasoner/2025-04-30-23-22-12_8192_0.csv', help='Path to the CSV file')
+args = parser.parse_args()
+args.f = args.f.replace("_0.csv", "_seed.csv")
 for seed_index, seed in enumerate(seeds):
-    csv_path = f"logs/freeway/deepseek-reasoner/2025-04-27-00-07-56_8192_{seed}.csv"
+    csv_path = args.f.replace("seed", str(seed))
     df = pd.read_csv(csv_path)
 
     html_content += f'<div class="seed-container seed-{seed_index}" style="display: {"block" if seed_index == 0 else "none"};">'
@@ -130,13 +135,20 @@ for seed_index, seed in enumerate(seeds):
     page_index = 0
     for _, row in df.iterrows():
         render = row["render"]
-        description = row["description"].split('Plan Scratch Pad:')[1].split('-')[0]
+        if "scratch_pad" in row.keys():
+            description = row["description"].split('Plan Scratch Pad:')[1].split('-')[0] 
+            scratch_pad = row["scratch_pad"]
+            selected_agent = row["selected_agent"]
+        else:
+            description = scratch_pad = ""
+            row["selected_agent"] = "A. Plan Agent"
+            selected_agent = "A. Plan Agent"
+
         selected_action = row["selected_action"]
-        selected_agent = row["selected_agent"]
         other_columns = {key: preprocess_string(value) for key, value in row.drop(["render", "selected_action", "selected_agent", "Unnamed: 0"]).items()}
         other_columns_html = "".join(
             [f"<button onclick='toggleVisibility(this)'>{key}</button><div class='hidden' style='max-width: 800px; margin: 0 auto;'><p>{value}</p></div>"
-             for key, value in other_columns.items()]
+            for key, value in other_columns.items()]
         )
 
         html_content += f"""
@@ -147,8 +159,10 @@ for seed_index, seed in enumerate(seeds):
                     <pre>{render}</pre>
                 </div>
                 <div class="description">
-                    <h3>Scratch Pad:</h3>
+                    <h3>Original Scratch Pad:</h3>
                     <p>{description}</p>
+                    <h3>New Scratch Pad:</h3>
+                    <p>{scratch_pad}</p>
                     <h3>Selected Agent:</h3>
                     <p>{selected_agent}</p>
                     <h3>Selected Action:</h3>

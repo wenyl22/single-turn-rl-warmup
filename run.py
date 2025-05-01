@@ -154,7 +154,7 @@ if __name__ == "__main__":
     if not os.path.exists(f"logs/{game}/{model_name}"):
         os.makedirs(f"logs/{game}/{model_name}")
     time_stamp = datetime.datetime.now().strftime("%Y-%m-%d-%H-%M-%S")      
-    log_file = f"logs/{game}/{model_name}/benchmarking_{args.budget_forcing}_{time_stamp}_{token_per_tick}.log"
+    log_file = f"logs/{game}/{model_name}/benchmarking_{"ma" if args.ma else ""}_{time_stamp}_{token_per_tick}.log"
     SEEDS = range(0, args.seed_num)
 
     with open(log_file, 'a') as f:

@@ -1,4 +1,5 @@
 import sys
+import re
 import os
 sys.path.append(os.path.dirname(os.path.abspath(__file__)))
 import time 
@@ -10,14 +11,14 @@ from envs.client_utils import LocalThreadedLLMClient, ApiThreadedLLMClient
 from vllm import SamplingParams
 VLLM_client = None 
 seed_mapping = {
-    0: (1026, 13, 5), 
-    1: (1536, 13, 1), 
-    2: (1732, 14, 2), 
-    3: (1798, 13, 9), 
-    4: (1858, 13, 3), 
-    5: (2408, 15, 4), 
+    0: (1004, 17, 0), 
+    1: (1026, 18, 0), 
+    2: (1536, 14, 0), 
+    3: (1798, 17, 5), 
+    4: (1858, 16, 0), 
+    5: (2408, 19, 0), 
     6: (2499, 13, 0), 
-    7: (2950, 13, 2)
+    7: (2867, 22, 0)
 }
 def setup_thread_VLLM_client(token_per_tick, args):
     global VLLM_client
@@ -52,7 +53,7 @@ def freeway_game_loop(log_file, seed, difficulty = 8, max_tokens = 1000):
     terminal = False
     reward = 0
     game_turn = 0
-    logs = {'description': [], 'render':[], 'llm_response': [], 'selected_action': []}
+    logs = {'description': [], 'render':[], 'plan_agent_response': [], 'selected_action': []}
     while True:
         action = 0
         state_for_llm = llm_state_builder(env.env)
@@ -77,7 +78,7 @@ def freeway_game_loop(log_file, seed, difficulty = 8, max_tokens = 1000):
             action = 4
         logs['description'].append(state_description)
         logs['render'].append('\n' + env.env.state_string())
-        logs["llm_response"].append(response)
+        logs["plan_agent_response"].append(response)
         logs["selected_action"].append(selected_action)
         df = pd.DataFrame(logs)
         df.to_csv(log_file)
@@ -214,7 +215,7 @@ def ma_freeway_game_loop(log_file, seed, difficulty = 8, max_tokens = 1000):
     New version of Freeway Game Loop in Single-Agent System.
     """
 
-    from prompts.ma_freeway import LLM_SYSTEM_PROMPT, LLM_BASE_PROMPT, STAY_COMPLETION, SUPERVISOR_PORMPT, PLAN_PROMPT, REACT_PROMPT, FOLLOW_PLAN_PROMPT
+    from prompts.ma_freeway import LLM_SYSTEM_PROMPT, LLM_BASE_PROMPT, PLAN_PROMPT
 
     # Environment setup
     client = VLLM_client
@@ -239,7 +240,7 @@ def ma_freeway_game_loop(log_file, seed, difficulty = 8, max_tokens = 1000):
     terminal = False
 
     # Log storage
-    logs = {'description': [], 'render':[], 'scratch_pad': [], 'supervisor_response': [],  'selected_agent': [], 'plan_agent_response':[], 'selected_action': []}
+    logs = {'description': [], 'render':[], 'supervisor_response': [], 'plan_agent_response':[], 'scratch_pad': [], 'selected_agent': [], 'selected_action': []}
 
     while True:
         # Build the state for LLM
@@ -247,8 +248,6 @@ def ma_freeway_game_loop(log_file, seed, difficulty = 8, max_tokens = 1000):
         state_description = state_to_description(state_for_llm, scratch_pad)
         logs['description'].append(state_description)
         logs['render'].append('\n' + env.env.state_string())
-        available_actions_list = [f'{chr(65+i)}. {action}' for i, action in enumerate(state_for_llm['available_actions'])]
-
         log_supervisor_response, log_selected_agent, log_plan_agent_response, log_selected_action = "", "", "", ""
 
         # 1. Call Plan Agent if the scratch pad is empty
@@ -263,46 +262,38 @@ def ma_freeway_game_loop(log_file, seed, difficulty = 8, max_tokens = 1000):
                 top_p=0.9,
                 max_tokens=max_tokens - 30
             )
-            response = client.generate(thread_id, messages, sampling_params)['text']
-            log_plan_agent_response = response
-            
+            log_plan_agent_response = client.run_inference(thread_id, messages, "\\boxed{S}", sampling_params)
             # extract answer in \boxed{}
-            import re
-            match = re.search(r'oxed{([^}]*)}', response)
+
+            match = re.search(r'oxed{([^}]*)}', log_plan_agent_response.split("</think>")[-1])
             if match:
                 scratch_pad = match.group(1).strip()
             else:
                 scratch_pad = "S"
-            
             # keep only 'U', 'D', 'S' in scratch_pad
             scratch_pad = re.sub(r'[^UDS]', '', scratch_pad.upper())
         if scratch_pad == "":
             scratch_pad = "S"
-
+        logs['scratch_pad'].append(scratch_pad)
         # 2. Check if next action in the scratch pad is valid
-        if scratch_pad[0] not in ['U', 'D', 'S']: scratch_pad = "S"
+        assert scratch_pad[0] in ['U', 'D', 'S']
         collision, selected_action = reaction_to_collision(state_for_llm, scratch_pad[0])
-
         if collision:
             # Execute the action directly
             action = 0 if 'stay' in selected_action.lower() else 2 if 'up' in selected_action.lower() else 4
             scratch_pad = ""
-
-            log_supervisor_response = f"Collision risk detected, {selected_action.lower()}."
+            log_supervisor_response = f"Collision risk detected, {selected_action}."
             log_selected_agent = "C. React Agent"
-            log_selected_action = str(action) + " " + selected_action
+            log_selected_action = selected_action
         else:
             # Follow Plan Agent
             action = 0 if scratch_pad[0] == 'S' else 2 if scratch_pad[0] == 'U' else 4
-            selected_action = 'Stay in the same freeway' if action == 0 else "Move up to Freeway " + str(9 - state_for_llm['player_states'] + 1) if action == 2 else "Move down to Freeway " + str(9 - state_for_llm['player_states'] - 1)
-
-            scratch_pad = scratch_pad[1:]  # Remove the first character from the scratch pad
+            scratch_pad = scratch_pad[1:]
             log_supervisor_response = "No collision risk detected."
             log_selected_agent = "B. Follow Plan Agent"
-            log_selected_action = str(action) + " " + selected_action
+            log_selected_action = selected_action
         
         # Save logs to CSV
-        logs['scratch_pad'].append(scratch_pad)
         logs['supervisor_response'].append(log_supervisor_response)
         logs['selected_agent'].append(log_selected_agent)
         logs['plan_agent_response'].append(log_plan_agent_response)
@@ -319,7 +310,7 @@ def ma_freeway_game_loop(log_file, seed, difficulty = 8, max_tokens = 1000):
         if terminal or (game_turn > 100):
             print("Fail to get to the otherside in required turns")
             break
-        print(f"Thread {thread_id} - Game Turn: {game_turn}, Position: {env.env.pos}")
+        print(f"Thread {thread_id} - Game Turn: {game_turn}, Position: {9 - env.env.pos}")
 
     # Return game results
     return {
@@ -406,9 +397,15 @@ def reaction_to_collision(state_for_llm, next_action_char):
 
     collision = [False, False, False] # [stay, up, down]
     next_action_ind = 0 if next_action_char == 'S' else 1 if next_action_char == 'U' else 2
+    # corner case: if the player is on freeway 0
+    if state_for_llm['player_states'] == 0:
+        collision[2] = True
 
     for car in state_for_llm['car_states']:
-        head, tail = car[1], car[4]
+        # (9 - car[1], pos, dir, speed, car[4] * 12 - 1)
+        head = car[1]
+        span = car[4] if car[2] == 'left' else -car[4]
+        tail =  head + span
         
         # Change the range of x-values to check for collision
         if car[2] == 'left':
@@ -420,17 +417,17 @@ def reaction_to_collision(state_for_llm, next_action_char):
         
         # Check if the player is on the same freeway as any car for next turn
         if car[0] == state_for_llm['player_states']:
-            if head <= 0 <= tail:
+            if head <= 0 <= tail or tail <= 0 <= head:
                 collision[0] = True
                 
         # Check if the player is on the freeway above the car
         if car[0] == state_for_llm['player_states'] + 1:
-            if head <= 0 <= tail:
+            if head <= 0 <= tail or tail <= 0 <= head:
                 collision[1] = True
         
         # Check if the player is on the freeway below the car
         if car[0] == state_for_llm['player_states'] - 1:
-            if head <= 0 <= tail:
+            if head <= 0 <= tail or tail <= 0 <= head:
                 collision[2] = True
     
     perfer_action_ind = next_action_ind
@@ -439,10 +436,5 @@ def reaction_to_collision(state_for_llm, next_action_char):
             if not collision[i]: 
                 perfer_action_ind = i
                 break
-    
-    # Corner Case: Car on freeway 0 and try to move down
-    if state_for_llm['player_states'] == 8 and next_action_ind == 2:
-        perfer_action_ind = 0
-
-    selected_action = ["Stay in the same freeway", "Move up to Freeway " + str(9 - state_for_llm['player_states'] + 1), "Move down to Freeway " + str(9 - state_for_llm['player_states'] - 1)][perfer_action_ind]
-    return collision[next_action_ind], selected_action[perfer_action_ind]
+    available_action_list = ["Stay in the same freeway", "Move up to Freeway " + str( state_for_llm['player_states'] + 1), "Move down to Freeway " + str(state_for_llm['player_states'] - 1)]
+    return collision[next_action_ind], available_action_list[perfer_action_ind]
