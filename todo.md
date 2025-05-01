@@ -3,13 +3,9 @@ Code Base:
 - [✔] Switch to new seed list.
     - Problem 1: If the agent fails once, maybe POMDP is no longer the same as MDP.
     - Problem 2: Maybe optimal strategy can include collisions.
-- Budget forcing:
-    - [✔] Prompted + s1.
-    - [] Remind LLM with tokens left.
 - [] Plan agent prompt:
     - Make the format more reasonable.
 - [] Scratch pad logic.
-    - Has "plan agent" completed thinking in the last turn?
     - Yes:
         - Is Scratch pad empty?
         - No: 
@@ -23,7 +19,12 @@ Code Base:
             - Will "STAY" lead to a collision?
             - Yes: React
             - No: Plan
-    - No(only when `token_per_tick` < `max_new_tokens`):
-        - Force a none-action/Extract generated plan to scratch pad.
-        - Go back to "yes"/Interrupt thinking with new game state.
-
+- Continuous planning: Agent hasn't completed planning in the last turn(only when `token_per_tick` < `max_new_tokens`). 
+    - During generation: Remind LLM of tokens left before this turn ends.
+    - For Action: 
+        - Option1: Force a none-action.
+        - Option2: Extract generated plan to scratch pad and follow.
+    - For Reasoning:
+        - Option1: Keep reasoning.
+        - Option2: Interrupt with new game state.
+    - When total context >= `max_new_tokens`: (Use s1 to) force a stop.
