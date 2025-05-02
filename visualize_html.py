@@ -131,12 +131,13 @@ for seed_index, seed in enumerate(seeds):
     df = pd.read_csv(csv_path)
 
     html_content += f'<div class="seed-container seed-{seed_index}" style="display: {"block" if seed_index == 0 else "none"};">'
-
     page_index = 0
+    scratch_pad = ""
+
     for _, row in df.iterrows():
         render = row["render"]
         if "scratch_pad" in row.keys():
-            description = row["description"].split('Plan Scratch Pad:')[1].split('-')[0] 
+            description = scratch_pad
             scratch_pad = row["scratch_pad"]
             selected_agent = row["selected_agent"]
         else:

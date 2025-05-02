@@ -1,14 +1,15 @@
-LLM_SYSTEM_PROMPT = '''Please reason step by step and put your final answer within \\boxed{}'''
+LLM_SYSTEM_PROMPT = '''Please reason step by step and put your final answer within \\boxed{}.'''
 
 LLM_BASE_PROMPT = """
-# **Game Overview**  
-**Freeway** is a game where the player must guide the character safely across multiple lanes of moving traffic. The goal is to **reach the destination (y = 9) from the starting point (y = 0) in fewest turns while avoiding collisions with cars.**  
+## **Game Overview**  
 
-Imagine a **2D grid** where:  
-- **The vertical axis (y)** represents different freeways, numbered from `0` to `9`.  
-- **The horizontal axis (x)** represents positions along each freeway.  
+You are playing "Freeway", a game where you must guide your character safely across multiple lanes of moving traffic. Your goal is to **reach the destination (y = 9) from the starting point (y = 0) in the fewest turns while avoiding collisions with cars.** 
 
-Player always stay at **x = 0**, meaning it cannot move left or right. Instead, its only movement options are:  
+Imagine a 2D grid where:  
+- The vertical axis (y) represents different freeways, numbered from `0` to `9`.  
+- The horizontal axis (x) represents positions along each freeway.  
+
+Player always stay at **x = 0**, meaning it cannot move left or right. Instead, its only movement options in each turn are:
 - Moving **up** (to a higher freeway, y → y + 1).  
 - Moving **down** (to a lower freeway, y → y - 1).  
 - Staying **on the same freeway** (no movement).  
@@ -16,7 +17,7 @@ Player always stay at **x = 0**, meaning it cannot move left or right. Instead, 
 # **Game Mechanics**  
 
 ## **1. Freeways & Cars**  
-Each freeway (y = 1 to 8) may have at most one moving car.  
+Each freeway (from y = 1 to y = 8) may have cars moving left or right.  
 - **Cars move at a fixed speed per turn** (e.g., a speed of 3 means the car moves 3 units in the x-direction each turn).  
 - **Each car has a span**, which is the range of x-values it occupies.  
 - **Movement Direction**:  
@@ -34,15 +35,13 @@ A **collision happens if, at any point after the player's move, its position (x 
 - To avoid collisions, the player must predict car movements and time its actions carefully.  
 
 ## **Game State Representation**  
-Each turn, the player receive the **current game state**, which includes:  
-- Player position: (x = 0, y).  
-- Plan Scratch Pad: [Previous plan or empty].
-- Cars information: on each freeway (y = 1 to 8)**:  
-  - **Head position** (front of the car).  
-  - **Tail position** (back of the car).  
-  - **Direction** (left or right).  
-  - **Speed** (how many x-units the car moves per turn).
-- Available actions: A subset of moving up, down, or staying.
+Each turn, you receive the **current game state**, which includes:  
+- Your position: (x = 0, y).  
+- Car information for each freeway (y = 1 to 8). Each may have zero, one or multiple cars, each represented by:
+  - Head position (front of the car).  
+  - Tail position (back of the car).  
+  - Direction (left or right).  
+  - Speed (how many x-units the car moves per turn).
 """
 
 
@@ -73,17 +72,18 @@ Your **only task** is to select which agent should act **this turn** based on th
 # Plan agent, plan and modify the plan scratch pad
 PLAN_PROMPT = """
 ## **Your Task**:
-Analyze the current game state and create or update a strategic plan for crossing the road safely. You can write your plan about how to getting to the otherside on a scratch pad, so that later you can read the scratch pad and re-use the reasoning you make in this turn. Plan also takes time, so be efficient and correct.
+Analyze the current game state and create a strategic plan for crossing the road safely. You can write your plan about how to getting to the otherside on a scratch pad, so that later you can read the scratch pad and re-use the reasoning you make in this turn. Plan also takes time, so be concise and correct.
 
 **Instructions**:
 - 1. Predict car movements and plan the safest route to the destination.
-- 2. Output the series of actions for next turns you plan that will help reach the opposite shore most quickly and safely, represented by the three letters 'U' 'D' 'S', where:
+- 2. Each action is represented by a single letter (U, D, S), where:
     - U: Move up to a higher-numbered freeway
     - D: Move down to a lower-numbered freeway
     - S: Stay on the current freeway
+- 3. The output should be a string of concatenated actions for the next several turns, where the first letter represents the action for the first turn, the second letter for the second turn, and so on. 
 
 ## **Answer Format**:
-\boxed{A string of 'U', 'D' and 'S', representing actions for next turns}
+\boxed{A string of 'U', 'D' and 'S', representing actions for the next several turns}
 
 ## **Current Game State**:
 """

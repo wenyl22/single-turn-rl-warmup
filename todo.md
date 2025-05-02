@@ -6,25 +6,27 @@ Code Base:
 - [] Plan agent prompt:
     - Make the format more reasonable.
 - [] Scratch pad logic.
-    - Yes:
-        - Is Scratch pad empty?
-        - No: 
-            - Is the plan up-to-date(possible collide in the future)?
-            - Yes: Follow plan
-            - No:
-                - Is the first action in the scratch pad a collision?
-                - Yes: React
-                - No: Plan
-        - Yes: 
-            - Will "STAY" lead to a collision?
+    - Is Scratch pad empty?
+    - No: 
+        - Is the plan up-to-date(possible collide in the future(2-3 steps))?
+        - Yes: Follow plan
+        - No:
+            - Is the first action in the scratch pad a collision?
             - Yes: React
             - No: Plan
+    - Yes: 
+        - Will "STAY" lead to a collision?
+        - Yes: React
+        - No: Plan
 - Continuous planning: Agent hasn't completed planning in the last turn(only when `token_per_tick` < `max_new_tokens`). 
-    - During generation: Remind LLM of tokens left before this turn ends.
-    - For Action: 
-        - Option1: Force a none-action.
-        - Option2: Extract generated plan to scratch pad and follow.
     - For Reasoning:
-        - Option1: Keep reasoning.
-        - Option2: Interrupt with new game state.
+        - [✔] Option1: Keep reasoning.
+        - [] Option2: Interrupt with new game state.
+    - For Action: 
+        - [✔] Option1: Force a none-action.
+        - [] Option2: Extract generated plan to scratch pad and follow.[Can be done in a s1 like way?]
+    - During generation:
+        - [✔] Option1: Do nothing.
+        - [] Option2: Remind LLM of tokens left before this turn ends.
+- Budget forcing:
     - When total context >= `max_new_tokens`: (Use s1 to) force a stop.
