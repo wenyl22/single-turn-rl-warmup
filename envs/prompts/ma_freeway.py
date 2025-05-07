@@ -1,38 +1,30 @@
 LLM_SYSTEM_PROMPT = '''Please reason step by step and put your final answer within \\boxed{}.'''
 
 LLM_BASE_PROMPT = """
-## **Game Overview**  
-
-You are playing "Freeway", a game where you must guide your character safely across multiple lanes of moving traffic. Your goal is to **reach the destination (y = 9) from the starting point (y = 0) in the fewest turns while avoiding collisions with cars.** 
+## **Freeway Game Guide**  
 
 Imagine a 2D grid where:  
 - The vertical axis (y) represents different freeways, numbered from `0` to `9`.  
 - The horizontal axis (x) represents positions along each freeway.  
 
-Player always stay at **x = 0**, meaning it cannot move left or right. Instead, its only movement options in each turn are:
-- Moving **up** (to a higher freeway, y → y + 1).  
-- Moving **down** (to a lower freeway, y → y - 1).  
-- Staying **on the same freeway** (no movement).  
+Your goal is to reach (x = 0, y = 9) from (x = 0, y = 0) using actions U (Up, to a higher freeway, y += 1), D (Down, to a lower freeway, y -= 1), or S (Stay, y unchanged) in fewest turns, while avoiding cars on the freeways. 
 
-# **Game Mechanics**  
+# **Rules**  
 
 ## **1. Freeways & Cars**  
 Each freeway (from y = 1 to y = 8) may have cars moving left or right.  
 - **Cars move at a fixed speed per turn** (e.g., a speed of 3 means the car moves 3 units in the x-direction each turn).  
-- **Each car has a span**, which is the range of x-values it occupies.  
-- **Movement Direction**:  
-  - If a car moves **right**, its span extends as it moves forward.  
-  - If a car moves **left**, its span moves backward.  
+- **Each car has a span**, which is the range of x-values it occupies.
+    - If the car is moving **left**, its span is defined as: **[head position, tail position]**
+    - If the car is moving **right**, its span is defined as: **[tail position, head position]**
 
 **Example:**  
-A car on Freeway 2 with a **head position at x = 18** and a **tail position at x = 29** moves **left at a speed of 6**.  
-- After **one turn**, its new span will be **[head: 12, tail: 23]**.  
-- After **two turns**, its span will be **[head: 6, tail: 17]**.  
+A car on Freeway 2 with a **head position at x = 18** and a **tail position at x = 29** moves **left** at a **speed = 6**.  
+    - After **one turn**, its span will be **[head: 12, tail: 23]**.  
+    - After **two turns**, its span will be **[head: 6, tail: 17]**.  
 
 ## **2. Collisions**  
-A **collision happens if, at any point after the player's move, its position (x = 0, y) overlaps with a car's span**.  
-- If a collision occurs, the player is **reset to the starting position (0, 0)**.  
-- To avoid collisions, the player must predict car movements and time its actions carefully.  
+Collision happens if after the player's move, its position overlaps with a car's span, which should be avoided. Collision check happens only after the player and cars move for a complete turn, so don't worry about the state within the turn.
 
 ## **Game State Representation**  
 Each turn, you receive the **current game state**, which includes:  
@@ -72,18 +64,14 @@ Your **only task** is to select which agent should act **this turn** based on th
 # Plan agent, plan and modify the plan scratch pad
 PLAN_PROMPT = """
 ## **Your Task**:
-Analyze the current game state and create a strategic plan for crossing the road safely. You can write your plan about how to getting to the otherside on a scratch pad, so that later you can read the scratch pad and re-use the reasoning you make in this turn. Plan also takes time, so be concise and correct.
-
-**Instructions**:
-- 1. Predict car movements and plan the safest route to the destination.
-- 2. Each action is represented by a single letter (U, D, S), where:
-    - U: Move up to a higher-numbered freeway
-    - D: Move down to a lower-numbered freeway
-    - S: Stay on the current freeway
-- 3. The output should be a string of concatenated actions for the next several turns, where the first letter represents the action for the first turn, the second letter for the second turn, and so on. 
+Analyze the current game state and create a plan for crossing the road without colliding with cars. Avoiding collisions is your top priority, but also try to reach the goal in the fewest turns possible. Due to token constraint, you can plan for less steps ** if the game state is complex **.
 
 ## **Answer Format**:
-\boxed{A string of 'U', 'D' and 'S', representing actions for the next several turns}
+\boxed{
+Turn 1: action1
+Turn 2: action2
+...
+}
 
 ## **Current Game State**:
 """

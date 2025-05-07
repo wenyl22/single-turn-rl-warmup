@@ -262,7 +262,7 @@ def ma_freeway_game_loop(log_file, seed, difficulty = 8, max_tokens = 1000):
         # will next step be a immediate collision?
         elif not supervise_collision(state_for_llm, scratch_pad[0]): # plan
             log_selected_agent = "A. Plan Agent"
-            log_supervisor_response = "Plan is outdated, and safe to stay and re-plan."
+            log_supervisor_response = "Plan is outdated, but safe to follow one step and then re-plan."
         else: # react
             log_selected_agent = "C. React Agent"
             log_supervisor_response = "Plan is outdated, and leads to immediate collision, react."
@@ -280,15 +280,15 @@ def ma_freeway_game_loop(log_file, seed, difficulty = 8, max_tokens = 1000):
             sampling_params = SamplingParams(
                 temperature=0.6,
                 top_p=0.9,
-                max_tokens=max_tokens - 30
+                max_tokens=max_tokens - 5
             )
-            log_plan_agent_response = client.run_inference(thread_id, messages, "\\boxed{S}", sampling_params)
+            log_plan_agent_response = client.run_inference(thread_id, messages, "", sampling_params)
             matches = re.findall(r'oxed{([^}]*)}', log_plan_agent_response.split("</think>")[-1])
             if matches:
                 scratch_pad = matches[-1].strip()
-            else:
+            elif scratch_pad == "":
                 scratch_pad = "S"
-            scratch_pad = re.sub(r'[^UDS]', '', scratch_pad.upper())
+            scratch_pad = re.sub(r'[^UDS]', '', scratch_pad)
             if scratch_pad == "":
                 scratch_pad = "S"
         logs['plan_agent_response'].append(log_plan_agent_response)

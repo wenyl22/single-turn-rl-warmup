@@ -152,17 +152,17 @@ def generate_with_budget_reminder(llm: OpenAI, tokenizer: PreTrainedTokenizer, m
     """
     Remind the model to be concise after a fixed number of tokens.
     """
-    token_per_generation = 1000 # tunable parameter
+    token_per_generation = 120 # tunable parameter
     max_generation = sampling_params.max_tokens // token_per_generation
-    # max_generation * token_per_generation should be less than max_tokens
+    token_used = 0
     generation = ""
     eos = tokenizer.special_tokens_map["eos_token"]
     for i in range(max_generation):
-        new_message = messages + [{"role": "assistant", "content": generation, "prefix": True}]
+        new_messages = messages.copy() + [{"role": "assistant", "content": generation, "prefix": True}]
         while True:
             try:
                 response = llm.chat.completions.create(
-                    messages=new_message,
+                    messages=new_messages,
                     model=model,
                     max_tokens=token_per_generation,
                     temperature=sampling_params.temperature,
@@ -172,15 +172,22 @@ def generate_with_budget_reminder(llm: OpenAI, tokenizer: PreTrainedTokenizer, m
             except Exception as e:
                 print(f"Error: {e}")
                 time.sleep(1)
-        if response.choices[0].message.reasoning_content is None:
+        if not hasattr(response.choices[0].message, 'reasoning_content') or response.choices[0].message.reasoning_content is None:
             response_text = response.choices[0].message.content
         else:
             response_text = "<think>" + response.choices[0].message.reasoning_content + "</think>" + response.choices[0].message.content
         response_tokens = tokenizer(response_text)["input_ids"]
+        if len(response_tokens) > token_per_generation:
+            response_tokens = response_tokens[:token_per_generation]
         response_tokens = response_tokens[:token_per_generation]
-        generation += tokenizer.decode(response_tokens, skip_special_tokens=True)
+        token_used += len(response_tokens)
+        response_text = tokenizer.decode(response_tokens, skip_special_tokens=True)
+        generation += response_text
         if eos in response_text or ("</think>" in response_text and re.findall(r"oxed{([^}]*)}", response_text)):
             break
-        generation += f"(There are only {token_per_generation * (max_generation - i - 1)} tokens left for me to use. I must be concise.)\n"
+        if i == max_generation - 2:
+            generation += "\n</think>\n In summary, the plan is: \boxed"
+        else:
+            generation += f"(There are only {token_per_generation * (max_generation - i - 2)} tokens left to use. I must be more concise.)\n"
 
-    return dict(text=generation, token_num=len(tokenizer(generation)["input_ids"]))
+    return dict(text=generation, token_num=token_used)
