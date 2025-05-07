@@ -8,7 +8,7 @@ Code Base:
 - [] Scratch pad logic.
     - Is Scratch pad empty?
     - No: 
-        - Is the plan up-to-date(possible collide in the future(2-3 steps))?
+        - Is the plan up-to-date(no collision in the 3 steps)?
         - Yes: Follow plan
         - No:
             - Is the first action in the scratch pad a collision?

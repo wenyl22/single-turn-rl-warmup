@@ -1,7 +1,8 @@
 import threading
 import queue
 from openai import OpenAI
-from generate import generate_vanilla_openai, generate_prompted_s1_openai
+from generate import generate_vanilla_openai, generate_prompted_s1_openai, generate_with_budget_reminder
+from transformers import AutoTokenizer
 class LocalThreadedLLMClient:
     def __init__(self, token_per_tick = 500):
         self.num_threads = 0
@@ -62,6 +63,15 @@ class ApiThreadedLLMClient:
         self.api_keys = args.api_keys
         self.base_url = args.base_url
         self.model = args.model
+        if args.model == "deepseek-reasoner":
+            self.tokenizer = AutoTokenizer.from_pretrained("deepseek-ai/DeepSeek-R1")
+        elif args.model == "deepseek-chat":
+            self.tokenizer = AutoTokenizer.from_pretrained("deepseek-ai/DeepSeek-V3")
+        else:
+            try:
+                self.tokenizer = AutoTokenizer.from_pretrained(args.model)
+            except:
+                raise ValueError(f"Model {args.model} not found.")
         self.budget_forcing = args.budget_forcing
         self.query_queues = {}
 
@@ -82,9 +92,11 @@ class ApiThreadedLLMClient:
         if messages == []:
             return None
         if self.budget_forcing == "no":
-            return generate_vanilla_openai(self.llm[thread_id], self.model, messages, sampling_params)
+            return generate_vanilla_openai(self.llm[thread_id], self.tokenizer, self.model, messages, sampling_params)
         elif self.budget_forcing == "ps":
-            return generate_prompted_s1_openai(self.llm[thread_id], self.model, messages, sampling_params)
+            return generate_prompted_s1_openai(self.llm[thread_id], self.tokenizer, self.model, messages, sampling_params)
+        elif self.budget_forcing == "br":
+            return generate_with_budget_reminder(self.llm[thread_id], self.tokenizer, self.model, messages, sampling_params)
         else:
             raise ValueError(f"Unsupported budget forcing method: {self.budget_forcing}")
 
