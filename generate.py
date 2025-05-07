@@ -172,7 +172,7 @@ def generate_with_budget_reminder(llm: OpenAI, tokenizer: PreTrainedTokenizer, m
             except Exception as e:
                 print(f"Error: {e}")
                 time.sleep(1)
-        if response.choices[0].message.reasoning_content is None:
+        if not hasattr(response.choices[0].message, 'reasoning_content') or response.choices[0].message.reasoning_content is None:
             response_text = response.choices[0].message.content
         else:
             response_text = "<think>" + response.choices[0].message.reasoning_content + "</think>" + response.choices[0].message.content
