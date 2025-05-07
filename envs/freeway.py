@@ -283,9 +283,9 @@ def ma_freeway_game_loop(log_file, seed, difficulty = 8, max_tokens = 1000):
                 max_tokens=max_tokens - 30
             )
             log_plan_agent_response = client.run_inference(thread_id, messages, "\\boxed{S}", sampling_params)
-            match = re.search(r'oxed{([^}]*)}', log_plan_agent_response.split("</think>")[-1])
-            if match:
-                scratch_pad = match.group(1).strip()
+            matches = re.findall(r'oxed{([^}]*)}', log_plan_agent_response.split("</think>")[-1])
+            if matches:
+                scratch_pad = matches[-1].strip()
             else:
                 scratch_pad = "S"
             scratch_pad = re.sub(r'[^UDS]', '', scratch_pad.upper())
@@ -304,6 +304,7 @@ def ma_freeway_game_loop(log_file, seed, difficulty = 8, max_tokens = 1000):
             scratch_pad = ""
             log_selected_action = selected_action
         logs['selected_action'].append(log_selected_action)
+        print(logs)
         df = pd.DataFrame(logs)
         df.to_csv(log_file)
 

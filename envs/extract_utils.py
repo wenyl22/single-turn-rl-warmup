@@ -11,7 +11,7 @@ def extract_boxed(text):
         assert matches, f"Boxed text not found in: {text}"
     # delete leading and trailing spaces
     if matches:
-        return matches[0].strip()
+        return matches[-1].strip()
     else:
         return text.strip()
         

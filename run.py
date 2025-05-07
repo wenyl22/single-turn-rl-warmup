@@ -135,7 +135,7 @@ if __name__ == "__main__":
     parser.add_argument('--tensor_parallel_size', default=4, type=int, help="tensor parallel size to load model with vllm")
     parser.add_argument('--max_new_tokens', type=int, default=8192)
     parser.add_argument('--token_per_tick', type=int, default=8192)
-    parser.add_argument('--budget-forcing', type=str, default='no', choices=['no', 'prompted', 's1', 'ps'], help='budget forcing method')
+    parser.add_argument('--budget-forcing', type=str, default='no', choices=['no', 'prompted', 's1', 'ps', 'br'], help='budget forcing method')
     parser.add_argument('--ma', default=False, help='use multi-agent or not', action='store_true')
     parser.add_argument('--seed_num', type=int, default=8, help='number of seeds to run')
     parser.add_argument('--api_keys', nargs='+', type=str, default=[], help='List of API keys for OpenAI')

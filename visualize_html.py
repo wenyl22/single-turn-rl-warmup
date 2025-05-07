@@ -128,6 +128,7 @@ args = parser.parse_args()
 args.f = args.f.replace("_0.csv", "_seed.csv")
 for seed_index, seed in enumerate(seeds):
     csv_path = args.f.replace("seed", str(seed))
+    print(csv_path)
     df = pd.read_csv(csv_path)
 
     html_content += f'<div class="seed-container seed-{seed_index}" style="display: {"block" if seed_index == 0 else "none"};">'
