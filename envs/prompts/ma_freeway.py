@@ -67,7 +67,7 @@ PLAN_PROMPT = """
 Analyze the current game state and create a plan for crossing the road without colliding with cars. Avoiding collisions is your top priority, but also try to reach the goal in the fewest turns possible. Due to token constraint, you can plan for less steps ** if the game state is complex **.
 
 ## **Answer Format**:
-\boxed{
+\\boxed{
 Turn 1: action1
 Turn 2: action2
 ...
