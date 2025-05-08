@@ -98,123 +98,10 @@ def freeway_game_loop(log_file, seed, difficulty = 8, max_tokens = 1000):
         'game_time': time.time() - start_time
     }
 
-def legacy_ma_freeway_game_loop(log_file, seed, difficulty = 8, max_tokens = 1000):
-    """
-    Freeway Game Loop in Single-Agent System.
-    """
-    from prompts.ma_freeway import LLM_SYSTEM_PROMPT, LLM_BASE_PROMPT, STAY_COMPLETION, SUPERVISOR_PORMPT, PLAN_PROMPT, REACT_PROMPT, FOLLOW_PLAN_PROMPT
-    client = VLLM_client
-    thread_id = client.add_new_thread()
-    env = Environment('freeway', sticky_action_prob=0)
-    env.env.difficulty = difficulty
-    if seed in seed_mapping:
-        seed = seed_mapping[seed]
-        env.seed(seed[0])
-        env.reset()
-        for i in range(seed[2]):
-            env.act(0)
-    else:
-        env.seed(seed)
-        env.reset()
-    reward = 0
-    game_turn = 0
-    scratch_pad = ""
-    start_time = time.time()
-    terminal = False
-    logs = {'description': [], 'render':[], 'supervisor_response': [],  'selected_agent': [], 'plan_agent_response':[], 'selected_agent_response': [], 'selected_action': []}
-    while True:
-        state_for_llm = llm_state_builder(env.env)
-        state_description = state_to_description(state_for_llm, scratch_pad)
-        logs['description'].append(state_description)
-        logs['render'].append('\n' + env.env.state_string())
-        available_actions_list = [f'{chr(65+i)}. {action}' for i, action in enumerate(state_for_llm['available_actions'])]
-        ## call supervisor agent
-        messages = [
-            {"role": "system", "content": LLM_SYSTEM_PROMPT},
-            {"role": "user", "content": LLM_BASE_PROMPT + SUPERVISOR_PORMPT + state_description}
-        ]
-        sampling_params = SamplingParams(
-            temperature=0.6,
-            top_p=0.9,
-            max_tokens=max_tokens
-        )
-        response = client.generate(thread_id, messages, sampling_params)['text']
-        logs['supervisor_response'].append(response)
-        # parse the response
-        selected_agent = find_best_match(client, thread_id, response, ["A. Plan Agent", "B. Follow Plan Agent", "C. React Agent"], "C. React Agent")
-        logs['selected_agent'].append(selected_agent)
-        sampling_params = SamplingParams(
-            temperature=0.6,
-            top_p=0.9,
-            max_tokens=max_tokens - 30
-        )
-        if "plan" in selected_agent.lower() and "follow" not in selected_agent.lower():
-            ## call plan agent
-            messages = [
-                {"role": "system", "content": LLM_SYSTEM_PROMPT},
-                {"role": "user", "content": LLM_BASE_PROMPT + PLAN_PROMPT + state_description}
-            ]
-            
-            response = client.generate(thread_id, messages, sampling_params)['text']
-            logs['plan_agent_response'].append(response)
-            scratch_pad = extract_boxed(response)
-            state_description = state_to_description(state_for_llm, scratch_pad)
-        else:
-            # dummy function call, indicating the thread is alive
-            _ = client.generate(thread_id, [], sampling_params)
-            logs['plan_agent_response'].append("")
-        sampling_params = SamplingParams(
-            temperature=0.6,
-            top_p=0.9,
-            max_tokens=max_tokens
-        )
-        if "plan" in selected_agent.lower():
-            ## call follow plan agent
-            messages = [
-                {"role": "system", "content": LLM_SYSTEM_PROMPT},
-                {"role": "user", "content": LLM_BASE_PROMPT + FOLLOW_PLAN_PROMPT + state_description}
-            ]
-            response = client.generate(thread_id, messages, sampling_params)['text']
-        else:
-            ## call react agent
-            messages = [
-                {"role": "system", "content": LLM_SYSTEM_PROMPT},
-                {"role": "user", "content": LLM_BASE_PROMPT + REACT_PROMPT + state_description}
-            ]
-            response = client.generate(thread_id, messages, sampling_params)['text']
-            
-        selected_action = find_best_match(client, thread_id, response, available_actions_list, STAY_COMPLETION)
-        if "stay" in selected_action.lower():
-            action = 0
-        elif "up" in selected_action.lower(): 
-            action = 2
-        elif "down" in selected_action.lower():
-            action = 4
-        logs["selected_agent_response"].append(response)
-        logs["selected_action"].append(selected_action)
-        df = pd.DataFrame(logs)
-        df.to_csv(log_file)
-        reward, terminal = env.act(action)
-        game_turn += 1
-        if reward > 0.5:
-            print(f"Get to the otherside in {game_turn} actions!")
-            break
-        if terminal or (game_turn > 100):
-            print("Fail to get to the otherside in required turns")
-            break
-        print(f"Thread {thread_id} - Game Turn: {game_turn}, Position: {env.env.pos}")
-    return {
-        'seed': seed,
-        'difficulty': difficulty,
-        'game_turn': game_turn,
-        'game_time': time.time() - start_time
-    }
-
 def ma_freeway_game_loop(log_file, seed, difficulty = 8, max_tokens = 1000):
     """
-    New version of Freeway Game Loop in Single-Agent System.
+    New version of Freeway Game Loop in Multi-Agent System.
     """
-
     from prompts.ma_freeway import LLM_SYSTEM_PROMPT, LLM_BASE_PROMPT, PLAN_PROMPT
     client = VLLM_client
     thread_id = client.add_new_thread()
@@ -243,6 +130,8 @@ def ma_freeway_game_loop(log_file, seed, difficulty = 8, max_tokens = 1000):
         logs['description'].append(state_description)
         logs['render'].append('\n' + env.env.state_string())
         log_supervisor_response, log_selected_agent, log_plan_agent_response, log_selected_action = "", "", "", ""
+        ### --- Previous Plan : May arrive because plan agent stops thinking --- ###
+        
         ### --- Supervisor Agent --- ###
         # If scratch pad is empty:
         if scratch_pad == "":

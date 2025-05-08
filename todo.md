@@ -1,32 +1,21 @@
+Experiment:
+- token_per_tick = max_new_token, w & wo scratch pad, budget_forcing = s1
+    - [] 14B & 32B, reasoning & Instruct model
+
 Code Base:
-- [✔] Correct log form.
-- [✔] Switch to new seed list.
-    - Problem 1: If the agent fails once, maybe POMDP is no longer the same as MDP.
-    - Problem 2: Maybe optimal strategy can include collisions.
-- [] Plan agent prompt:
-    - Make the format more reasonable.
-- [] Scratch pad logic.
-    - Is Scratch pad empty?
-    - No: 
-        - Is the plan up-to-date(no collision in the 3 steps)?
-        - Yes: Follow plan
-        - No:
-            - Is the first action in the scratch pad a collision?
-            - Yes: React
-            - No: Plan
-    - Yes: 
-        - Will "STAY" lead to a collision?
-        - Yes: React
-        - No: Plan
+- Budget Forcing:
+    - [✔] s1: Interrupt within LLM thinking process. 
+    - [] Thought Terminator: Interrupt with user prompt.
 - Continuous planning: Agent hasn't completed planning in the last turn(only when `token_per_tick` < `max_new_tokens`). 
-    - For Reasoning:
-        - [✔] Option1: Keep reasoning.
-        - [] Option2: Interrupt with new game state.
-    - For Action: 
-        - [✔] Option1: Force a none-action.
-        - [] Option2: Extract generated plan to scratch pad and follow.[Can be done in a s1 like way?]
-    - During generation:
-        - [✔] Option1: Do nothing.
-        - [] Option2: Remind LLM of tokens left before this turn ends.
-- Budget forcing:
-    - When total context >= `max_new_tokens`: (Use s1 to) force a stop.
+    - What action to take this turn:
+        - [] Option1: Force a none-action.
+        - [×] Option2: Extract generated plan to scratch pad and follow. 
+            - Take away: Can not change thinking trajectory format
+        - [] Option3: React.
+    - What to do with the plan(which may arrive a few turns later):
+        - [] Option1: Use it as the same[TODO].
+        - [] Option2: Skip the turns that have passed.
+        - [] Option3: Always up-to-date plan(interrupt with new game state).
+- Use non-thinking model to react/follow the plan.
+    - [] With scratch pad
+    - [?] Without scratch pad
