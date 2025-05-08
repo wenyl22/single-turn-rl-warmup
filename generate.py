@@ -108,50 +108,61 @@ def generate_vanilla_openai(llm: OpenAI, tokenizer: PreTrainedTokenizer, model: 
             time.sleep(1)
 
 def generate_prompted_s1_openai(llm: OpenAI, tokenizer: PreTrainedTokenizer, model: str, messages: List[Dict], sampling_params: SamplingParams) -> str:
-    """
-    Add "Think in less xxx tokens" after user prompt. 
-    After "budget" token is used, if thinking does not finish, add stop thinking token and output answer.
-    """
+    remote = '/' not in model
     for m in messages:
         if m["role"] == "user":
             m["content"] += f" Think in less than {sampling_params.max_tokens - 30} tokens."
-    while True:
-        try:
-            response = llm.chat.completions.create(
-                model=model,
-                messages=messages,
-                max_tokens=sampling_params.max_tokens,
-                temperature=sampling_params.temperature,
-                top_p=sampling_params.top_p,
-            )
-            assert not hasattr(response.choices[0].message, 'reasoning_content') or response.choices[0].message.reasoning_content == None, "Remote API does not support s1 forcing"
+    eos = tokenizer.special_tokens_map["eos_token"]
+    generation = ""
+    token_used = 0
+    for i in range(2):
+        new_messages = messages.copy() + [{"role": "assistant", "content": generation, "prefix": True}]
+        while True:
+            try:
+                if remote:
+                    response = llm.chat.completions.create(
+                        messages=new_messages,
+                        model=model,
+                        max_tokens=sampling_params.max_tokens - 30,
+                        temperature=sampling_params.temperature,
+                        top_p=sampling_params.top_p,
+                    )
+                else:
+                    response = llm.completions.create(
+                        prompt=tokenizer.apply_chat_template(new_messages, add_generation_prompt=True, tokenize=False) + generation,
+                        model=model,
+                        max_tokens=sampling_params.max_tokens - 30,
+                        temperature=sampling_params.temperature,
+                        top_p=sampling_params.top_p,
+                    )
+                break
+            except Exception as e:
+                print(f"Error: {e}")
+                time.sleep(1)
+        if not remote:
+            response_text = response.choices[0].text
+        elif response.choices[0].message.reasoning_content is None:
+            response_text = response.choices[0].message.content
+        else:
+            response_text = "<think>" + response.choices[0].message.reasoning_content + "</think>" + response.choices[0].message.content
+        response_tokens = tokenizer(response_text)["input_ids"]
+        if len(response_tokens) > sampling_params.max_tokens - 30:
+            response_tokens = response_tokens[:sampling_params.max_tokens - 30]
+        response_tokens = response_tokens[:sampling_params.max_tokens - 30]
+        token_used += len(response_tokens)
+        response_text = tokenizer.decode(response_tokens, skip_special_tokens=True)
+        generation += response_text
+        if eos in response_text or (re.findall(r"oxed{([^}]*)}", response_text.split("</think>")[-1]) and "</think>" in response_text):
             break
-        except Exception as e:
-            print(f"Error: {e}")
-            time.sleep(1)
-    if "</think>" not in response.choices[0].message.content:
-        response.choices[0].message.content += "\n</think>\nThe final answer is: \boxed"
-    while True:
-        try:
-            response2 = llm.chat.completions.create(
-                model=model,
-                messages=messages + [{"role": "assistant", "content": response.choices[0].message.content}],
-                max_tokens=20,
-                temperature=0.0,
-                top_p=1.0,
-            )
-            response.choices[0].message.content += "\n</think>\nThe final answer is: \boxed" + response2.choices[0].message.content
-            response.usage.completion_tokens += response2.usage.completion_tokens
-            break
-        except Exception as e:
-            print(f"Error: {e}")
-            time.sleep(1)
-    return dict(text=response.choices[0].message.content, token_num=response.usage.completion_tokens)
+        if i == 0:
+            generation += "\n</think>\n In summary, the final answer is: \\boxed"
+    return dict(text=generation, token_num=token_used)
 
 def generate_with_budget_reminder(llm: OpenAI, tokenizer: PreTrainedTokenizer, model: str, messages: List[Dict], sampling_params: SamplingParams) -> str:
     """
     Remind the model to be concise after a fixed number of tokens.
     """
+    remote = '/' not in model
     token_per_generation = 120 # tunable parameter
     max_generation = sampling_params.max_tokens // token_per_generation
     token_used = 0
@@ -161,18 +172,29 @@ def generate_with_budget_reminder(llm: OpenAI, tokenizer: PreTrainedTokenizer, m
         new_messages = messages.copy() + [{"role": "assistant", "content": generation, "prefix": True}]
         while True:
             try:
-                response = llm.chat.completions.create(
-                    messages=new_messages,
-                    model=model,
-                    max_tokens=token_per_generation,
-                    temperature=sampling_params.temperature,
-                    top_p=sampling_params.top_p,
-                )
+                if remote:
+                    response = llm.chat.completions.create(
+                        messages=new_messages,
+                        model=model,
+                        max_tokens=sampling_params.max_tokens - 30,
+                        temperature=sampling_params.temperature,
+                        top_p=sampling_params.top_p,
+                    )
+                else:
+                    response = llm.completions.create(
+                        prompt=tokenizer.apply_chat_template(new_messages, add_generation_prompt=True, tokenize=False) + generation,
+                        model=model,
+                        max_tokens=sampling_params.max_tokens - 30,
+                        temperature=sampling_params.temperature,
+                        top_p=sampling_params.top_p,
+                    )
                 break
             except Exception as e:
                 print(f"Error: {e}")
                 time.sleep(1)
-        if not hasattr(response.choices[0].message, 'reasoning_content') or response.choices[0].message.reasoning_content is None:
+        if not remote:
+            response_text = response.choices[0].text
+        elif response.choices[0].message.reasoning_content is None:
             response_text = response.choices[0].message.content
         else:
             response_text = "<think>" + response.choices[0].message.reasoning_content + "</think>" + response.choices[0].message.content
@@ -186,7 +208,7 @@ def generate_with_budget_reminder(llm: OpenAI, tokenizer: PreTrainedTokenizer, m
         if eos in response_text or ("</think>" in response_text and re.findall(r"oxed{([^}]*)}", response_text)):
             break
         if i == max_generation - 2:
-            generation += "\n</think>\n In summary, the plan is: \boxed"
+            generation += "\n</think>\n In summary, the final answer is: \\boxed"
         else:
             generation += f"(There are only {token_per_generation * (max_generation - i - 2)} tokens left to use. I must be more concise.)\n"
 
