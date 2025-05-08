@@ -130,22 +130,22 @@ def generate_prompted_s1_openai(llm: OpenAI, tokenizer: PreTrainedTokenizer, mod
             print(f"Error: {e}")
             time.sleep(1)
     if "</think>" not in response.choices[0].message.content:
-        response.choices[0].message.content += "\n</think>\nThe final answer is: \boxed"
-    while True:
-        try:
-            response2 = llm.chat.completions.create(
-                model=model,
-                messages=messages + [{"role": "assistant", "content": response.choices[0].message.content}],
-                max_tokens=20,
-                temperature=0.0,
-                top_p=1.0,
-            )
-            response.choices[0].message.content += "\n</think>\nThe final answer is: \boxed" + response2.choices[0].message.content
-            response.usage.completion_tokens += response2.usage.completion_tokens
-            break
-        except Exception as e:
-            print(f"Error: {e}")
-            time.sleep(1)
+        response.choices[0].message.content += "\n</think>\nThe final answer is: \\boxed"
+        while True:
+            try:
+                response2 = llm.completions.create(
+                    model=model,
+                    prompt=tokenizer.apply_chat_template(messages, add_generation_prompt=True, tokenize=False) + response.choices[0].message.content,
+                    max_tokens=20,
+                    temperature=0.0,
+                    top_p=1.0,
+                )
+                response.choices[0].message.content += response2.choices[0].text
+                response.usage.completion_tokens += response2.usage.completion_tokens
+                break
+            except Exception as e:
+                print(f"Error: {e}")
+                time.sleep(1)
     return dict(text=response.choices[0].message.content, token_num=response.usage.completion_tokens)
 
 def generate_with_budget_reminder(llm: OpenAI, tokenizer: PreTrainedTokenizer, model: str, messages: List[Dict], sampling_params: SamplingParams) -> str:
@@ -161,8 +161,8 @@ def generate_with_budget_reminder(llm: OpenAI, tokenizer: PreTrainedTokenizer, m
         new_messages = messages.copy() + [{"role": "assistant", "content": generation, "prefix": True}]
         while True:
             try:
-                response = llm.chat.completions.create(
-                    messages=new_messages,
+                response = llm.completions.create(
+                    prompt=tokenizer.apply_chat_template(new_messages, add_generation_prompt=True, tokenize=False) + generation,
                     model=model,
                     max_tokens=token_per_generation,
                     temperature=sampling_params.temperature,
@@ -172,10 +172,11 @@ def generate_with_budget_reminder(llm: OpenAI, tokenizer: PreTrainedTokenizer, m
             except Exception as e:
                 print(f"Error: {e}")
                 time.sleep(1)
-        if not hasattr(response.choices[0].message, 'reasoning_content') or response.choices[0].message.reasoning_content is None:
-            response_text = response.choices[0].message.content
-        else:
-            response_text = "<think>" + response.choices[0].message.reasoning_content + "</think>" + response.choices[0].message.content
+        response_text = response.choices[0].text
+        # if not hasattr(response.choices[0].message, 'reasoning_content') or response.choices[0].message.reasoning_content is None:
+        #     response_text = response.choices[0].message.content
+        # else:
+        #     response_text = "<think>" + response.choices[0].message.reasoning_content + "</think>" + response.choices[0].message.content
         response_tokens = tokenizer(response_text)["input_ids"]
         if len(response_tokens) > token_per_generation:
             response_tokens = response_tokens[:token_per_generation]
@@ -186,7 +187,7 @@ def generate_with_budget_reminder(llm: OpenAI, tokenizer: PreTrainedTokenizer, m
         if eos in response_text or ("</think>" in response_text and re.findall(r"oxed{([^}]*)}", response_text)):
             break
         if i == max_generation - 2:
-            generation += "\n</think>\n In summary, the plan is: \boxed"
+            generation += "\n</think>\n In summary, the plan is: \\boxed"
         else:
             generation += f"(There are only {token_per_generation * (max_generation - i - 2)} tokens left to use. I must be more concise.)\n"
 
