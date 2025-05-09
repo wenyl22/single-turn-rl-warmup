@@ -136,6 +136,7 @@ if __name__ == "__main__":
     parser.add_argument('--max_new_tokens', type=int, default=8192)
     parser.add_argument('--token_per_tick', type=int, default=8192)
     parser.add_argument('--budget-forcing', type=str, default='no', choices=['no', 'prompted', 's1', 'ps', 'br'], help='budget forcing method')
+    parser.add_argument("--method", type=str, default='sa', choices=['sa', 'ma', 'pma'], help='framework to use')
     parser.add_argument('--ma', default=False, help='use multi-agent or not', action='store_true')
     parser.add_argument('--seed_num', type=int, default=8, help='number of seeds to run')
     parser.add_argument('--api_keys', nargs='+', type=str, default=[], help='List of API keys for OpenAI')
@@ -174,10 +175,12 @@ if __name__ == "__main__":
 
     if game == "freeway":
         from envs.freeway import setup_thread_VLLM_client, get_thread_VLLM_client
-        if not args.ma:
+        if args.method == "sa":
             from envs.freeway import freeway_game_loop as game_func
-        else:
+        elif args.method == "ma":
             from envs.freeway import ma_freeway_game_loop as game_func
+        elif args.method == "pma":
+            from envs.freeway import pma_freeway_game_loop as game_func
     elif game == "overcooked":
         from envs.overcooked import overcooked_game_loop as game_func, setup_thread_VLLM_client, get_thread_VLLM_client
     elif game == "asterix":

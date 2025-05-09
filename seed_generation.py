@@ -26,8 +26,8 @@ def bfs(env, max_steps=100):
 
             if r > 0:
                 return actions + [action]
-            # if r < 0:
-            #     continue
+            if r < 0:
+                continue
             if (new_env.env.pos, steps + 1) in visited:
                 continue
             visited.add((new_env.env.pos, steps + 1))
@@ -71,6 +71,22 @@ def all_paths(env, optimal_step):
             queue.append((new_env.env.pos, steps + 1, actions + [action], new_tm))
 
     return sols
+from envs.freeway import supervise_collision, llm_state_builder, react_to_collision
+def greedy(env: Environment):
+    env.env.pos = 9
+    step = 0
+    while step < 100:
+        state = llm_state_builder(env.env)
+        action = react_to_collision(state)
+        action = 2 if action == 1 else 4 if action == 2 else 0
+        r, terminal = env.act(action)
+        step += 1
+        if r > 0:
+            return step
+    return step
+
+        
+        
 import pandas as pd
 import numpy as np
 if __name__ == "__main__":
@@ -79,10 +95,11 @@ if __name__ == "__main__":
     env.env.pos = 0
     env.env.special_pattern = True
     optimal_path = []
-    # logs = {
-    #     'seed': [],
-    #     'action': [],
-    # }
+    logs = {
+        'seed': [],
+        'action': [],
+        'greedy': []
+    }
     # for seed in range(1001, 3000):
     #     env.seed(seed)
     #     env.env.special_pattern = True
@@ -93,7 +110,13 @@ if __name__ == "__main__":
     #     optimal_path.append(best_action)
     #     logs['seed'].append(seed)
     #     logs['action'].append(best_action)
-    #     print(f"Seed: {seed}, Path: {best_action}")
+    #     env.seed(seed)
+    #     env.env.special_pattern = True
+    #     env.reset()
+    #     step = greedy(env)
+    #     logs['greedy'].append(step)
+    #     if step >= 100 > 25 > len(best_action):
+    #         print(f"Seed: {seed}, Path: {best_action}, Greedy: {step} > {len(best_action)}")
     # df = pd.DataFrame(logs)
     # df.to_csv('optimal_path.csv', index=False)
     df = pd.read_csv('optimal_path.csv')
@@ -113,8 +136,8 @@ if __name__ == "__main__":
     # for i in range(len(bins) - 1):
     #     print(f"Range: {bins[i]} - {bins[i+1]}, Height: {counts[i]}") 
     # plt.savefig('histogram.png')
-    font_path = '/usr/share/fonts/truetype/dejavu/DejaVuSansMono.ttf'
-    seeds = [1004, 1026, 1536, 1798, 1858, 2408, 2499, 2867]
+    # font_path = '/usr/share/fonts/truetype/dejavu/DejaVuSansMono.ttf'
+    seeds = [1069, 1093, 1447, 1953, 1536, 1798, 1858, 2408]
 
     seed_mapping_list = {}
 
@@ -147,4 +170,3 @@ if __name__ == "__main__":
         # generate_gif_from_string_map(string_maps, f"example_gifs/{seed}.gif", font_path=font_path, font_size=20)
     print(seed_mapping_list)
 
-# seed_mapping_list = {0: (1004, 17, 0), 1: (1026, 18, 0), 2: (1536, 14, 0), 3: (1798, 17, 5), 4: (1858, 16, 0), 5: (2408, 19, 0), 6: (2499, 13, 0), 7: (2867, 22, 0)} 
