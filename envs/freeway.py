@@ -238,7 +238,6 @@ def pma_freeway_game_loop(log_file, seed, difficulty = 8, max_tokens = 1000):
         turns = client.token_queue_len[thread_id] // client.token_per_tick
         # The message will be automatically dropped if the thread is planning state for previous turns.
         log_plan_agent_response = client.run_inference(thread_id, messages, "", sampling_params)
-        logs['plan_agent_response'].append(log_plan_agent_response)
         if log_plan_agent_response != "": # agent responds with a plan
             scratch_pad = extract_scratch_pad(log_plan_agent_response, scratch_pad)
             scratch_pad = scratch_pad[turns:] if turns < len(scratch_pad) else ""
