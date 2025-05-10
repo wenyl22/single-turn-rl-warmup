@@ -19,3 +19,34 @@ Code Base:
 - Use non-thinking model to react/follow the plan.
     - [] With scratch pad
     - [?] Without scratch pad
+Scratch pad logic.
+- Is Scratch pad empty?
+- No:
+    - Is the plan up-to-date(no possible collision in 3 steps)?
+    - Yes: Follow plan
+    - No:
+        - Is the first action in the scratch pad a collision?
+        - Yes: React
+        - No: Plan
+- Yes:
+    - Will "STAY" lead to a collision?
+    - Yes: React
+    - No: Plan
+
+Parallel logic:
+
+High level agent:
+- Is it still thinking of previous game state?
+    - Yes: drop new game state message OR interrupt.
+    - No: invoke with new game state message.
+- Will it give a plan in this turn?
+    - No: Do not modify the scratch pad.
+    - Yes: Extract the plan to scratch pad, delete the turns that have passed.
+
+Low level agent:
+- Given the plan scratch pad. 
+- If scratch pad is empty:
+    - write 'U' on the scratch pad.
+- Will follow the plan lead to an immediate collision? [This can be done by a non-thinking LLM
+    - Yes: Follow plan
+    - No: React(prioritize STAY > UP > DOWN) and clear the plan.

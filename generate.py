@@ -123,7 +123,7 @@ def generate_prompted_s1_openai(llm: OpenAI, tokenizer: PreTrainedTokenizer, mod
                     response = llm.chat.completions.create(
                         messages=new_messages,
                         model=model,
-                        max_tokens=sampling_params.max_tokens - 30,
+                        max_tokens=sampling_params.max_tokens - 100,
                         temperature=sampling_params.temperature,
                         top_p=sampling_params.top_p,
                     )
@@ -131,7 +131,7 @@ def generate_prompted_s1_openai(llm: OpenAI, tokenizer: PreTrainedTokenizer, mod
                     response = llm.completions.create(
                         prompt=tokenizer.apply_chat_template(new_messages, add_generation_prompt=True, tokenize=False) + generation,
                         model=model,
-                        max_tokens=sampling_params.max_tokens - 30,
+                        max_tokens=sampling_params.max_tokens - 100,
                         temperature=sampling_params.temperature,
                         top_p=sampling_params.top_p,
                     )
@@ -141,14 +141,15 @@ def generate_prompted_s1_openai(llm: OpenAI, tokenizer: PreTrainedTokenizer, mod
                 time.sleep(1)
         if not remote:
             response_text = response.choices[0].text
-        elif response.choices[0].message.reasoning_content is None:
+        elif not hasattr(response.choices[0].message, 'reasoning_content') or \
+        response.choices[0].message.reasoning_content is None:
             response_text = response.choices[0].message.content
         else:
             response_text = "<think>" + response.choices[0].message.reasoning_content + "</think>" + response.choices[0].message.content
         response_tokens = tokenizer(response_text)["input_ids"]
-        if len(response_tokens) > sampling_params.max_tokens - 30:
-            response_tokens = response_tokens[:sampling_params.max_tokens - 30]
-        response_tokens = response_tokens[:sampling_params.max_tokens - 30]
+        if len(response_tokens) > sampling_params.max_tokens - 100:
+            response_tokens = response_tokens[:sampling_params.max_tokens - 100]
+        response_tokens = response_tokens[:sampling_params.max_tokens - 100]
         token_used += len(response_tokens)
         response_text = tokenizer.decode(response_tokens, skip_special_tokens=True)
         generation += response_text
@@ -156,6 +157,7 @@ def generate_prompted_s1_openai(llm: OpenAI, tokenizer: PreTrainedTokenizer, mod
             break
         if i == 0:
             generation += "\n</think>\n In summary, the final answer is: \\boxed"
+            sampling_params = SamplingParams(max_tokens=190, temperature=0.0, stop_token_ids=[tokenizer.special_tokens_map["eos_token"]])
     return dict(text=generation, token_num=token_used)
 
 def generate_with_budget_reminder(llm: OpenAI, tokenizer: PreTrainedTokenizer, model: str, messages: List[Dict], sampling_params: SamplingParams) -> str:
@@ -176,7 +178,7 @@ def generate_with_budget_reminder(llm: OpenAI, tokenizer: PreTrainedTokenizer, m
                     response = llm.chat.completions.create(
                         messages=new_messages,
                         model=model,
-                        max_tokens=sampling_params.max_tokens - 30,
+                        max_tokens=token_per_generation,
                         temperature=sampling_params.temperature,
                         top_p=sampling_params.top_p,
                     )
@@ -184,7 +186,7 @@ def generate_with_budget_reminder(llm: OpenAI, tokenizer: PreTrainedTokenizer, m
                     response = llm.completions.create(
                         prompt=tokenizer.apply_chat_template(new_messages, add_generation_prompt=True, tokenize=False) + generation,
                         model=model,
-                        max_tokens=sampling_params.max_tokens - 30,
+                        max_tokens=token_per_generation,
                         temperature=sampling_params.temperature,
                         top_p=sampling_params.top_p,
                     )
@@ -194,7 +196,8 @@ def generate_with_budget_reminder(llm: OpenAI, tokenizer: PreTrainedTokenizer, m
                 time.sleep(1)
         if not remote:
             response_text = response.choices[0].text
-        elif response.choices[0].message.reasoning_content is None:
+        elif not hasattr(response.choices[0].message, 'reasoning_content') or \
+        response.choices[0].message.reasoning_content is None:
             response_text = response.choices[0].message.content
         else:
             response_text = "<think>" + response.choices[0].message.reasoning_content + "</think>" + response.choices[0].message.content
