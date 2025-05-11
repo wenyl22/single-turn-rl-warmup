@@ -65,7 +65,7 @@ def freeway_game_loop(log_file, seed, difficulty = 8, max_tokens = 1000):
         ]
         sampling_params = SamplingParams(
             temperature=0.6,
-            top_p=0.9,
+            top_p=0.95,
             max_tokens=max_tokens
         )
         response = client.run_inference(thread_id, messages, STAY_COMPLETION, sampling_params)
@@ -163,7 +163,7 @@ def ma_freeway_game_loop(log_file, seed, difficulty = 8, max_tokens = 1000):
                 {"role": "system", "content": LLM_SYSTEM_PROMPT},
                 {"role": "user", "content": LLM_BASE_PROMPT + PLAN_PROMPT + state_description}
             ]
-            sampling_params = SamplingParams(temperature=0.6, top_p=0.9, max_tokens=max_tokens - 5)
+            sampling_params = SamplingParams(temperature=0.6, top_p=0.95, max_tokens=max_tokens - 5)
             log_plan_agent_response = client.run_inference(thread_id, messages, "", sampling_params)
             scratch_pad = extract_scratch_pad(log_plan_agent_response, scratch_pad)
         logs['plan_agent_response'].append(log_plan_agent_response)
@@ -233,7 +233,7 @@ def pma_freeway_game_loop(log_file, seed, difficulty = 8, max_tokens = 1000):
             {"role": "user", "content": LLM_BASE_PROMPT + PLAN_PROMPT + state_description}
         ]
         sampling_params = SamplingParams(
-            temperature=0.6, top_p=0.9, max_tokens=max_tokens - 5
+            temperature=0.6, top_p=0.95, max_tokens=max_tokens - 5
         )
         turns = client.token_queue_len[thread_id] // client.token_per_tick
         # The message will be automatically dropped if the thread is planning state for previous turns.

@@ -90,14 +90,22 @@ def generate_vanilla_openai(llm: OpenAI, tokenizer: PreTrainedTokenizer, model: 
     """
     while True:
         try:
-            #print(messages)
-            response = llm.chat.completions.create(
-                model=model,
-                messages=messages,
-                max_tokens=sampling_params.max_tokens,
-                temperature=sampling_params.temperature,
-                top_p=sampling_params.top_p,
-            )
+            params = {
+                "model": model,
+                "messages": messages,
+                "max_tokens": sampling_params.max_tokens,
+                "temperature": sampling_params.temperature,
+                "top_p": sampling_params.top_p
+            }
+
+            if 'QWEN3' in model.upper():  
+                params["extra_body"] = {
+                    "top_k": 20,
+                    "chat_template_kwargs": {"enable_thinking": True}
+                }
+
+            response = llm.chat.completions.create(**params)
+
             #print(response)
             if hasattr(response.choices[0].message, 'reasoning_content') and response.choices[0].message.reasoning_content != None:
                 return dict(text='<think>' + response.choices[0].message.reasoning_content + "\n</think>\n" + response.choices[0].message.content, token_num=response.usage.completion_tokens)
@@ -119,22 +127,25 @@ def generate_prompted_s1_openai(llm: OpenAI, tokenizer: PreTrainedTokenizer, mod
         new_messages = messages.copy() + [{"role": "assistant", "content": generation, "prefix": True}]
         while True:
             try:
+                params = {
+                    "model": model,
+                    "max_tokens": sampling_params.max_tokens - 100,
+                    "temperature": sampling_params.temperature,
+                    "top_p": sampling_params.top_p
+                }
+
+                if 'QWEN3' in model.upper():  
+                    params["extra_body"] = {
+                        "top_k": 20,
+                        "chat_template_kwargs": {"enable_thinking": True}
+                    }
+
                 if remote:
-                    response = llm.chat.completions.create(
-                        messages=new_messages,
-                        model=model,
-                        max_tokens=sampling_params.max_tokens - 100,
-                        temperature=sampling_params.temperature,
-                        top_p=sampling_params.top_p,
-                    )
+                    params["messages"] = new_messages
+                    response = llm.chat.completions.create(**params)
                 else:
-                    response = llm.completions.create(
-                        prompt=tokenizer.apply_chat_template(new_messages, add_generation_prompt=True, tokenize=False) + generation,
-                        model=model,
-                        max_tokens=sampling_params.max_tokens - 100,
-                        temperature=sampling_params.temperature,
-                        top_p=sampling_params.top_p,
-                    )
+                    params["prompt"] = tokenizer.apply_chat_template(new_messages, add_generation_prompt=True, tokenize=False) + generation
+                    response = llm.completions.create(**params)
                 break
             except Exception as e:
                 print(f"Error: {e}")
@@ -174,22 +185,25 @@ def generate_with_budget_reminder(llm: OpenAI, tokenizer: PreTrainedTokenizer, m
         new_messages = messages.copy() + [{"role": "assistant", "content": generation, "prefix": True}]
         while True:
             try:
+                params = {
+                    "model": model,
+                    "max_tokens": token_per_generation,
+                    "temperature": sampling_params.temperature,
+                    "top_p": sampling_params.top_p
+                }
+                if 'QWEN3' in model.upper():
+                    params["extra_body"] = {
+                        "top_k": 20,
+                        "chat_template_kwargs": {"enable_thinking": True}
+                    }
                 if remote:
-                    response = llm.chat.completions.create(
-                        messages=new_messages,
-                        model=model,
-                        max_tokens=token_per_generation,
-                        temperature=sampling_params.temperature,
-                        top_p=sampling_params.top_p,
-                    )
+                    params["messages"] = new_messages
+                    response = llm.chat.completions.create(**params)
                 else:
-                    response = llm.completions.create(
-                        prompt=tokenizer.apply_chat_template(new_messages, add_generation_prompt=True, tokenize=False) + generation,
-                        model=model,
-                        max_tokens=token_per_generation,
-                        temperature=sampling_params.temperature,
-                        top_p=sampling_params.top_p,
-                    )
+                    params["prompt"] = tokenizer.apply_chat_template(new_messages, add_generation_prompt=True, tokenize=False) + generation
+                    response = llm.completions.create(**params)
+                    
+                #print(response)
                 break
             except Exception as e:
                 print(f"Error: {e}")
