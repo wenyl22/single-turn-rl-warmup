@@ -9,6 +9,7 @@ from minatar.environments.freeway import Env
 from extract_utils import find_best_match, extract_scratch_pad
 from envs.client_utils import LocalThreadedLLMClient, ApiThreadedLLMClient
 from vllm import SamplingParams
+from envs.prompts.ma_freeway import GAME_STATE
 VLLM_client = None 
 seed_mapping = {
     0: (1069, 12, 0), 
@@ -201,7 +202,7 @@ def ma_freeway_game_loop(log_file, seed, difficulty = 8, max_tokens = 1000):
     }
 
 def pma_freeway_game_loop(log_file, seed, difficulty = 8, max_tokens = 1000):
-    from prompts.ma_freeway import LLM_SYSTEM_PROMPT, LLM_BASE_PROMPT, PLAN_PROMPT
+    from prompts.ma_freeway import LLM_SYSTEM_PROMPT, LLM_BASE_PROMPT
     client = VLLM_client
     thread_id = client.add_new_thread()
     env = Environment('freeway', sticky_action_prob=0)
@@ -230,7 +231,7 @@ def pma_freeway_game_loop(log_file, seed, difficulty = 8, max_tokens = 1000):
         # ### --- High Level Agent --- ###
         messages = [
             {"role": "system", "content": LLM_SYSTEM_PROMPT},
-            {"role": "user", "content": LLM_BASE_PROMPT + PLAN_PROMPT + state_description}
+            {"role": "user", "content": LLM_BASE_PROMPT + state_description}
         ]
         sampling_params = SamplingParams(
             temperature=0.6, top_p=0.95, max_tokens=max_tokens - 5
@@ -246,7 +247,7 @@ def pma_freeway_game_loop(log_file, seed, difficulty = 8, max_tokens = 1000):
             scratch_pad = "U"
         ### --- Low Level Agent --- ###
         logs['scratch_pad'].append(scratch_pad)
-        safe = not supervise_collision(state_for_llm, scratch_pad)
+        safe = not supervise_collision(state_for_llm, scratch_pad[0])
         available_action_list = ["Stay in the same freeway", "Move up to Freeway " + str( state_for_llm['player_states'] + 1), "Move down to Freeway " + str(state_for_llm['player_states'] - 1)]
         if safe: # Follow Plan
             log_selected_agent = "B. Follow Plan Agent"
@@ -323,23 +324,23 @@ def llm_state_builder(env: Env):
 
 def state_to_description(state_for_llm, scratch_pad = None, need_action = True):
     # (9 - car[1], pos, dir, speed, car[4] * 12 - 1)
-    description = f"- Player Position: (0, {state_for_llm['player_states']}).\n"
-    if scratch_pad is not None:
-        description += f'- Plan Scratch Pad: {scratch_pad if scratch_pad != "" else "Empty"}.\n'
-    description += '- Cars on Each Freeway:\n'
-    las_car = -1
-    num = [0] * 9
+    description = f"**Player Initial Position:** \((0, {state_for_llm['player_states']})\) \n" + GAME_STATE
+    car_info = ""
+    lane = 1
     for car in state_for_llm['car_states']:
-        if car[1] is not None:
-            num[car[0]] += 1
-    for car in state_for_llm['car_states']:
+        if car[0] != lane:
+            description += f"| {lane} | \({car_info}\) |\n"
+            car_info = ""
+            lane = car[0]
         span = car[4] if car[2] == 'left' else -car[4]
-        if las_car != car[0]:
-            description += f"\t- Freeway {car[0]}: {num[car[0]]} cars.\n"
-            las_car = car[0]
-        description += f"\t\t - Head at **x = {car[1]}**, tail at **x = {car[1] + span}**, direction = {car[2]}, speed = {car[3]}.\n"
+        if car_info != "":
+            car_info += ", "
+        car_info += f"({car[1]}, {car[1] + span}, {car[2]}, {car[3]})"
+    description += f"| {lane} | \({car_info}\) |\n"
     if need_action:
         description += f'- Available actions:\n{get_available_actions(state_for_llm)}'
+    if scratch_pad is not None:
+        description += f'- Plan Scratch Pad: {scratch_pad if scratch_pad != "" else "Empty"}.\n'
     return description
 
 def get_available_actions(state_for_llm):
