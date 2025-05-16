@@ -115,7 +115,7 @@ if __name__ == "__main__":
         with ThreadPoolExecutor(max_workers=max_workers) as executor:
             futures = [
                 executor.submit(process_entry, i, df['seed'][i], next(api_key_cycle), args)
-                for i in range(8)
+                for i in range(len(df))
             ]
             results = []
             start_time = time.time()
