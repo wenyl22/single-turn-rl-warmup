@@ -28,8 +28,8 @@ Minimize \(T\) such that \(y_T = 9\) and \(0 \notin \text{Span}_{k,i}(t)\) for a
 
 **Answer Format**:
 \\boxed{
-Turn 1: action1
-Turn 2: action2
+Turn 1: a_1
+Turn 2: a_2
 ...
 }
 
@@ -39,8 +39,6 @@ Turn 2: action2
 '''
 
 GAME_STATE = '''
-**Car Data for Freeways \( y = 1 \) to \( y = 8 \):**  
-For each freeway \( k \), cars are defined as \((h_{\text{initial}}, \tau_{\text{initial}}, \text{direction}, s)\):  
 | Freeway \( k \) | Cars (head \( h \), tail \( \tau \), direction \( d \), speed \( s \)) |  
 |-----------------|------------------------------------------------------------------------|
 '''

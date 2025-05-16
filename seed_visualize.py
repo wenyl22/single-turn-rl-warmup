@@ -1,6 +1,5 @@
 import argparse
 from envs.minatar.environment import Environment
-from envs.visualize_utils import generate_gif_from_string_map
 from seed_generation import bfs
 parser = argparse.ArgumentParser(description="Visualize the seed of a model.")
 parser.add_argument("--s", type=int, default=0, help="The seed to visualize.")

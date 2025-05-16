@@ -11,121 +11,6 @@ import os
 import numpy as np
 from openai import OpenAI
 
-# ### Tested ###
-
-# def model_name_from_path(model_path):
-#     return model_path.split("/")[-2] if model_path.endswith("/") else model_path.split("/")[-1]  
-
-# def test_simple_inference(port, model_name):
-#     """Test a simple inference request"""
-#     url = f"http://localhost:{port}/v1/completions"
-    
-#     payload = {
-#         "model": model_name,
-#         "prompt": "Hello, world!",
-#         "max_tokens": 10,
-#         "temperature": 0.7
-#     }
-    
-#     headers = {"Content-Type": "application/json"}
-    
-#     try:
-#         response = requests.post(url, headers=headers, json=payload, timeout=10)
-#         if response.status_code == 200:
-#             result = response.json()
-#             print(f"✅ Inference successful on port {port}")
-#             print(f"   Response: {json.dumps(result, indent=2)}")
-#             return True
-#         else:
-#             print(f"❌ Inference failed on port {port} with status code {response.status_code}")
-#             print(f"   Response: {response.text}")
-#             return False
-#     except requests.exceptions.RequestException as e:
-#         print(f"❌ Inference error on port {port}: {e}")
-#         return False
-
-# def launch_vllm_models(
-#         main_model_path, 
-#         extract_model_path,
-#         main_tp_size = 4,
-#         extract_tp_size = 4,
-#         port1=8000,
-#         port2=8001
-#     ):
-#     """
-#     Launch two vLLM models with the specified configurations.
-    
-#     Args:
-#         main_model_path (str): Path to the first model
-#         extract_model_path (str): Path to the second model
-#         main_tp_size (int): Tensor parallel size for the first model
-#         extract_tp_size (int): Tensor parallel size for the second model
-#     """
-    
-#     # check if main_tp_size + extract_tp_size > available_gpus
-#     available_gpus = torch.cuda.device_count()
-#     extract_tp_size = min(extract_tp_size, available_gpus - main_tp_size)
-#     assert extract_tp_size > 0, f"Not enough GPUs available. Required at least: {main_tp_size + 1}, Available: {available_gpus}"
-
-#     main_model = model_name_from_path(main_model_path)
-#     extract_model = model_name_from_path(extract_model_path)
-        
-#     def gpu_list(start, num):
-#         return ",".join([str(i) for i in range(start, start + num)])
-
-#     # Launch the first model and get its PID for later killing
-#     cmd1 = [
-#         f"CUDA_VISIBLE_DEVICES='{gpu_list(0, main_tp_size)}'",
-#         "python -m vllm.entrypoints.openai.api_server",
-#         f"--model {main_model_path}",
-#         f"--tensor-parallel-size {main_tp_size}",
-#         "--host 'localhost'",
-#         f"--port {port1}",
-#         "--gpu-memory-utilization 0.9",
-#         f"--served-model-name {main_model}",
-#         "--trust-remote-code",
-#         "--disable-custom-all-reduce",
-#         "--max-model-len 16384",
-#         "&"
-#     ]
-
-#     cmd1 = " ".join(cmd1)
-#     os.system(cmd1)
-#     print(f"Started main model with command: {cmd1}")
-
-#     # Launch the second model and get its PID for later killing
-#     cmd2 = [
-#         f"CUDA_VISIBLE_DEVICES='{gpu_list(main_tp_size, extract_tp_size)}'",
-#         "python -m vllm.entrypoints.openai.api_server",
-#         f"--model {extract_model_path}",
-#         f"--tensor-parallel-size {extract_tp_size}",
-#         "--host 'localhost'",
-#         f"--port {port2}",
-#         "--gpu-memory-utilization 0.9",
-#         f"--served-model-name {extract_model}",
-#         "--trust-remote-code",
-#         "--disable-custom-all-reduce",
-#         "--max-model-len 16384",
-#         "&"
-#     ]
-#     cmd2 = " ".join(cmd2)
-#     os.system(cmd2)
-#     print(f"Started extract model with command: {cmd2}")
-    
-#     # Wait for the models to be ready
-#     while True:
-#         if test_simple_inference(port=port1, model_name=main_model) and test_simple_inference(port=port2, model_name=extract_model):
-#             break
-#         time.sleep(30)
-#     print("Models are ready.")
-    
-# def kill_vllm_models():
-#     """
-#     Kill the vLLM models that were launched.
-#     """
-#     os.system("pkill -f 'python -m vllm.entrypoints.openai.api_server'")
-#     print("Killed all vLLM models.")
-
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description='Run benchmark with a specific model.')
     parser.add_argument('--difficulty', type=int, default=8, help='difficulty level')
@@ -135,9 +20,8 @@ if __name__ == "__main__":
     parser.add_argument('--tensor_parallel_size', default=4, type=int, help="tensor parallel size to load model with vllm")
     parser.add_argument('--max_new_tokens', type=int, default=8192)
     parser.add_argument('--token_per_tick', type=int, default=8192)
-    parser.add_argument('--budget-forcing', type=str, default='no', choices=['no', 'prompted', 's1', 'ps', 'br'], help='budget forcing method')
+    parser.add_argument('--budget-forcing', type=str, default='no', choices=['no', 'prompted', 's1', 'ps', 'br', 'si'], help='budget forcing method')
     parser.add_argument("--method", type=str, default='sa', choices=['sa', 'ma', 'pma'], help='framework to use')
-    parser.add_argument('--ma', default=False, help='use multi-agent or not', action='store_true')
     parser.add_argument('--seed_num', type=int, default=8, help='number of seeds to run')
     parser.add_argument('--api_keys', nargs='+', type=str, default=[], help='List of API keys for OpenAI')
     parser.add_argument('--base_url', type=str, default=None, help='URL of the model server')
@@ -155,7 +39,7 @@ if __name__ == "__main__":
     if not os.path.exists(f"logs/{game}/{model_name}"):
         os.makedirs(f"logs/{game}/{model_name}")
     time_stamp = datetime.datetime.now().strftime("%Y-%m-%d-%H-%M-%S")      
-    log_file = f"logs/{game}/{model_name}/benchmarking_{'ma' if args.ma else ''}_{time_stamp}_{token_per_tick}.log"
+    log_file = f"logs/{game}/{model_name}/benchmarking_{args.method}_{time_stamp}_{token_per_tick}.log"
     SEEDS = range(0, args.seed_num)
 
     with open(log_file, 'a') as f:

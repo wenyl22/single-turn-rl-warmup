@@ -1,55 +1,37 @@
 LLM_SYSTEM_PROMPT = '''Please think step by step. Then put your final answer, a capital letter, within \\boxed{}. (e.g. \\boxed{A})'''
 
 LLM_BASE_PROMPT = '''
-# **Freeway Game: Optimal Action Selection**  
+Given a player starting at \((0, pos)\) on a 2D grid (vertical axis \(y = 0, 1, \dots, 9\)), you need to reach \((0, 9)\) with a sequence of actions \(\{a_t\}_{t=1}^T\) (\(a_t \in \{U, D, S\}\)). Determine \(a_1\) which avoids collisions with cars on freeways \(y = 1, \dots, 8\), and minimizes number of turns \(T\).
 
-## **Game Overview**  
-You are playing "Freeway", a game where you must guide your character safely across multiple lanes of moving traffic. Your goal is to **reach the destination (y = 9) from the starting point (y = 0) in the fewest turns while avoiding collisions with cars.**  
+**Constraints:**
+1. **Player Movement:**  
+   \(y_t = y_{t-1} + \Delta y_t\), where \(\Delta y_t = 
+   \begin{cases} 
+   +1 & \text{if } a_t = U, \\
+   -1 & \text{if } a_t = D, \\
+   0 & \text{if } a_t = S.
+   \end{cases}\)  
+   \(y_t \in [0, 9]\) for all \(t\).
 
-Imagine a **2D grid** where:  
-- **The vertical axis (y)** represents different freeways, numbered from `0` to `9`.  
-- **The horizontal axis (x)** represents positions along each freeway.  
+2. **Car Dynamics:**  
+   For each car on freeway \(k\) (initial data provided below), its span at turn \(t\) is:  
+   - **Left-moving:** Span = \([h_k - s_k t,\ \tau_k - s_k t]\)  
+   - **Right-moving:** Span = \([\tau_k + s_k t,\ h_k + s_k t]\)  
+   Collision occurs if \(0 \in \text{Span}\) at \(y = y_t\) for any car on freeway \(y_t\).  
 
-You always stay at **x = 0**, meaning you cannot move left or right. Instead, your only movement options are:  
-- Moving **up** (to a higher freeway, y → y + 1).  
-- Moving **down** (to a lower freeway, y → y - 1).  
-- Staying **on the same freeway** (no movement).  
+**Given Car Data (for \(y = 1, \dots, 8\)):**  
+- **Freeway \(k\):** \(n_k\) cars, each with initial head \(h_{k,i}\), tail \(\tau_{k,i}\), direction \(d_{k,i}\), speed \(s_{k,i}\).  
+  (Specific values provided in the original game state.)  
 
-## **Game Mechanics**  
+**Objective:**  
+Find \(a_1\) which minimizes \(T\) such that \(y_T = 9\) and \(0 \notin \text{Span}_{k,i}(t)\) for all \(t \leq T\) and cars on \(y = y_t\).  
 
-### **1. Freeways & Cars**  
-Each freeway (from y = 1 to y = 8) may have cars moving left or right.  
-- **Cars move at a fixed speed per turn** (e.g., a speed of 3 means the car moves 3 units in the x-direction each turn).  
-- **Each car has a span**, which is the range of x-values it occupies.  
-- **Movement Direction**:  
-  - If a car moves **right**, its span extends as it moves forward.  
-  - If a car moves **left**, its span moves backward.  
+**Answer Format**:
+\\boxed{
+a_1
+}
+---
 
-**Example:**  
-A car on Freeway 2 with a **head position at x = 18** and a **tail position at x = 29** moves **left at a speed of 6**.  
-- After **one turn**, its new span will be **[head: 12, tail: 23]**.  
-- After **two turns**, its span will be **[head: 6, tail: 17]**.  
-
-### **2. Collisions**  
-A **collision happens if after your move(or stay), your position (x = 0, y) overlaps with a car's span**.  
-- If a collision occurs, you are **reset to the starting position (0, 0)**.  
-- To avoid collisions, you must predict car movements and time your actions carefully.  
-
-## **Game State Representation**  
-Each turn, you receive the **current game state**, which includes:  
-- Your position: (x = 0, y).  
-- Car information for each freeway (y = 1 to 8). Each may have zero, one or multiple cars, each represented by:: 
-  - Head position (front of the car).  
-  - Tail position (back of the car).  
-  - Direction (left or right).  
-  - Speed (how many x-units the car moves per turn).
-
-## **Your Task: Find the Best Move**  
-Each turn, you must **analyze car positions, predict future movements, and decide the safest and most efficient action** from the following options:  
-- **A**: Move **up** to Freeway (y + 1).  
-- **B**: Move **down** to Freeway (y - 1).  
-- **C**: Stay on the current freeway.  
-
-## **Given Game State:**
+### **Example Instantiation**  
 '''
 STAY_COMPLETION = f"""Stay in the same freeway"""

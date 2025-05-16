@@ -1,13 +1,12 @@
 import sys
-import re
 import os
 sys.path.append(os.path.dirname(os.path.abspath(__file__)))
 import time 
 import pandas as pd
 from minatar.environment import Environment
 from minatar.environments.freeway import Env
-from extract_utils import find_best_match, extract_scratch_pad
-from envs.client_utils import LocalThreadedLLMClient, ApiThreadedLLMClient
+from envs.utils.extract_utils import extract_scratch_pad, extract_boxed
+from envs.utils.client_utils import LocalThreadedLLMClient, ApiThreadedLLMClient
 from vllm import SamplingParams
 from envs.prompts.ma_freeway import GAME_STATE
 VLLM_client = None 
@@ -58,25 +57,26 @@ def freeway_game_loop(log_file, seed, difficulty = 8, max_tokens = 1000):
     while True:
         action = 0
         state_for_llm = llm_state_builder(env.env)
-        state_description = state_to_description(state_for_llm)
-        available_actions_list = [f'{chr(65+i)}. {action}' for i, action in enumerate(state_for_llm['available_actions'])]
+        state_description = state_to_description(state_for_llm, need_action = False)
         messages = [
             {"role": "system", "content": LLM_SYSTEM_PROMPT},
             {"role": "user", "content": LLM_BASE_PROMPT + state_description}
         ]
         sampling_params = SamplingParams(
-            temperature=0.6,
-            top_p=0.95,
-            max_tokens=max_tokens
+            temperature=0.6, top_p=0.95, max_tokens=max_tokens
         )
         response = client.run_inference(thread_id, messages, STAY_COMPLETION, sampling_params)
-        selected_action = find_best_match(client, thread_id, response, available_actions_list, STAY_COMPLETION)
-        if "stay" in selected_action.lower():
-            action = 0
-        elif "up" in selected_action.lower(): 
+        selected_action = extract_boxed(response)
+        #find_best_match(client, thread_id, response, available_actions_list, STAY_COMPLETION)
+        if selected_action == "U":
+            selected_action = "Move up"
             action = 2
-        elif "down" in selected_action.lower():
+        elif selected_action == "D":
+            selected_action = "Move down"
             action = 4
+        else:
+            selected_action = "Stay in the same freeway"
+            action = 0
         logs['description'].append(state_description)
         logs['render'].append('\n' + env.env.state_string())
         logs["plan_agent_response"].append(response)
@@ -164,7 +164,9 @@ def ma_freeway_game_loop(log_file, seed, difficulty = 8, max_tokens = 1000):
                 {"role": "system", "content": LLM_SYSTEM_PROMPT},
                 {"role": "user", "content": LLM_BASE_PROMPT + PLAN_PROMPT + state_description}
             ]
-            sampling_params = SamplingParams(temperature=0.6, top_p=0.95, max_tokens=max_tokens - 5)
+            sampling_params = SamplingParams(
+                temperature=0.6, top_p=0.95, max_tokens=max_tokens - 5
+            )
             log_plan_agent_response = client.run_inference(thread_id, messages, "", sampling_params)
             scratch_pad = extract_scratch_pad(log_plan_agent_response, scratch_pad)
         logs['plan_agent_response'].append(log_plan_agent_response)
@@ -236,12 +238,20 @@ def pma_freeway_game_loop(log_file, seed, difficulty = 8, max_tokens = 1000):
         sampling_params = SamplingParams(
             temperature=0.6, top_p=0.95, max_tokens=max_tokens - 5
         )
-        turns = client.token_queue_len[thread_id] // client.token_per_tick
-        # The message will be automatically dropped if the thread is planning state for previous turns.
-        log_plan_agent_response = client.run_inference(thread_id, messages, "", sampling_params)
-        if log_plan_agent_response != "": # agent responds with a plan
-            scratch_pad = extract_scratch_pad(log_plan_agent_response, scratch_pad)
-            scratch_pad = scratch_pad[turns:] if turns < len(scratch_pad) else ""
+        # OPTION2: Interrupt the thread with new state.
+        if client.budget_forcing == "si":
+            sampling_params.max_tokens = client.token_per_tick - 5
+            end, log_plan_agent_response = client.run_inference_with_interruption(thread_id, messages, "", sampling_params)
+            if end:
+                scratch_pad = extract_scratch_pad(log_plan_agent_response, scratch_pad)
+        # OPTION1: Automatically dropped message if the thread is planning state for previous turns.
+        else:
+            turns = client.token_queue_len[thread_id] // client.token_per_tick
+            # The message will be automatically dropped if the thread is planning state for previous turns.
+            log_plan_agent_response = client.run_inference(thread_id, messages, "", sampling_params)
+            if log_plan_agent_response != "": # agent responds with a plan
+                scratch_pad = extract_scratch_pad(log_plan_agent_response, scratch_pad)
+                scratch_pad = scratch_pad[turns:] if turns < len(scratch_pad) else ""
         logs['plan_agent_response'].append(log_plan_agent_response)
         if scratch_pad == "":
             scratch_pad = "U"
@@ -321,6 +331,30 @@ def llm_state_builder(env: Env):
         'available_actions': available_actions
     }
     return state_for_llm
+# def state_to_description(state_for_llm, scratch_pad = None, need_action = True, state_prediction = 0):
+#     # (9 - car[1], pos, dir, speed, car[4] * 12 - 1)
+#     description = ""
+#     if state_prediction == 0:
+#         description += f"## **Current Turn Player Position**: (0, {state_for_llm['player_states']}).\n"
+#         description += f"## **Current Turn Car State**:\n"
+#     else:
+#         description += f"## **Predicted Car State After {state_prediction} Turns**:\n"
+#     las_car = -1
+#     num = [0] * 9
+#     for car in state_for_llm['car_states']:
+#         if car[1] is not None:
+#             num[car[0]] += 1
+#     for car in state_for_llm['car_states']:
+#         span = car[4] if car[2] == 'left' else -car[4]
+#         if las_car != car[0]:
+#             description += f"- Freeway {car[0]}: {num[car[0]]} cars.\n"
+#             las_car = car[0]
+#         description += f"\t - Head at **x = {car[1]}**, tail at **x = {car[1] + span}**, direction = {car[2]}, speed = {car[3]}.\n"
+#     if scratch_pad is not None:
+#         description += f'- Plan Scratch Pad: {scratch_pad if scratch_pad != "" else "Empty"}.\n'
+#     if need_action:
+#         description += f'- Available actions:\n{get_available_actions(state_for_llm)}'
+#     return description
 
 def state_to_description(state_for_llm, scratch_pad = None, need_action = True):
     # (9 - car[1], pos, dir, speed, car[4] * 12 - 1)
@@ -399,3 +433,68 @@ def react_to_collision(state_for_llm):
             perfer_action_ind = i
             break
     return perfer_action_ind
+
+def check_collision(state, X, action):
+    # whether there must be a collision in X steps, no matter what action is taken
+    pos = state['player_states']
+    pos += 1 if action == 'U' else -1 if action == 'D' else 0
+    if pos == 9:
+        return False
+    def car_collision(car, t, p):
+        if car[0] != p:
+            return False
+        head = car[1]
+        span = car[4] if car[2] == 'left' else -car[4]
+        tail =  head + span        
+        if car[2] == 'left':
+            head = head - car[3] * (t + 2)
+            tail = tail - car[3] * (t + 2)
+        else:
+            head = head + car[3] * (t + 2)
+            tail = tail + car[3] * (t + 2)
+        return head <= 0 <= tail or tail <= 0 <= head
+    live_pos = set()
+    live_pos.add(pos)
+    for t in range(X):
+        # print(f"a: {action}, t: {t}, live_pos: {live_pos}")
+        new_live_pos = set()
+        for pos in live_pos:
+            temp = pos
+            for a in ['S', 'U', 'D']:
+                temp = pos + (1 if a == 'U' else -1 if a == 'D' else 0)
+                if temp == 9:
+                    return False
+                flag = False
+                for car in state['car_states']:
+                    if car_collision(car, t, temp):
+                        flag = True
+                        break
+                if not flag:
+                    new_live_pos.add(temp)
+        if len(new_live_pos) == 0:
+            return True
+        live_pos = new_live_pos
+    return False   
+
+def react_to_collision(state_for_llm, X = 0):
+    """
+    Returns:
+        - stay_collision: bool, True if there is a collision risk by staying
+        - preferred_action: str, next action to take if there is a collision risk
+    """
+    # Check if the player is on the same freeway as any car for next turn
+    collision = [
+        supervise_collision(state_for_llm, 'S'),
+        supervise_collision(state_for_llm, 'U'),
+        supervise_collision(state_for_llm, 'D')
+    ] # [stay, up, down]
+    # corner case: if the player is on freeway 0
+    if state_for_llm['player_states'] == 0:
+        collision[2] = True    
+    perfer_action_ind = 0
+    for i in [1, 0, 2]:
+        if not collision[i] and not check_collision(state_for_llm, X, 'SUD'[i]):
+            perfer_action_ind = i
+            break        
+    return perfer_action_ind
+

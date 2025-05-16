@@ -1,7 +1,7 @@
 import threading
 import queue
 from openai import OpenAI
-from generate import generate_vanilla_openai, generate_prompted_s1_openai, generate_with_budget_reminder
+from generate import generate_vanilla_openai, generate_prompted_s1_openai, generate_with_budget_reminder, generate_with_state_interruption
 from transformers import AutoTokenizer
 class LocalThreadedLLMClient:
     def __init__(self, token_per_tick = 500):
@@ -63,6 +63,7 @@ class ApiThreadedLLMClient:
         self.api_keys = args.api_keys
         self.base_url = args.base_url
         self.model = args.model
+        self.message = []
         if args.model == "deepseek-reasoner":
             self.tokenizer = AutoTokenizer.from_pretrained("deepseek-ai/DeepSeek-R1")
         elif args.model == "deepseek-chat":
@@ -81,6 +82,7 @@ class ApiThreadedLLMClient:
         self.accum.append(0)
         self.token_queue_len.append(0)
         self.resp.append("")
+        self.message.append([])
         thread_id = self.num_threads - 1
         assert thread_id < len(self.api_keys), "Not enough API keys provided"
         self.llm[thread_id] = OpenAI(api_key=self.api_keys[thread_id], base_url=self.base_url)
@@ -90,13 +92,15 @@ class ApiThreadedLLMClient:
 
     def generate(self, thread_id, messages, sampling_params):
         if messages == []:
-            return None
+            return {"text": "", "token_num": 0}
         if self.budget_forcing == "no":
             return generate_vanilla_openai(self.llm[thread_id], self.tokenizer, self.model, messages, sampling_params)
         elif self.budget_forcing == "ps":
             return generate_prompted_s1_openai(self.llm[thread_id], self.tokenizer, self.model, messages, sampling_params)
         elif self.budget_forcing == "br":
             return generate_with_budget_reminder(self.llm[thread_id], self.tokenizer, self.model, messages, sampling_params)
+        elif self.budget_forcing == "si":
+            return generate_with_state_interruption(self.llm[thread_id], self.tokenizer, self.model, messages, sampling_params)
         else:
             raise ValueError(f"Unsupported budget forcing method: {self.budget_forcing}")
 
@@ -120,6 +124,20 @@ class ApiThreadedLLMClient:
             return self.resp[id]
         else:
             return DEFAULT_COMPLETION
-
-
-
+    def run_inference_with_interruption(self, id, messages, DEFAULT_COMPLETION, sampling_params):
+        # If the model has finished generating previously, open up a new message list.
+        if self.message[id] == []:
+            for m in messages:
+                self.message[id].append({"role": m["role"], "content": m["content"]})
+        else:
+            content = "Wait. You think so long that one turn has passed before you act. \n" + messages[-1]["content"]
+            self.message[id].append({"role": "user", "content": content})
+        end, response = self.generate(id, self.message[id], sampling_params)
+        if end:
+            self.message[id] = []
+        else:
+            self.message[id].append({"role": "assistant", "content": response['text']})
+        # print(f"-----------------Thread {id} -----------------")
+        # print(f"Messages: {messages}")
+        # print(f"-----------------------------------------------------------------------------")
+        return end, response['text']    

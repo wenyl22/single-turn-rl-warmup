@@ -190,3 +190,5 @@ plot*
 *.csv
 *.html
 debug2.py
+pattern.py
+accuracy.py

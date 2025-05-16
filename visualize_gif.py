@@ -1,4 +1,4 @@
-from envs.visualize_utils import generate_gif_from_string_map
+from envs.utils.visualize_utils import generate_gif_from_string_map
 import pandas as pd
 from envs.freeway import seed_mapping
 ### Example usage
