@@ -1,5 +1,5 @@
 from envs.minatar.environment import Environment
-from envs.freeway import llm_state_builder, react_to_collision
+from envs.freeway import llm_state_builder, react_to_collision, supervise_collision
 import pandas as pd
 import random
 
@@ -49,18 +49,27 @@ def bfs(env, max_steps=100):
 def greedy(env: Environment, X): # greedy with X steps looking forward
     step = 0
     act_list = []
+    state = llm_state_builder(env.env)
+    pos = 9 - env.env.pos
     while step < 100:
-        state = llm_state_builder(env.env)
+        state['player_states'] = pos
         action = react_to_collision(state, X)
-        action = 2 if action == 1 else 4 if action == 2 else 0
-        r, terminal = env.act(action)
+        action = 'U' if action == 1 else 'D' if action == 2 else 'S'
+        r = 0
+        if not supervise_collision(state, action):
+            pos += 1 if action == 'U' else -1 if action == 'D' else 0
+            if pos == 9:
+                r = 1
+        else:
+            pos = 0
+            r = -1
+        state = tick(state)
         act_list.append(action)
         step += 1
         if r > 0:
             return act_list
         elif r < 0:
             return [0] * 101
-        state = tick(state)
     return act_list
 
 def generate_dataset():        
@@ -153,8 +162,7 @@ def filter_dataset():
     for k, v in sorted(Len.items(), key=lambda x: x[0]):
         print(f"{k}: {len(v)}")
     # Choose based on (G = 3, 2, 1, E = 0)
-    # optimal path length as short as possible
-    # do not choose situation repeated seed
+    # do not choose repeated seed
     # Each G chooses at most 20 seeds
     chosen_seeds = set()
     chosen_seeds_list = {
@@ -172,7 +180,7 @@ def filter_dataset():
         for seed in seeds:
             if seed[0] in chosen_seeds:
                 continue
-            if g < 3 and len(seed[5]) < 12 or len(seed[5]) > 16:
+            if g < 3 and len(seed[5]) > 12:
                 continue
             env.seed(seed[0])
             env.reset()
@@ -182,9 +190,15 @@ def filter_dataset():
             chosen_seeds.add(seed[0])
             chosen_seeds_list['seed'].append(seed)
             chosen_seeds_list['render'].append('\n' + env.env.state_string() + '\n')
+            state = llm_state_builder(env.env)
+            scratch_pad = ''.join(seed[5])
+            assert not supervise_collision(state, scratch_pad, len(scratch_pad))
+            end_pos = env.env.pos + sum([1 if c == "D" else -1 if c == "U" else 0 for c in scratch_pad])
+            assert end_pos == 0
             cnt += 1
-            if cnt >= 20:
+            if cnt >= 17:
                 break
+    print([len(_[5]) for _ in chosen_seeds_list['seed']])
     for l in range(6, 16):
         seeds = Len[l]
         cnt = 0
@@ -200,6 +214,11 @@ def filter_dataset():
             chosen_seeds.add(seed[0])
             chosen_seeds_list['seed'].append(seed)
             chosen_seeds_list['render'].append('\n' + env.env.state_string() + '\n')
+            state = llm_state_builder(env.env)
+            scratch_pad = ''.join(seed[5])
+            assert not supervise_collision(state, scratch_pad, len(scratch_pad))
+            end_pos = env.env.pos + sum([1 if c == "D" else -1 if c == "U" else 0 for c in scratch_pad])
+            assert end_pos == 0
             cnt += 1
             if cnt >= 5:
                 break
