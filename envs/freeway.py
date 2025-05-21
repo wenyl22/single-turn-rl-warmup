@@ -8,17 +8,11 @@ from minatar.environments.freeway import Env
 from envs.utils.extract_utils import extract_scratch_pad, extract_boxed
 from envs.utils.client_utils import LocalThreadedLLMClient, ApiThreadedLLMClient
 from vllm import SamplingParams
-from envs.prompts.ma_freeway import GAME_STATE
+from envs.prompts.sa_freeway_math import CAR_STATE, LLM_SYSTEM_PROMPT, STAY_COMPLETION
 VLLM_client = None 
 seed_mapping = {
-    0: (1069, 12, 0), 
-    1: (1093, 14, 0), 
-    2: (1447, 19, 0), 
-    3: (1953, 21, 0), 
-    4: (1536, 14, 0), 
-    5: (1798, 17, 5), 
-    6: (1858, 16, 0), 
-    7: (2408, 19, 0)
+    0: (1069, 12, 0), 1: (1093, 14, 0), 2: (1447, 19, 0), 3: (1953, 21, 0), 
+    4: (1536, 14, 0), 5: (1798, 17, 5), 6: (1858, 16, 0), 7: (2408, 19, 0)
 }
 def setup_thread_VLLM_client(token_per_tick, args):
     global VLLM_client
@@ -31,15 +25,14 @@ def get_thread_VLLM_client():
     global VLLM_client
     return VLLM_client
         
-def freeway_game_loop(log_file, seed, difficulty = 8, max_tokens = 1000):
+def freeway_game_loop(log_file, seed, args):
     """
     Freeway Game Loop in Single-Agent System.
     """
-    from prompts.freeway import LLM_SYSTEM_PROMPT, LLM_BASE_PROMPT, STAY_COMPLETION
+    from envs.prompts.sa_freeway_math import MATH_PROMPT as LLM_BASE_PROMPT
     client = VLLM_client
     thread_id = client.add_new_thread()
     env = Environment('freeway', sticky_action_prob=0)
-    env.env.difficulty = difficulty
     if seed in seed_mapping:
         seed = seed_mapping[seed]
         env.seed(seed[0])
@@ -57,17 +50,16 @@ def freeway_game_loop(log_file, seed, difficulty = 8, max_tokens = 1000):
     while True:
         action = 0
         state_for_llm = llm_state_builder(env.env)
-        state_description = state_to_description(state_for_llm, need_action = False)
+        state_description = state_to_description(state_for_llm)
         messages = [
             {"role": "system", "content": LLM_SYSTEM_PROMPT},
             {"role": "user", "content": LLM_BASE_PROMPT + state_description}
         ]
         sampling_params = SamplingParams(
-            temperature=0.6, top_p=0.95, max_tokens=max_tokens
+            temperature=0.6, top_p=0.95, max_tokens=args.max_new_tokens - 5
         )
         response = client.run_inference(thread_id, messages, STAY_COMPLETION, sampling_params)
         selected_action = extract_boxed(response)
-        #find_best_match(client, thread_id, response, available_actions_list, STAY_COMPLETION)
         if selected_action == "U":
             selected_action = "Move up"
             action = 2
@@ -94,20 +86,18 @@ def freeway_game_loop(log_file, seed, difficulty = 8, max_tokens = 1000):
         print(f"Thread {thread_id} - Game Turn: {game_turn}, Position: {env.env.pos}")
     return {
         'seed': seed,
-        'difficulty': difficulty,
         'game_turn': game_turn,
         'game_time': time.time() - start_time
     }
 
-def ma_freeway_game_loop(log_file, seed, difficulty = 8, max_tokens = 1000):
+def ma_freeway_game_loop(log_file, seed, args):
     """
     New version of Freeway Game Loop in Multi-Agent System.
     """
-    from prompts.ma_freeway import LLM_SYSTEM_PROMPT, LLM_BASE_PROMPT, PLAN_PROMPT
+    from envs.prompts.ma_freeway_math import LLM_SYSTEM_PROMPT, LLM_BASE_PROMPT, PLAN_PROMPT
     client = VLLM_client
     thread_id = client.add_new_thread()
     env = Environment('freeway', sticky_action_prob=0)
-    env.env.difficulty = difficulty
     if seed in seed_mapping:
         seed = seed_mapping[seed]
         env.seed(seed[0])
@@ -127,7 +117,7 @@ def ma_freeway_game_loop(log_file, seed, difficulty = 8, max_tokens = 1000):
     while True:
         state_for_llm = llm_state_builder(env.env)
         # Since follow plan agent, react agent are rule-based, no need to include scratch pad in prompt.
-        state_description = state_to_description(state_for_llm, need_action = False)
+        state_description = state_to_description(state_for_llm)
         logs['description'].append(state_description)
         logs['render'].append('\n' + env.env.state_string())
         log_supervisor_response, log_selected_agent, log_plan_agent_response, log_selected_action = "", "", "", ""
@@ -165,7 +155,7 @@ def ma_freeway_game_loop(log_file, seed, difficulty = 8, max_tokens = 1000):
                 {"role": "user", "content": LLM_BASE_PROMPT + PLAN_PROMPT + state_description}
             ]
             sampling_params = SamplingParams(
-                temperature=0.6, top_p=0.95, max_tokens=max_tokens - 5
+                temperature=0.6, top_p=0.95, max_tokens=args.max_new_tokens - 5
             )
             log_plan_agent_response = client.run_inference(thread_id, messages, "", sampling_params)
             scratch_pad = extract_scratch_pad(log_plan_agent_response, scratch_pad)
@@ -198,17 +188,16 @@ def ma_freeway_game_loop(log_file, seed, difficulty = 8, max_tokens = 1000):
 
     return {
         'seed': seed,
-        'difficulty': difficulty,
         'game_turn': game_turn,
         'game_time': time.time() - start_time
     }
 
-def pma_freeway_game_loop(log_file, seed, difficulty = 8, max_tokens = 1000):
-    from prompts.ma_freeway import LLM_SYSTEM_PROMPT, LLM_BASE_PROMPT
+def pma_freeway_game_loop(log_file, seed, args):
     client = VLLM_client
+    from envs.prompts.ma_freeway_math import MATH_PROMPT as LLM_BASE_PROMPT, MATH_PROMPT_LOW_LEVEL
+    from envs.prompts.ma_freeway_game import ORIGINAL_ANSWER_FORMAT as LLM_ANSWER_FORMAT
     thread_id = client.add_new_thread()
     env = Environment('freeway', sticky_action_prob=0)
-    env.env.difficulty = difficulty
     if seed in seed_mapping:
         seed = seed_mapping[seed]
         env.seed(seed[0])
@@ -225,26 +214,29 @@ def pma_freeway_game_loop(log_file, seed, difficulty = 8, max_tokens = 1000):
     terminal = False
     logs = {'description': [], 'render':[], 'supervisor_response': [], 'plan_agent_response':[], 'scratch_pad': [], 'selected_agent': [], 'selected_action': []}
     while True:
+        if seed[0] == 1953 or seed[0] == 1798:
+            break
         state_for_llm = llm_state_builder(env.env)
-        state_description = state_to_description(state_for_llm, need_action = False)
+        state_description = state_to_description(state_for_llm)
         logs['description'].append(state_description)
         logs['render'].append('\n' + env.env.state_string())
         log_supervisor_response, log_selected_agent, log_plan_agent_response, log_selected_action = "", "", "", ""
         # ### --- High Level Agent --- ###
-        messages = [
-            {"role": "system", "content": LLM_SYSTEM_PROMPT},
-            {"role": "user", "content": LLM_BASE_PROMPT + state_description}
-        ]
-        sampling_params = SamplingParams(
-            temperature=0.6, top_p=0.95, max_tokens=max_tokens - 5
-        )
+        if args.method != "lsa":
+            messages = [
+                {"role": "system", "content": LLM_SYSTEM_PROMPT},
+                {"role": "user", "content": LLM_BASE_PROMPT + LLM_ANSWER_FORMAT + state_description}
+            ]
+        else:
+            messages = []
+        sampling_params = SamplingParams(temperature=0.6, top_p=0.95, max_tokens=args.max_new_tokens - 5)
         # OPTION2: Interrupt the thread with new state.
-        if client.budget_forcing == "si":
+        if args.budget_forcing == "si":
             sampling_params.max_tokens = client.token_per_tick - 5
             end, log_plan_agent_response = client.run_inference_with_interruption(thread_id, messages, "", sampling_params)
             if end:
                 scratch_pad = extract_scratch_pad(log_plan_agent_response, scratch_pad)
-        # OPTION1: Automatically dropped message if the thread is planning state for previous turns.
+        # OPTION1: Automatically drop message if the thread is planning state for previous turns.
         else:
             turns = client.token_queue_len[thread_id] // client.token_per_tick
             # The message will be automatically dropped if the thread is planning state for previous turns.
@@ -255,34 +247,67 @@ def pma_freeway_game_loop(log_file, seed, difficulty = 8, max_tokens = 1000):
         logs['plan_agent_response'].append(log_plan_agent_response)
         if scratch_pad == "":
             scratch_pad = "U"
-        ### --- Low Level Agent --- ###
         logs['scratch_pad'].append(scratch_pad)
-        safe = not supervise_collision(state_for_llm, scratch_pad[0])
+        ### --- Low Level Agent --- ###
         available_action_list = ["Stay in the same freeway", "Move up to Freeway " + str( state_for_llm['player_states'] + 1), "Move down to Freeway " + str(state_for_llm['player_states'] - 1)]
-        if safe: # Follow Plan
+        action = 'S'
+        if args.method == "hsa":
+            action = scratch_pad[0]
+            log_supervisor_response = "Follow Plan"
+        else:
+            state_description = state_to_description(state_for_llm, 0, scratch_pad)
+            messages = [
+                {"role": "system", "content": LLM_SYSTEM_PROMPT},
+                {"role": "user", "content": MATH_PROMPT_LOW_LEVEL + state_description}
+            ]
+            sampling_params = SamplingParams(temperature=0.6, top_p=0.95, max_tokens=8192)
+            log_supervisor_response = client.run_low_level_inference(thread_id, messages, sampling_params)
+            action = extract_boxed(log_supervisor_response)
+        log_selected_action = available_action_list[0 if action == 'S' else 1 if action == 'U' else 2]
+        if action == scratch_pad[0]:
             log_selected_agent = "B. Follow Plan Agent"
-            log_supervisor_response = "Safe to follow plan."
-            action = 0 if scratch_pad[0] == 'S' else 2 if scratch_pad[0] == 'U' else 4
             scratch_pad = scratch_pad[1:]
-            selected_action = 0 if action == 0 else 1 if action == 2 else 2
-            log_selected_action = available_action_list[selected_action]
         else:
             log_selected_agent = "C. React Agent"
-            log_supervisor_response = "Plan leads to immediate collision, react."
-            selected_action = available_action_list[react_to_collision(state_for_llm)]
-            action = 0 if 'Stay' in selected_action else 2 if 'up' in selected_action else 4
             scratch_pad = ""
-            log_selected_action = selected_action
+        action = 0 if action == 'S' else 2 if action == 'U' else 4
+        #     safe = not supervise_collision(state_for_llm, scratch_pad[0])
+        # if safe: # Follow Plan
+        #     log_selected_agent = "B. Follow Plan Agent"
+        #     log_supervisor_response = "Safe to follow plan."
+        #     action = 0 if scratch_pad[0] == 'S' else 2 if scratch_pad[0] == 'U' else 4
+        #     scratch_pad = scratch_pad[1:]
+        #     selected_action = 0 if action == 0 else 1 if action == 2 else 2
+        #     log_selected_action = available_action_list[selected_action]
+        # else:
+        #     log_selected_agent = "C. React Agent"
+        #     log_supervisor_response = "Plan leads to immediate collision, react."
+        #     selected_action = available_action_list[react_to_collision(state_for_llm)]
+        #     action = 0 if 'Stay' in selected_action else 2 if 'up' in selected_action else 4
+        #     scratch_pad = ""
+        #     log_selected_action = selected_action
         logs['supervisor_response'].append(log_supervisor_response)
         logs['selected_agent'].append(log_selected_agent)
         logs['selected_action'].append(log_selected_action)
         df = pd.DataFrame(logs)
         df.to_csv(log_file)
-        reward, terminal = env.act(action)
+        r, terminal = env.act(action)
         game_turn += 1
-        if reward > 0.5:
-            print(f"Get to the otherside in {game_turn} actions!")
+        reward += r
+        if r > 0.5:
+            print(f"Thread {thread_id} Get to the otherside in {game_turn} actions!")
             break
+        elif r < 0:
+            # reset, drop the message in the queue
+            print(f"Thread {thread_id} Hit by a car, reset the game.")
+            env.env.pos = 9
+            env.seed(seed[0])
+            env.reset()
+            for i in range(seed[2]):
+                env.act(0)
+            while client.token_queue_len[thread_id] > 0:
+                _ = client.run_inference(thread_id, [], "", None)
+            scratch_pad = ""
         if terminal or (game_turn > 100):
             print("Fail to get to the otherside in required turns")
             break
@@ -290,8 +315,8 @@ def pma_freeway_game_loop(log_file, seed, difficulty = 8, max_tokens = 1000):
 
     return {
         'seed': seed,
-        'difficulty': difficulty,
         'game_turn': game_turn,
+        'reward': reward,
         'game_time': time.time() - start_time
     }
 
@@ -331,34 +356,17 @@ def llm_state_builder(env: Env):
         'available_actions': available_actions
     }
     return state_for_llm
-# def state_to_description(state_for_llm, scratch_pad = None, need_action = True, state_prediction = 0):
-#     # (9 - car[1], pos, dir, speed, car[4] * 12 - 1)
-#     description = ""
-#     if state_prediction == 0:
-#         description += f"## **Current Turn Player Position**: (0, {state_for_llm['player_states']}).\n"
-#         description += f"## **Current Turn Car State**:\n"
-#     else:
-#         description += f"## **Predicted Car State After {state_prediction} Turns**:\n"
-#     las_car = -1
-#     num = [0] * 9
-#     for car in state_for_llm['car_states']:
-#         if car[1] is not None:
-#             num[car[0]] += 1
-#     for car in state_for_llm['car_states']:
-#         span = car[4] if car[2] == 'left' else -car[4]
-#         if las_car != car[0]:
-#             description += f"- Freeway {car[0]}: {num[car[0]]} cars.\n"
-#             las_car = car[0]
-#         description += f"\t - Head at **x = {car[1]}**, tail at **x = {car[1] + span}**, direction = {car[2]}, speed = {car[3]}.\n"
-#     if scratch_pad is not None:
-#         description += f'- Plan Scratch Pad: {scratch_pad if scratch_pad != "" else "Empty"}.\n'
-#     if need_action:
-#         description += f'- Available actions:\n{get_available_actions(state_for_llm)}'
-#     return description
 
-def state_to_description(state_for_llm, scratch_pad = None, need_action = True):
-    # (9 - car[1], pos, dir, speed, car[4] * 12 - 1)
-    description = f"**Player Initial Position:** \((0, {state_for_llm['player_states']})\) \n" + GAME_STATE
+def state_to_description(state_for_llm, state_prediction = 0, scratch_pad = None):
+    description = ""
+    if state_prediction == 0:
+        description += f"### **Game State**\n**Current Turn Player Position:** \((0, {state_for_llm['player_states']})\) \n"
+        if scratch_pad is not None:
+            description += f"**Plan Advice**: {",".join(scratch_pad)}\n"
+        description += f"**Current Turn Car State**:\n"
+    else:
+        description += f"**Predicted Car State After {state_prediction} Turns**:\n"
+    description += CAR_STATE
     car_info = ""
     lane = 1
     for car in state_for_llm['car_states']:
@@ -371,10 +379,6 @@ def state_to_description(state_for_llm, scratch_pad = None, need_action = True):
             car_info += ", "
         car_info += f"({car[1]}, {car[1] + span}, {car[2]}, {car[3]})"
     description += f"| {lane} | \({car_info}\) |\n"
-    if need_action:
-        description += f'- Available actions:\n{get_available_actions(state_for_llm)}'
-    if scratch_pad is not None:
-        description += f'- Plan Scratch Pad: {scratch_pad if scratch_pad != "" else "Empty"}.\n'
     return description
 
 def get_available_actions(state_for_llm):

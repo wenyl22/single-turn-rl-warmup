@@ -1,6 +1,4 @@
-LLM_SYSTEM_PROMPT = '''Please reason step by step and put your final answer within \\boxed{}.'''
-
-LLM_GAME_PROMPT = """
+GAME_PROMPT = """
 ## **Freeway Game Guide**  
 
 Imagine a 2D grid where:  
@@ -28,15 +26,23 @@ Collision happens if after the player's move, its position overlaps with a car's
 
 ## **Your Task**:
 Analyze the current game state and create a plan for crossing the road without colliding with cars. Avoiding collisions is your top priority, but also try to reach the goal in the fewest turns possible. Due to token constraint, you can plan for less steps ** if the game state is complex **.
-
+"""
+ORIGINAL_ANSWER_FORMAT = """
 ## **Answer Format**:
 \\boxed{
-Turn 1: action1
-Turn 2: action2
+Turn 1: a_1(i.e, action_1)
+Turn 2: a_2
 ...
 }
 """
 
-
-STAY_COMPLETION = """Stay in the same freeway"""
-
+SELF_PREDICT_ANSWER_FORMAT = """
+## **Answer Format**:
+\\boxed{
+Turn 1: a_1(i.e, action_1)
+The player is on which freeway after action_1, and the car spans on that freeway.
+Turn 2: action_2
+The player is on which freeway after action_2, and the car spans on that freeway.
+...
+}
+"""

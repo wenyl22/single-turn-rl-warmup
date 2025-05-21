@@ -64,6 +64,20 @@ class ApiThreadedLLMClient:
         self.base_url = args.base_url
         self.model = args.model
         self.message = []
+
+        self.method = args.method
+        self.low_llm = {}
+        self.low_model = args.low_model
+        self.low_base_url = args.low_base_url
+        if args.low_model == "deepseek-reasoner":
+            self.low_tokenizer = AutoTokenizer.from_pretrained("deepseek-ai/DeepSeek-R1")
+        elif args.low_model == "deepseek-chat":
+            self.low_tokenizer = AutoTokenizer.from_pretrained("deepseek-ai/DeepSeek-V3")
+        else:
+            try:
+                self.low_tokenizer = AutoTokenizer.from_pretrained(args.low_model)
+            except:
+                raise ValueError(f"Model {args.low_model} not found.")
         if args.model == "deepseek-reasoner":
             self.tokenizer = AutoTokenizer.from_pretrained("deepseek-ai/DeepSeek-R1")
         elif args.model == "deepseek-chat":
@@ -85,22 +99,27 @@ class ApiThreadedLLMClient:
         self.message.append([])
         thread_id = self.num_threads - 1
         assert thread_id < len(self.api_keys), "Not enough API keys provided"
-        self.llm[thread_id] = OpenAI(api_key=self.api_keys[thread_id], base_url=self.base_url)
+        if self.method != "lsa":
+            self.llm[thread_id] = OpenAI(api_key=self.api_keys[thread_id], base_url=self.base_url)
+        if self.method != "hsa":
+            self.low_llm[thread_id] = OpenAI(api_key=self.api_keys[thread_id], base_url=self.low_base_url)
         print(f"Thread {thread_id} initialized with API key {self.api_keys[thread_id]}, base URL {self.base_url}")
         self.lock.release()
         return thread_id
 
-    def generate(self, thread_id, messages, sampling_params):
+    def generate(self, thread_id, messages, sampling_params, low = False):
         if messages == []:
             return {"text": "", "token_num": 0}
+        llm = self.llm[thread_id] if not low else self.low_llm[thread_id]
+        model = self.model if not low else self.low_model
         if self.budget_forcing == "no":
-            return generate_vanilla_openai(self.llm[thread_id], self.tokenizer, self.model, messages, sampling_params)
+            return generate_vanilla_openai(llm, self.tokenizer, model, messages, sampling_params)
         elif self.budget_forcing == "ps":
-            return generate_prompted_s1_openai(self.llm[thread_id], self.tokenizer, self.model, messages, sampling_params)
+            return generate_prompted_s1_openai(llm, self.tokenizer, model, messages, sampling_params)
         elif self.budget_forcing == "br":
-            return generate_with_budget_reminder(self.llm[thread_id], self.tokenizer, self.model, messages, sampling_params)
+            return generate_with_budget_reminder(llm, self.tokenizer, model, messages, sampling_params)
         elif self.budget_forcing == "si":
-            return generate_with_state_interruption(self.llm[thread_id], self.tokenizer, self.model, messages, sampling_params)
+            return generate_with_state_interruption(llm, self.tokenizer, model, messages, sampling_params)
         else:
             raise ValueError(f"Unsupported budget forcing method: {self.budget_forcing}")
 
@@ -140,4 +159,7 @@ class ApiThreadedLLMClient:
         # print(f"-----------------Thread {id} -----------------")
         # print(f"Messages: {messages}")
         # print(f"-----------------------------------------------------------------------------")
-        return end, response['text']    
+        return end, response['text']
+    def run_low_level_inference(self, id, messages, sampling_params):
+        response = self.generate(id, messages, sampling_params, low = True)
+        return response["text"]

@@ -13,7 +13,6 @@ from openai import OpenAI
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description='Run benchmark with a specific model.')
-    parser.add_argument('--difficulty', type=int, default=8, help='difficulty level')
     parser.add_argument('--game', type=str, default='freeway', help='Game name')
     parser.add_argument('--parallel_size', default=8, type=int, help='number of parallel envs to run')
     parser.add_argument('--max_num_seqs', default=8, type=int, help='number of parallel threads to run')
@@ -21,25 +20,27 @@ if __name__ == "__main__":
     parser.add_argument('--max_new_tokens', type=int, default=8192)
     parser.add_argument('--token_per_tick', type=int, default=8192)
     parser.add_argument('--budget-forcing', type=str, default='no', choices=['no', 'prompted', 's1', 'ps', 'br', 'si'], help='budget forcing method')
-    parser.add_argument("--method", type=str, default='sa', choices=['sa', 'ma', 'pma'], help='framework to use')
+    parser.add_argument("--method", type=str, default='sa', choices=['hsa', 'lsa', 'pma'], help='framework to use')
     parser.add_argument('--seed_num', type=int, default=8, help='number of seeds to run')
     parser.add_argument('--api_keys', nargs='+', type=str, default=[], help='List of API keys for OpenAI')
     parser.add_argument('--base_url', type=str, default=None, help='URL of the model server')
-    parser.add_argument('--model', type=str, default = 'deepseek-ai/DeepSeek-R1-Distill-Qwen-1.5B')
+    parser.add_argument('--model', type=str, default = '')
+    parser.add_argument('--low_model', type=str, default = '')
+    parser.add_argument('--low_base_url', type=str, default=None, help='URL of the low model server')
 
     args = parser.parse_args()
     game = args.game
-    model = args.model
-    model_name = args.model.split("/")[-1]
+    model = args.model if args.model != "" else args.low_model
+    model_name = model.split("/")[-1]
     # model_name = model_name_from_path(model)
     max_new_tokens = args.max_new_tokens
     token_per_tick = args.token_per_tick
 
 
-    if not os.path.exists(f"logs/{game}/{model_name}"):
-        os.makedirs(f"logs/{game}/{model_name}")
+    if not os.path.exists(f"logs/{game}_{args.method}/{model_name}"):
+        os.makedirs(f"logs/{game}_{args.method}/{model_name}")
     time_stamp = datetime.datetime.now().strftime("%Y-%m-%d-%H-%M-%S")      
-    log_file = f"logs/{game}/{model_name}/benchmarking_{args.method}_{time_stamp}_{token_per_tick}.log"
+    log_file = f"logs/{game}_{args.method}/{model_name}/benchmarking_{args.method}_{time_stamp}_{token_per_tick}.log"
     SEEDS = range(0, args.seed_num)
 
     with open(log_file, 'a') as f:
@@ -59,12 +60,7 @@ if __name__ == "__main__":
 
     if game == "freeway":
         from envs.freeway import setup_thread_VLLM_client, get_thread_VLLM_client
-        if args.method == "sa":
-            from envs.freeway import freeway_game_loop as game_func
-        elif args.method == "ma":
-            from envs.freeway import ma_freeway_game_loop as game_func
-        elif args.method == "pma":
-            from envs.freeway import pma_freeway_game_loop as game_func
+        from envs.freeway import pma_freeway_game_loop as game_func
     elif game == "overcooked":
         from envs.overcooked import overcooked_game_loop as game_func, setup_thread_VLLM_client, get_thread_VLLM_client
     elif game == "asterix":
@@ -88,8 +84,8 @@ if __name__ == "__main__":
             result = game_func(*args)
             return_queue.put(result)
         for s in batch:
-            s_log_file = f"logs/{game}/{model_name}/{time_stamp}_{max_new_tokens}_{s}.csv"
-            thread = threading.Thread(target=thread_target, args=(s_log_file, s, args.difficulty, max_new_tokens))
+            s_log_file = f"logs/{game}_{args.method}/{model_name}/{time_stamp}_{max_new_tokens}_{s}.csv"
+            thread = threading.Thread(target=thread_target, args=(s_log_file, s, args))
             threads.append(thread)
             thread.start()
             time.sleep(0.1)

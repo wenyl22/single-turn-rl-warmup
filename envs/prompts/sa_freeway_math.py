@@ -1,6 +1,6 @@
-LLM_SYSTEM_PROMPT = '''Please think step by step. Then put your final answer, a capital letter, within \\boxed{}. (e.g. \\boxed{A})'''
+LLM_SYSTEM_PROMPT = '''Please think step by step. Then put your final answer, a capital letter, within \\boxed{}.'''
 
-LLM_BASE_PROMPT = '''
+MATH_PROMPT = '''
 Given a player starting at \((0, pos)\) on a 2D grid (vertical axis \(y = 0, 1, \dots, 9\)), you need to reach \((0, 9)\) with a sequence of actions \(\{a_t\}_{t=1}^T\) (\(a_t \in \{U, D, S\}\)). Determine \(a_1\) which avoids collisions with cars on freeways \(y = 1, \dots, 8\), and minimizes number of turns \(T\).
 
 **Constraints:**
@@ -25,13 +25,19 @@ Given a player starting at \((0, pos)\) on a 2D grid (vertical axis \(y = 0, 1, 
 
 **Objective:**  
 Find \(a_1\) which minimizes \(T\) such that \(y_T = 9\) and \(0 \notin \text{Span}_{k,i}(t)\) for all \(t \leq T\) and cars on \(y = y_t\).  
-
+'''
+ANSWER_FORMAT = '''
 **Answer Format**:
 \\boxed{
 a_1
 }
 ---
-
-### **Example Instantiation**  
 '''
-STAY_COMPLETION = f"""Stay in the same freeway"""
+
+STAY_COMPLETION = '''Stay in the same freeway.'''
+
+CAR_STATE = '''
+| Freeway \( k \) | Cars (head \( h \), tail \( \tau \), direction \( d \), speed \( s \)) |  
+|-----------------|------------------------------------------------------------------------|
+'''
+
