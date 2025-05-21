@@ -69,7 +69,9 @@ class ApiThreadedLLMClient:
         self.low_llm = {}
         self.low_model = args.low_model
         self.low_base_url = args.low_base_url
-        if args.low_model == "deepseek-reasoner":
+        if args.low_model == "":
+            pass
+        elif args.low_model == "deepseek-reasoner":
             self.low_tokenizer = AutoTokenizer.from_pretrained("deepseek-ai/DeepSeek-R1")
         elif args.low_model == "deepseek-chat":
             self.low_tokenizer = AutoTokenizer.from_pretrained("deepseek-ai/DeepSeek-V3")
@@ -78,7 +80,9 @@ class ApiThreadedLLMClient:
                 self.low_tokenizer = AutoTokenizer.from_pretrained(args.low_model)
             except:
                 raise ValueError(f"Model {args.low_model} not found.")
-        if args.model == "deepseek-reasoner":
+        if args.model == "":
+            pass
+        elif args.model == "deepseek-reasoner":
             self.tokenizer = AutoTokenizer.from_pretrained("deepseek-ai/DeepSeek-R1")
         elif args.model == "deepseek-chat":
             self.tokenizer = AutoTokenizer.from_pretrained("deepseek-ai/DeepSeek-V3")
