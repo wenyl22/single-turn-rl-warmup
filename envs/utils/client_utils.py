@@ -107,7 +107,8 @@ class ApiThreadedLLMClient:
             self.llm[thread_id] = OpenAI(api_key=self.api_keys[thread_id], base_url=self.base_url)
         if self.method != "hsa":
             self.low_llm[thread_id] = OpenAI(api_key=self.api_keys[thread_id], base_url=self.low_base_url)
-        print(f"Thread {thread_id} initialized with API key {self.api_keys[thread_id]}, base URL {self.base_url}")
+        print(f"Thread {thread_id} initialized high LLM with API key {self.api_keys[thread_id]}, base URL {self.base_url}")
+        print(f"Thread {thread_id} initialized low LLM with API key {self.api_keys[thread_id]}, base URL {self.low_base_url}")
         self.lock.release()
         return thread_id
 
@@ -116,14 +117,15 @@ class ApiThreadedLLMClient:
             return {"text": "", "token_num": 0}
         llm = self.llm[thread_id] if not low else self.low_llm[thread_id]
         model = self.model if not low else self.low_model
+        tokenizer = self.tokenizer if not low else self.low_tokenizer
         if self.budget_forcing == "no":
-            return generate_vanilla_openai(llm, self.tokenizer, model, messages, sampling_params)
+            return generate_vanilla_openai(llm, tokenizer, model, messages, sampling_params)
         elif self.budget_forcing == "ps":
-            return generate_prompted_s1_openai(llm, self.tokenizer, model, messages, sampling_params)
+            return generate_prompted_s1_openai(llm, tokenizer, model, messages, sampling_params)
         elif self.budget_forcing == "br":
-            return generate_with_budget_reminder(llm, self.tokenizer, model, messages, sampling_params)
+            return generate_with_budget_reminder(llm, tokenizer, model, messages, sampling_params)
         elif self.budget_forcing == "si":
-            return generate_with_state_interruption(llm, self.tokenizer, model, messages, sampling_params)
+            return generate_with_state_interruption(llm, tokenizer, model, messages, sampling_params)
         else:
             raise ValueError(f"Unsupported budget forcing method: {self.budget_forcing}")
 
