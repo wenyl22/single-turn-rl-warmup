@@ -27,9 +27,9 @@ Find a sequence of actions \(\{a_t\}_{t=1}^T\) which minimizes \(T\) such that \
 
 
 MATH_PROMPT_LOW_LEVEL = '''
-You are a player on a freeway game, starting at \((0, y_1)\) on a 2D grid (vertical axis \(y = 0, 1, \dots, 9\)). Your goal is to reach \((0, 9)\) while avoiding collisions with cars on freeways \(y = 1, \dots, 8\).
+You are a player on a freeway game, starting at \((0, y_0)\) on a 2D grid (vertical axis \(y = 0, 1, \dots, 9\)). Your goal is to reach \((0, 9)\) while avoiding collisions with cars on freeways \(y = 1, \dots, 8\).
 1. **Current State:**  
-   - Player position at turn \( 1 \): \( (0, y_1) \)  
+   - Player position at turn \( 0 \): \( (0, y_0) \)  
    - Plan Advice(may exist or not given): Sequence of advised actions \(\{a_{i}^\text{adv}\}_{i=1}^{H}\) (horizon \( H \)), where \( a_{i}^\text{adv} \in \{U, D, S\} \). This is only a reference which may be neither safe nor optimal.
    - Observed car spans \(\{\text{Span}_{k,i}(t = 0)\}\) for freeways \( k = 1, \dots, 8 \).  
 
@@ -48,7 +48,7 @@ You are a player on a freeway game, starting at \((0, y_1)\) on a 2D grid (verti
 **Task:**  
 Choose **one** action \( a_{1} \in \{U, D, S\} \) for turn \( 1 \), adhering to:  
 1. **Collision Avoidance:**  
-    Ensure the action in this turn does not lead to a collision with any car on freeway \( k \) at \( y = y_1 \) for all cars \( i \) in the next few turns. Sometimes under the problem constraints, a wrong a_1 can lead to a must-collision **several turns later**. 
+    Ensure the action in this turn does not lead to a collision with any car on freeway \( k \) at \( y = y_t \) for all cars \( i \) in the next few turns. Sometimes under the problem constraints, a wrong a_1 can lead to a must-collision **several turns later**. 
 2. **Plan Adherence(Optional):**  
    The advice may have mistakes, you can take it as a reference. If you follow the advice, the action should be \( a_{1} = a_{1}^\text{adv} \).
 

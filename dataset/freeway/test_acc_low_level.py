@@ -12,6 +12,7 @@ import time
 from concurrent.futures import ThreadPoolExecutor, as_completed
 import ast
 import matplotlib.pyplot as plt
+from seed_dataset_generation import greedy
 def plt_figure(seed_groups, args, name):
     plt.figure(figsize=(12, 8))
     fig_name = f"{args.f.replace('.csv', f'_{name.replace(" ", "")}.png')}"
@@ -86,7 +87,8 @@ def process_entry(i, seed, api_key, args):
         token_num = len(tokenizer(text)["input_ids"])
         scratch_pad = extract_scratch_pad(text, "")
         safe = not check_collision(state_for_llm, 5, scratch_pad)
-        optimal = True
+        optimal = safe
+        assert not optimal or (safe and optimal)
         if scratch_pad != "U" and seed[5][0] == "U":
             optimal = False
         metrics.append({
@@ -171,6 +173,23 @@ if __name__ == "__main__":
         df.to_csv(args.f, index=False)
     df = pd.read_csv(args.f)
     log_file = args.f.replace(".csv", ".log")
+    for _ in range(len(df)):
+        seed = ast.literal_eval(df['seed'][_])
+        env = Environment('freeway', sticky_action_prob=0)
+        env.seed(seed[0])
+        env.reset()
+        for __ in range(seed[2]):
+            env.act(0)
+        env.env.pos = seed[1]
+        scratch_pad = df['scratch_pad'][_]
+        action = 2 if scratch_pad == "U" else 4 if scratch_pad == "D" else 0
+        r, terminal = env.act(action)
+        plan = df['seed'][_]
+        import re
+        plan = re.sub(r'[^USD]', '', plan)
+        tmp = greedy(env, 10)
+        df.loc[_, 'optimal'] = (len(tmp) == len(plan) - 1)
+            
     with open(log_file, 'a') as f:
         f.write("Results:\n")
         f.write(f"Total: {len(df)}\n")

@@ -6,20 +6,17 @@ import pandas as pd
 from minatar.environment import Environment
 from minatar.environments.freeway import Env
 from envs.utils.extract_utils import extract_scratch_pad, extract_boxed
-from envs.utils.client_utils import LocalThreadedLLMClient, ApiThreadedLLMClient
+from envs.utils.client_utils import ApiThreadedLLMClient
 from vllm import SamplingParams
 from envs.prompts.sa_freeway_math import CAR_STATE, LLM_SYSTEM_PROMPT, STAY_COMPLETION
 VLLM_client = None 
 seed_mapping = {
-    0: (1069, 12, 0), 1: (1093, 14, 0), 2: (1447, 19, 0), 3: (1953, 21, 0), 
-    4: (1536, 14, 0), 5: (1798, 17, 5), 6: (1858, 16, 0), 7: (2408, 19, 0)
+    0: (1069, 12, 0), 1: (1093, 14, 0), 2: (1536, 14, 0), 3: (1858, 16, 0), 4: (1447, 19, 0), 5: (2408, 19, 0), 6: (2418, 20, 0), 7: (2661, 21, 0), 8: (1338, 14, 0), 9: (2496, 14, 0), 10: (1933, 15, 0), 11: (1863, 16, 0), 
+    12: (1100, 19, 0), 13: (1944, 19, 0), 14: (1310, 21, 0), 15: (2453, 20, 0)
 }
 def setup_thread_VLLM_client(token_per_tick, args):
     global VLLM_client
-    if args.api_keys == []:
-        VLLM_client = LocalThreadedLLMClient(token_per_tick)
-    else:
-        VLLM_client = ApiThreadedLLMClient(token_per_tick, args) 
+    VLLM_client = ApiThreadedLLMClient(token_per_tick, args) 
    
 def get_thread_VLLM_client():
     global VLLM_client
@@ -192,11 +189,11 @@ def ma_freeway_game_loop(log_file, seed, args):
         'game_time': time.time() - start_time
     }
 
-def pma_freeway_game_loop(log_file, seed, args):
+def pma_freeway_game_loop(log_file, seed, args, thread_id):
     client = VLLM_client
     from envs.prompts.ma_freeway_math import MATH_PROMPT as LLM_BASE_PROMPT, MATH_PROMPT_LOW_LEVEL
     from envs.prompts.ma_freeway_game import ORIGINAL_ANSWER_FORMAT as LLM_ANSWER_FORMAT
-    thread_id = client.add_new_thread()
+    client.add_new_thread(thread_id)
     env = Environment('freeway', sticky_action_prob=0)
     if seed in seed_mapping:
         seed = seed_mapping[seed]
@@ -214,8 +211,6 @@ def pma_freeway_game_loop(log_file, seed, args):
     terminal = False
     logs = {'description': [], 'render':[], 'supervisor_response': [], 'plan_agent_response':[], 'scratch_pad': [], 'selected_agent': [], 'selected_action': []}
     while True:
-        if seed[0] == 1953 or seed[0] == 1798:
-            break
         state_for_llm = llm_state_builder(env.env)
         state_description = state_to_description(state_for_llm)
         logs['description'].append(state_description)

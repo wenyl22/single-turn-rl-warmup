@@ -122,6 +122,7 @@ html_content += """
 """
 
 import argparse
+import os
 parser = argparse.ArgumentParser(description='Visualize LLM responses from CSV files.')
 parser.add_argument('--f', type=str, default='deepseek-reasoner/2025-04-30-23-22-12_8192_0.csv', help='Path to the CSV file')
 args = parser.parse_args()
@@ -129,6 +130,8 @@ args.f = args.f.replace("_0.csv", "_seed.csv")
 for seed_index, seed in enumerate(seeds):
     csv_path = args.f.replace("seed", str(seed))
     print(csv_path)
+    if not os.path.exists(csv_path):
+        continue
     df = pd.read_csv(csv_path)
 
     html_content += f'<div class="seed-container seed-{seed_index}" style="display: {"block" if seed_index == 0 else "none"};">'

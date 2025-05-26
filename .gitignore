@@ -172,7 +172,7 @@ cython_debug/
 # Temp folders
 data/
 wandb/
-logs/
+*logs/
 eval_results/
 results/
 
@@ -192,3 +192,4 @@ plot*
 debug2.py
 pattern.py
 accuracy.py
+*.gif

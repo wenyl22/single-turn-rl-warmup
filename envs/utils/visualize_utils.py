@@ -17,7 +17,7 @@ def string_map_to_image(string_map, font_path, font_size, index):
     lines = string_map.split('\n')
     max_width = max(len(line) for line in lines)
     line_height = font_size + 8
-    img_width = max_width * font_size // 2 + 80
+    img_width = max_width * font_size // 2 + 150  # Adjust width for padding
     img_height = len(lines) * line_height
     image = Image.new("RGB", (img_width, img_height), "black")
     draw = ImageDraw.Draw(image)
@@ -31,7 +31,7 @@ def string_map_to_image(string_map, font_path, font_size, index):
     draw.text((10, img_height - line_height), index_text, fill="white", font=font)
     return image
 
-def generate_gif_from_string_map(string_map_list, gif_path, duration=1000, font_path=None, font_size=30):
+def generate_gif_from_string_map(string_map_list, gif_path, duration=1000, font_path='/usr/share/fonts/truetype/dejavu/DejaVuSansMono.ttf', font_size=30):
     """
     Generate a .gif file from a list of string maps.
 
