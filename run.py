@@ -17,7 +17,7 @@ if __name__ == "__main__":
     parser.add_argument('--token_per_tick', type=int, default=8192)
     parser.add_argument('--budget-forcing', type=str, default='no', choices=['no', 'prompted', 's1', 'ps', 'br', 'si'], help='budget forcing method')
     parser.add_argument("--method", type=str, default='sa', choices=['hsa', 'lsa', 'pma'], help='framework to use')
-    parser.add_argument('--seed_num', type=int, default=16, help='number of seeds to run')
+    parser.add_argument('--seed_num', type=int, default=8, help='number of seeds to run')
     parser.add_argument('--api_keys', nargs='+', type=str, default=[], help='List of API keys for OpenAI')
     parser.add_argument('--base_url', type=str, default=None, help='URL of the model server')
     parser.add_argument('--model', type=str, default = '')

@@ -5,13 +5,13 @@ import time
 import pandas as pd
 from minatar.environment import Environment
 from minatar.environments.airraid import Env
-from envs.utils.extract_utils import extract_scratch_pad, extract_boxed
+from envs.utils.extract_utils import extract_scratch_pad_lr, extract_boxed
 from envs.utils.client_utils import ApiThreadedLLMClient
 from vllm import SamplingParams
 from envs.prompts.ma_airraid_math import LLM_SYSTEM_PROMPT, MATH_PROMPT, MATH_PROMPT_LOW_LEVEL, REWARD_STATE
 
 VLLM_client = None 
-seed_mapping = {0: 375, 1: 978, 2: 1005, 3: 1337, 4: 1800, 5: 1983, 6: 2029, 7: 2675, 8: 3021, 9: 3297, 10: 3365, 11: 3743, 12: 4046, 13: 4567, 14: 4578, 15: 4963}
+seed_mapping = {0: (60, 465), 1: (183, 460), 2: (245, 444), 3: (592, 440), 4: (696, 476), 5: (794, 513), 6: (945, 478), 7: (987, 424)}
 def setup_thread_VLLM_client(token_per_tick, args):
     global VLLM_client
     VLLM_client = ApiThreadedLLMClient(token_per_tick, args) 
@@ -26,7 +26,7 @@ def pma_freeway_game_loop(log_file, seed, args, thread_id):
     client.add_new_thread(thread_id)
     env = Environment('airraid', sticky_action_prob=0)
     if seed in seed_mapping:
-        seed = seed_mapping[seed]
+        seed = seed_mapping[seed][0]
         env.seed(seed)
         env.reset()
     else:
@@ -57,17 +57,18 @@ def pma_freeway_game_loop(log_file, seed, args, thread_id):
         sampling_params = SamplingParams(temperature=0.6, top_p=0.95, max_tokens=args.max_new_tokens - 5)
         # OPTION2: Interrupt the thread with new state.
         if args.budget_forcing == "si":
-            sampling_params.max_tokens = client.token_per_tick - 5
-            end, log_plan_agent_response = client.run_inference_with_interruption(thread_id, messages, "", sampling_params)
-            if end:
-                scratch_pad = extract_scratch_pad(log_plan_agent_response, scratch_pad)
+            pass
+            # sampling_params.max_tokens = client.token_per_tick - 5
+            # end, log_plan_agent_response = client.run_inference_with_interruption(thread_id, messages, "", sampling_params)
+            # if end:
+            #     scratch_pad = extract_scratch_pad_lr(log_plan_agent_response, scratch_pad)
         # OPTION1: Automatically drop message if the thread is planning state for previous turns.
         else:
             turns = client.token_queue_len[thread_id] // client.token_per_tick
             # The message will be automatically dropped if the thread is planning state for previous turns.
             log_plan_agent_response = client.run_inference(thread_id, messages, "", sampling_params)
             if log_plan_agent_response != "": # agent responds with a plan
-                scratch_pad = extract_scratch_pad(log_plan_agent_response, scratch_pad)
+                scratch_pad = extract_scratch_pad_lr(log_plan_agent_response, scratch_pad)
                 scratch_pad = scratch_pad[turns:] if turns < len(scratch_pad) else ""
         logs['plan_agent_response'].append(log_plan_agent_response)
         if scratch_pad == "":
@@ -105,8 +106,7 @@ def pma_freeway_game_loop(log_file, seed, args, thread_id):
         r, terminal = env.act(action)
         game_turn += 1
         reward += r
-        if game_turn > 100:
-            print("Fail to get to the otherside in required turns")
+        if game_turn >= 50:
             break
         print(f"Thread {thread_id} - Game Turn: {game_turn}, Reward: {reward}")
 

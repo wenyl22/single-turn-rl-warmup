@@ -24,6 +24,15 @@ def extract_scratch_pad(text, old_scratch_pad):
             old_scratch_pad = scratch_pad
     return old_scratch_pad
 
+def extract_scratch_pad_lr(text, old_scratch_pad):
+    matches = re.findall(r'oxed{([^}]*)}', text.split("</think>")[-1])
+    if matches:
+        scratch_pad = matches[-1].strip()
+        scratch_pad = re.sub(r'[^LRS]', '', scratch_pad)
+        if scratch_pad != "":
+            old_scratch_pad = scratch_pad
+    return old_scratch_pad
+
         
 def model_match(client, thread_id, example):
     if len(example['answer_string']) == 1 and example['answer_string'].isalpha():

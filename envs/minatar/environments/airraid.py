@@ -21,13 +21,14 @@ class Env:
         # space ship representation(x, y, speed, reward)
 
     def _randomize_spaceships(self):
-        temp = [i for i in range(10) if self.space_ships[i][1] <= 0]
-        if len(temp) == 0:
-            return
-        index = self.random.choice(temp)
-        speed = self.random.randint(1, 5)
-        reward = self.random.randint(1, 8)
-        self.space_ships[index] = (index, 9, speed, reward)
+        for _ in range(4):
+            temp = [i for i in range(10) if self.space_ships[i][1] <= 0]
+            if len(temp) == 0:
+                return
+            index = self.random.choice(temp)
+            speed = self.random.randint(1, 6)
+            reward = self.random.randint(1, 25)
+            self.space_ships[index] = (index, 9, speed, reward)
         
     # Update environment according to agent action
     def act(self, a):

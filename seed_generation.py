@@ -7,7 +7,40 @@ mapping = {
     1: 'L',
     3: 'R',
 }
-def greedy(env, max_steps=100):
+
+def bfs(env, max_steps=50):
+    queue = deque()
+    queue.append((env.env.pos, 0))
+    visited = {}
+    env_list = [env]
+    for i in range(1, max_steps):
+        env_copy = env_list[i - 1].deep_copy()
+        env_copy.act(0)
+        env_list.append(env_copy)
+
+    while queue:
+        pos, steps = queue.popleft()
+
+        rewards = visited.get((pos, steps), 0)
+        if steps >= max_steps:
+            continue
+
+        for action in [0, 1, 3]:
+            new_env = env_list[steps].deep_copy()
+            new_env.env.pos = pos
+            r, terminal = new_env.act(action)
+            if (new_env.env.pos, steps + 1) not in visited:
+                visited[(new_env.env.pos, steps + 1)] = 0
+                queue.append((new_env.env.pos, steps + 1))
+            visited[(new_env.env.pos, steps + 1)] = max(visited[(new_env.env.pos, steps + 1)], rewards + r)
+
+    max_reward = -1
+    for (pos, steps), reward in visited.items():
+        if steps == max_steps and reward > max_reward:
+            max_reward = reward
+    return max_reward
+
+def greedy(env, max_steps=50):
     """
     Greedily find the best action in the environment.
     """
@@ -76,8 +109,14 @@ if __name__ == "__main__":
     for seed in range(1, 6000):
         env.seed(seed)
         env.reset()
-        actions, reward, string_maps = greedy(env, max_steps=100)
+        actions, reward, string_maps = greedy(env)
         if actions is not None:
+            env.seed(seed)
+            env.reset()
+            max_reward = bfs(env)
+            if reward != max_reward:
+                continue
+
             optimal_path.append((seed, actions, reward))
             logs['seed'].append(seed)
             logs['action'].append(' '.join(actions))

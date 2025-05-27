@@ -1,18 +1,19 @@
 import argparse
 from envs.minatar.environment import Environment
 from seed_generation import greedy
+from envs.airraid import seed_mapping
 parser = argparse.ArgumentParser(description="Visualize the seed of a model.")
 parser.add_argument("--s", type=int,nargs='+', default=[0], help="Seed for the environment")
 args = parser.parse_args()
 seeds = args.s
 if args.s == [0]:
-    seeds = [375, 978, 1005, 1337, 1800, 1983, 2029, 2675]
+    seeds = [seed_mapping[i][0] for i in range(8)]
 seed_list = {}
 for i, seed in enumerate(seeds):
     env = Environment('airraid', sticky_action_prob=0)
     env.seed(seed)
     env.reset()
-    best_action, _, _ = greedy(env, max_steps=100)
+    best_action, _, _ = greedy(env)
     env.seed(seed)
     env.reset()
     seed_list[i] = (seed, len(best_action), 0)
