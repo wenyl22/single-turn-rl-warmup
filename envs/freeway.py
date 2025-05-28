@@ -189,7 +189,7 @@ def ma_freeway_game_loop(log_file, seed, args):
         'game_time': time.time() - start_time
     }
 
-def pma_freeway_game_loop(log_file, seed, args, thread_id):
+def game_loop(log_file, seed, args, thread_id):
     client = VLLM_client
     from envs.prompts.ma_freeway_math import MATH_PROMPT as LLM_BASE_PROMPT, MATH_PROMPT_LOW_LEVEL
     from envs.prompts.ma_freeway_game import ORIGINAL_ANSWER_FORMAT as LLM_ANSWER_FORMAT
@@ -230,7 +230,7 @@ def pma_freeway_game_loop(log_file, seed, args, thread_id):
             sampling_params.max_tokens = client.token_per_tick - 5
             end, log_plan_agent_response = client.run_inference_with_interruption(thread_id, messages, "", sampling_params)
             if end:
-                scratch_pad = extract_scratch_pad(log_plan_agent_response, scratch_pad)
+                scratch_pad = extract_scratch_pad(log_plan_agent_response, scratch_pad, valid_actions='SUD')
         # OPTION1: Automatically drop message if the thread is planning state for previous turns.
         else:
             turns = client.token_queue_len[thread_id] // client.token_per_tick

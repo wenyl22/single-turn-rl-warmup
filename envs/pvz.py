@@ -4,14 +4,14 @@ sys.path.append(os.path.dirname(os.path.abspath(__file__)))
 import time 
 import pandas as pd
 from minatar.environment import Environment
-from minatar.environments.airraid import Env
-from envs.utils.extract_utils import extract_scratch_pad, extract_boxed
+from minatar.environments.pvz import Env
+from envs.utils.extract_utils import extract_boxed
 from envs.utils.client_utils import ApiThreadedLLMClient
 from vllm import SamplingParams
-from envs.prompts.ma_airraid_math import LLM_SYSTEM_PROMPT, MATH_PROMPT, MATH_PROMPT_LOW_LEVEL, REWARD_STATE
+from envs.prompts.ma_pvz_game import LLM_SYSTEM_PROMPT, GAME_PROMPT, GAME_PROMPT_LOW_LEVEL
 
 VLLM_client = None 
-seed_mapping = {0: (60, 465), 1: (183, 460), 2: (245, 444), 3: (592, 440), 4: (696, 476), 5: (794, 513), 6: (945, 478), 7: (987, 424)}
+seed_mapping = {0: 1000, 1: 1001, 2: 1002, 3: 1003, 4: 1004, 5: 1005, 6: 1006, 7: 1007}
 def setup_thread_VLLM_client(token_per_tick, args):
     global VLLM_client
     VLLM_client = ApiThreadedLLMClient(token_per_tick, args) 
@@ -21,12 +21,11 @@ def get_thread_VLLM_client():
     return VLLM_client
         
 def game_loop(log_file, seed, args, thread_id):
-
     client = VLLM_client
     client.add_new_thread(thread_id)
-    env = Environment('airraid', sticky_action_prob=0)
+    env = Environment('pvz', sticky_action_prob=0)
     if seed in seed_mapping:
-        seed = seed_mapping[seed][0]
+        seed = seed_mapping[seed]
         env.seed(seed)
         env.reset()
     else:
@@ -34,10 +33,9 @@ def game_loop(log_file, seed, args, thread_id):
         env.reset()
     reward = 0
     game_turn = 0
-    scratch_pad = ""
+    scratch_pad = []
     start_time = time.time()
-    terminal = False
-    logs = {'description': [], 'render':[], 'supervisor_response': [], 'plan_agent_response':[], 'scratch_pad': [], 'selected_agent': [], 'selected_action': [], "reward": []}
+    logs = {'description': [], 'render':[], 'supervisor_response': [], 'plan_agent_response':[], 'scratch_pad': [], 'selected_agent': [], 'selected_action': []}
     while True:
         state_for_llm = llm_state_builder(env.env)
         state_description = state_to_description(state_for_llm)
@@ -48,34 +46,31 @@ def game_loop(log_file, seed, args, thread_id):
         if args.method != "lsa":
             messages = [
                 {"role": "system", "content": LLM_SYSTEM_PROMPT},
-                {"role": "user", "content": MATH_PROMPT + state_description}
+                {"role": "user", "content": GAME_PROMPT + state_description}
             ]
-            # print(MATH_PROMPT + state_description)
-            # exit(0)
         else:
             messages = []
         sampling_params = SamplingParams(temperature=0.6, top_p=0.95, max_tokens=args.max_new_tokens - 5)
-        # OPTION2: Interrupt the thread with new state.
         if args.budget_forcing == "si":
             pass
-            # sampling_params.max_tokens = client.token_per_tick - 5
-            # end, log_plan_agent_response = client.run_inference_with_interruption(thread_id, messages, "", sampling_params)
-            # if end:
-            #     scratch_pad = extract_scratch_pad_lr(log_plan_agent_response, scratch_pad)
-        # OPTION1: Automatically drop message if the thread is planning state for previous turns.
         else:
             turns = client.token_queue_len[thread_id] // client.token_per_tick
             # The message will be automatically dropped if the thread is planning state for previous turns.
             log_plan_agent_response = client.run_inference(thread_id, messages, "", sampling_params)
             if log_plan_agent_response != "": # agent responds with a plan
-                scratch_pad = extract_scratch_pad(log_plan_agent_response, scratch_pad, valid_actions="LRS")
-                scratch_pad = scratch_pad[turns:] if turns < len(scratch_pad) else ""
+                scratch_pad_txt = extract_boxed(log_plan_agent_response, default_value="None")
+                # Each turn takes up one line, begins by: Turn x: .....
+                # Formalize them in a list: scratch_pad = [..., ...]
+                scratch_pad = []
+                for act in scratch_pad_txt.split('\n'):
+                    scratch_pad.append(act.split(':')[-1].strip())       
+                scratch_pad = scratch_pad[turns:] if turns < len(scratch_pad) else []
         logs['plan_agent_response'].append(log_plan_agent_response)
-        if scratch_pad == "":
-            scratch_pad = "S"
+        if scratch_pad == []:
+            scratch_pad = ["None"]
         logs['scratch_pad'].append(scratch_pad)
         ### --- Low Level Agent --- ###
-        action = 'S'
+        action = "None"
         if args.method == "hsa":
             action = scratch_pad[0]
             log_supervisor_response = "Follow Plan"
@@ -83,32 +78,29 @@ def game_loop(log_file, seed, args, thread_id):
             state_description = state_to_description(state_for_llm, 0, scratch_pad)
             messages = [
                 {"role": "system", "content": LLM_SYSTEM_PROMPT},
-                {"role": "user", "content": MATH_PROMPT_LOW_LEVEL + state_description}
+                {"role": "user", "content": GAME_PROMPT_LOW_LEVEL + state_description}
             ]
-            # print(MATH_PROMPT_LOW_LEVEL + state_description)
-            # exit(0)
             sampling_params = SamplingParams(temperature=0.6, top_p=0.95, max_tokens=8192)
             log_supervisor_response = client.run_low_level_inference(thread_id, messages, sampling_params)
-            action = extract_boxed(log_supervisor_response)
+            action = extract_boxed(log_supervisor_response, default_value="None")
         log_selected_action = action
         if action == scratch_pad[0]:
             log_selected_agent = "B. Follow Plan Agent"
             scratch_pad = scratch_pad[1:]
         else:
             log_selected_agent = "C. React Agent"
-            scratch_pad = ""
-        action = 0 if action == 'S' else 1 if action == 'L' else 3
+            scratch_pad = []
         logs['supervisor_response'].append(log_supervisor_response)
         logs['selected_agent'].append(log_selected_agent)
         logs['selected_action'].append(log_selected_action)
         df = pd.DataFrame(logs)
         df.to_csv(log_file)
-        r, terminal = env.act(action)
+        r , terminal = env.act(action)
+        if terminal:
+            print(f"Thread {thread_id} - Game Over at Turn: {game_turn}, Total Reward: {reward}")
+            break
         game_turn += 1
         reward += r
-        logs["reward"].append(reward)
-        if game_turn >= 50:
-            break
         print(f"Thread {thread_id} - Game Turn: {game_turn}, Reward: {reward}")
 
     return {
@@ -120,27 +112,20 @@ def game_loop(log_file, seed, args, thread_id):
 
 
 def llm_state_builder(env: Env):
-    player_states = env.pos
-    reward_states = []
-    for (x, y, speed, reward) in env.space_ships:
-        if y > 0:
-            reward_states.append((x, y, speed, reward))
-    state_for_llm = {
-        'player_states': player_states,
-        'reward_states': reward_states,
+    return {
+        "map": env.state_string(), 
+        "turn": env.board['total_rounds'],
     }
-    return state_for_llm
 
 def state_to_description(state_for_llm, state_prediction = 0, scratch_pad = None):
-    description = ""
-    if state_prediction == 0:
-        description += f"### **Game State**\n**Current Turn Player Position:** \(({state_for_llm['player_states']}, 0)\) \n"
-        if scratch_pad is not None:
-            description += f"**Plan Advice**: {",".join(scratch_pad)}\n"
-        description += f"**Current Turn Reward State**:\n"
-    else:
-        description += f"**Predicted Reward State After {state_prediction} Turns**:\n"
-    description += REWARD_STATE
-    for (x, y, speed, reward) in state_for_llm['reward_states']:
-        description += f"| {reward} | \({x}, {y}\) | {speed} |\n"
+    description = """## Current game state\n"""
+    if scratch_pad is not None and scratch_pad != []:
+        try:
+            txt = ''.join([f"Turn {state_for_llm["turn"] + i}: {act}\n" for i, act in enumerate(scratch_pad)])
+        except Exception as e:
+            print(f"scratch_pad: {scratch_pad}")
+            print(f"Error formatting scratch pad: {e}")
+            exit(0)
+        description += f"**Plan Advice**:\n'''\n{txt}\n'''\n"
+    description += f"""**Map**:\n'''\n{state_for_llm['map']}\n'''"""
     return description

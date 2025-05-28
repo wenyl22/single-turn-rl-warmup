@@ -172,24 +172,19 @@ cython_debug/
 # Temp folders
 data/
 wandb/
-*logs/
 eval_results/
 results/
 
 .vscode/
 
-test-r1.py
 *.sh
 count.py
-debug.py
 *.txt
 calc_token_num.py
 *.png
-plot*
-*_example.py
 *.csv
 *.html
-debug2.py
-pattern.py
-accuracy.py
 *.gif
+24-snake/
+41-PVZ/
+*logs*

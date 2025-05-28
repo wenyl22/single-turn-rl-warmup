@@ -31,12 +31,11 @@ if __name__ == "__main__":
     # model_name = model_name_from_path(model)
     max_new_tokens = args.max_new_tokens
     token_per_tick = args.token_per_tick
-
-
-    if not os.path.exists(f"logs/{game}_{args.method}/{model_name}"):
-        os.makedirs(f"logs/{game}_{args.method}/{model_name}")
+    logs = "logs-0528"
+    if not os.path.exists(f"{logs}/{game}_{args.method}/{model_name}"):
+        os.makedirs(f"{logs}/{game}_{args.method}/{model_name}")
     time_stamp = datetime.datetime.now().strftime("%Y-%m-%d-%H-%M-%S")      
-    log_file = f"logs/{game}_{args.method}/{model_name}/benchmarking_{args.method}_{time_stamp}_{token_per_tick}.log"
+    log_file = f"{logs}/{game}_{args.method}/{model_name}/benchmarking_{args.method}_{time_stamp}_{token_per_tick}.log"
     SEEDS = range(0, args.seed_num)
 
     with open(log_file, 'a') as f:
@@ -46,13 +45,13 @@ if __name__ == "__main__":
         f.write("\n")
         
     if game == "freeway":
-        from envs.freeway import setup_thread_VLLM_client, get_thread_VLLM_client, pma_freeway_game_loop as game_func
+        from envs.freeway import setup_thread_VLLM_client, get_thread_VLLM_client, game_loop as game_func
     elif game == "airraid":
-        from envs.airraid import setup_thread_VLLM_client, get_thread_VLLM_client, pma_freeway_game_loop as game_func
-    elif game == "overcooked":
-        from envs.overcooked import overcooked_game_loop as game_func, setup_thread_VLLM_client, get_thread_VLLM_client
-    elif game == "asterix":
-        from envs.asterix import asterix_game_loop as game_func, setup_thread_VLLM_client, get_thread_VLLM_client
+        from envs.airraid import setup_thread_VLLM_client, get_thread_VLLM_client, game_loop as game_func
+    elif game == "snake":
+        from envs.snake import game_loop as game_func, setup_thread_VLLM_client, get_thread_VLLM_client
+    elif game == "pvz":
+        from envs.pvz import game_loop as game_func, setup_thread_VLLM_client, get_thread_VLLM_client
 
     setup_thread_VLLM_client(token_per_tick, args)
     client = get_thread_VLLM_client()
@@ -61,7 +60,7 @@ if __name__ == "__main__":
     max_workers = len(args.api_keys)
     api_cycle = cycle(range(max_workers))
     with ThreadPoolExecutor(max_workers=max_workers) as executor:
-        s_log_file = f"logs/{game}_{args.method}/{model_name}/{time_stamp}"
+        s_log_file = f"{logs}/{game}_{args.method}/{model_name}/{time_stamp}"
         futures = [
             executor.submit(
                 game_func, f"{s_log_file}_{i}.csv" , SEEDS[i], args, next(api_cycle)

@@ -1,7 +1,7 @@
 import re
 from envs.prompts.eval import EVAL_PROMPT
 from vllm import SamplingParams
-def extract_boxed(text):
+def extract_boxed(text, default_value=""):
     """
     Extracts the \boxed{...} text from the input string.
     """
@@ -12,27 +12,18 @@ def extract_boxed(text):
     # delete leading and trailing spaces
     if matches:
         return matches[-1].strip()
-    else:
-        return text.strip()
+    if default_value != "":
+        return default_value
+    return text.strip()
 
-def extract_scratch_pad(text, old_scratch_pad):
+def extract_scratch_pad(text, old_scratch_pad, valid_actions=None):
     matches = re.findall(r'oxed{([^}]*)}', text.split("</think>")[-1])
     if matches:
         scratch_pad = matches[-1].strip()
-        scratch_pad = re.sub(r'[^UDS]', '', scratch_pad)
+        scratch_pad = re.sub(r'[^' + valid_actions + ']', '', scratch_pad)
         if scratch_pad != "":
             old_scratch_pad = scratch_pad
     return old_scratch_pad
-
-def extract_scratch_pad_lr(text, old_scratch_pad):
-    matches = re.findall(r'oxed{([^}]*)}', text.split("</think>")[-1])
-    if matches:
-        scratch_pad = matches[-1].strip()
-        scratch_pad = re.sub(r'[^LRS]', '', scratch_pad)
-        if scratch_pad != "":
-            old_scratch_pad = scratch_pad
-    return old_scratch_pad
-
         
 def model_match(client, thread_id, example):
     if len(example['answer_string']) == 1 and example['answer_string'].isalpha():

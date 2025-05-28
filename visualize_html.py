@@ -109,14 +109,23 @@ html_content = """
 """
 import argparse
 import os
+from envs.minatar.environment import Environment
 parser = argparse.ArgumentParser(description='Visualize LLM responses from CSV files.')
 parser.add_argument('--f', type=str, default='deepseek-reasoner/2025-04-30-23-22-12_8192_0.csv', help='Path to the CSV file')
 args = parser.parse_args()
 args.f = args.f.replace("_0.csv", "_seed.csv")
 if "freeway" in args.f:
     from envs.freeway import seed_mapping
+    env = Environment('freeway', sticky_action_prob=0)
 elif "airraid" in args.f:
     from envs.airraid import seed_mapping
+    env = Environment('airraid', sticky_action_prob=0)
+elif "snake" in args.f:
+    from envs.snake import seed_mapping
+    env = Environment('snake', sticky_action_prob=0)
+elif "pvz" in args.f:
+    from envs.pvz import seed_mapping
+    env = Environment('pvz', sticky_action_prob=0)
 
 # Add seed options to the dropdown
 for seed in seeds:
@@ -132,6 +141,12 @@ html_content += """
 """
 
 for seed_index, seed in enumerate(seeds):
+    # if isinstance(seed_mapping[seed], int):
+    #     env.seed(seed_mapping[seed])
+    #     print("WWW")
+    # else:
+    #     env.seed(seed_mapping[seed][0])
+    # env.reset()
     csv_path = args.f.replace("seed", str(seed))
     print(csv_path)
     if not os.path.exists(csv_path):
@@ -141,6 +156,7 @@ for seed_index, seed in enumerate(seeds):
     html_content += f'<div class="seed-container seed-{seed_index}" style="display: {"block" if seed_index == 0 else "none"};">'
     page_index = 0
     scratch_pad = ""
+    reward = 0
 
     for _, row in df.iterrows():
         render = row["render"]
@@ -154,6 +170,20 @@ for seed_index, seed in enumerate(seeds):
             selected_agent = "A. Plan Agent"
 
         selected_action = row["selected_action"]
+        # r = 0
+        # if "pvz" not in args.f:
+        #     act = 0
+        #     if "L" in selected_action:
+        #         act = 1
+        #     elif "U" in selected_action:
+        #         act = 2
+        #     elif "R" in selected_action:
+        #         act = 3
+        #     elif "D" in selected_action:
+        #         act = 4
+        #     r, t = env.act(act)
+        #     reward += r
+        reward = row["reward"] if "reward" in row else "Not Recorded"
         other_columns = {key: preprocess_string(value) for key, value in row.drop(["render", "selected_action", "selected_agent", "Unnamed: 0"]).items()}
         other_columns_html = "".join(
             [f"<button onclick='toggleVisibility(this)'>{key}</button><div class='hidden' style='max-width: 800px; margin: 0 auto;'><p>{value}</p></div>"
@@ -174,8 +204,8 @@ for seed_index, seed in enumerate(seeds):
                     <p>{scratch_pad}</p>
                     <h3>Selected Agent:</h3>
                     <p>{selected_agent}</p>
-                    <h3>Selected Action:</h3>
-                    <p>{selected_action}</p>
+                    <h3>Selected Action | Total Reward</h3>
+                    <p>{selected_action} | {reward}</p>
                 </div>
             </div>
             <div>
