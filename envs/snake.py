@@ -91,15 +91,15 @@ def game_loop(log_file, seed, args, thread_id):
         logs['supervisor_response'].append(log_supervisor_response)
         logs['selected_agent'].append(log_selected_agent)
         logs['selected_action'].append(log_selected_action)
-        df = pd.DataFrame(logs)
-        df.to_csv(log_file)
         r, terminal = env.act(action)
-        if terminal:
-            print(f"Thread {thread_id} - Game Over at Turn: {game_turn}, Total Reward: {reward}")
-            break
         game_turn += 1
         reward += r
         logs['reward'].append(reward)
+        df = pd.DataFrame(logs)
+        df.to_csv(log_file)
+        if terminal:
+            print(f"Thread {thread_id} - Game Over at Turn: {game_turn}, Total Reward: {reward}")
+            break
         print(f"Thread {thread_id} - Game Turn: {game_turn}, Reward: {reward}")
 
     return {
