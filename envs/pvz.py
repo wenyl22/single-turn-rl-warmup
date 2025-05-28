@@ -96,11 +96,11 @@ def game_loop(log_file, seed, args, thread_id):
         df = pd.DataFrame(logs)
         df.to_csv(log_file)
         r , terminal = env.act(action)
+        game_turn += 1
+        reward += r
         if terminal:
             print(f"Thread {thread_id} - Game Over at Turn: {game_turn}, Total Reward: {reward}")
             break
-        game_turn += 1
-        reward += r
         print(f"Thread {thread_id} - Game Turn: {game_turn}, Reward: {reward}")
 
     return {

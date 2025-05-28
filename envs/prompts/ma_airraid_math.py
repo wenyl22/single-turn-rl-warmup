@@ -46,6 +46,7 @@ You are a plate on a reward collection game, starting at \((x_0, 0)\) on a 2D gr
       Constraint: \( x_{t+1} \in [0, 9] \).  
     - Rewards: For each reward \( i \), its position at \( t+1 \) is:  
       - \(x_{i, t+1} = x_i\), \(y_{i,t+1} = y_i - s_i(t+1)\).
+      - The reward is collected, if the plate's position \(x_t = x_{i}\) when \(y_{i, t - 1} > 0\) and \(y_{i, t} <= 0\).
 
 **Task:**
 Choose **one** action \( a_{1} \in \{L, R, S\} \) for turn \( 1 \), adhering to:

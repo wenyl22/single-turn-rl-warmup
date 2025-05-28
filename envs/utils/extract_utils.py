@@ -7,8 +7,6 @@ def extract_boxed(text, default_value=""):
     """
     pattern = r'oxed{([^}]*)}'
     matches = re.findall(pattern, text)
-    if "oxed" in text:
-        assert matches, f"Boxed text not found in: {text}"
     # delete leading and trailing spaces
     if matches:
         return matches[-1].strip()

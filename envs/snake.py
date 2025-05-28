@@ -9,6 +9,7 @@ from envs.utils.extract_utils import extract_scratch_pad, extract_boxed
 from envs.utils.client_utils import ApiThreadedLLMClient
 from vllm import SamplingParams
 from envs.prompts.ma_snake_game import LLM_SYSTEM_PROMPT, GAME_PROMPT, GAME_PROMPT_LOW_LEVEL
+from copy import deepcopy
 
 VLLM_client = None 
 seed_mapping = {0: 1000, 1: 1001, 2: 1002, 3: 1003, 4: 1004, 5: 1005, 6: 1006, 7: 1007}
@@ -111,14 +112,22 @@ def game_loop(log_file, seed, args, thread_id):
 
 
 def llm_state_builder(env: Env):
+    snake = deepcopy(env.snake[::-1])
+    snake = [(y, x) for (x, y) in snake]
     return {
         "map": env.state_string(), 
-        "snake": dir_mapping[env.dir],
+        "snake_dir": dir_mapping[env.dir],
+        "food": env.food,
+        "snake": snake
     }
 
 def state_to_description(state_for_llm, state_prediction = 0, scratch_pad = None):
     description = """## Current game state\n"""
     if scratch_pad is not None:
         description += f"**Plan Advice**: {",".join(scratch_pad)}\n"
-    description += f"""**Map**:\n'''\n{state_for_llm['map']}\n'''\nSnake Head Direction:{state_for_llm['snake']}\n"""
+    description += f"""**Snake Positions**:{state_for_llm['snake']}\n**Snake Head Direction**: {state_for_llm['snake_dir']}\n"""
+    food_set = set(state_for_llm['food'])
+    description += f"**Food Positions and Value**: \(x_i, y_i, v_i\)\n"
+    for food in food_set:
+        description += f"\t- ({food[1]}, {food[0]}, {state_for_llm['food'].count(food)})\n"
     return description

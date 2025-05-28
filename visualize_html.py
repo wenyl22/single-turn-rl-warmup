@@ -2,6 +2,8 @@ import pandas as pd
 
 import html
 def preprocess_string(s):
+    if isinstance(s, int):
+        s = str(s)
     if pd.isna(s):  # Handle NaN values
         return ""
     s = html.escape(s)  # Escape special HTML characters
