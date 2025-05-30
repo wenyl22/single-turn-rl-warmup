@@ -38,7 +38,7 @@ class Env:
         else:
             raise ValueError(f"Invalid action a = {a}, dir = {self.dir}")     
         
-        if new_head in self.snake or new_head in self.wall or \
+        if new_head in self.snake[1:] or new_head in self.wall or \
         new_head[0] == 0 or new_head[1] == 0 or \
         new_head[0] == board_size - 1 or new_head[1] == board_size - 1:
             return -1, True
