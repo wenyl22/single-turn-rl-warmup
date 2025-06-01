@@ -41,10 +41,10 @@ You are playing a classic Snake game. Your goal is to control the snake to eat f
 
 * Each time the snake eats food, it grows longer by one segment.
 * The snake cannot run into walls or its own body. There are 4 walls surrounding the game area, which are:
-    * (0, 0) to (0, 7) - Top wall
-    * (0, 0) to (7, 0) - Left wall
-    * (7, 0) to (7, 7) - Bottom wall
-    * (0, 7) to (7, 7) - Right wall
+    * (0, 0) to (0, 7) - Left wall
+    * (0, 0) to (7, 0) - Top wall
+    * (7, 0) to (7, 7) - Right wall
+    * (0, 7) to (7, 7) - Bottom wall
 * The snake moves one step at a time, in one of four directions: up(y -= 1), down(y += 1), left(x -= 1), or right(x += 1).
 * The snake cannot reverse direction (i.e., if it is moving up, it cannot move down in the next step).
 

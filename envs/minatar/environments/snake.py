@@ -15,7 +15,7 @@ class Env:
     def spawn_food(self):
         while len(self.food) < 3:
             new_food = (self.random.randint(1, board_size - 2), self.random.randint(1, board_size - 2))
-            if new_food not in self.snake and new_food not in self.wall:
+            if new_food not in self.snake and new_food not in self.wall and new_food not in self.food:
                 self.food.append(new_food)
     def act(self, a):
         r = 0

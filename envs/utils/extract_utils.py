@@ -5,19 +5,25 @@ def extract_boxed(text, default_value=""):
     """
     Extracts the \boxed{...} text from the input string.
     """
-    pattern = r'oxed{([^}]*)}'
-    matches = re.findall(pattern, text)
-    # delete leading and trailing spaces
-    if matches:
-        return matches[-1].strip()
-    if default_value != "":
-        return default_value
-    return text.strip()
+    pattern = r'oxed{' 
+    start_index = text.rfind(pattern)
+    if start_index == -1:
+        return default_value if default_value else text.strip()
+    start_index += len(pattern) - 1
+    stack = []
+    for i in range(start_index, len(text)):
+        if text[i] == '{':
+            stack.append('{')
+        elif text[i] == '}':
+            if stack:
+                stack.pop()
+            if not stack:
+                return text[start_index + 1:i].strip()
+    return default_value if default_value else text[start_index + 1:].strip()
 
 def extract_scratch_pad(text, old_scratch_pad, valid_actions=None):
-    matches = re.findall(r'oxed{([^}]*)}', text.split("</think>")[-1])
-    if matches:
-        scratch_pad = matches[-1].strip()
+    scratch_pad = extract_boxed(text.split("</think>")[-1], default_value="").strip()
+    if scratch_pad != "":
         scratch_pad = re.sub(r'[^' + valid_actions + ']', '', scratch_pad)
         if scratch_pad != "":
             old_scratch_pad = scratch_pad
