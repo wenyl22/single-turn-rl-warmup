@@ -5,7 +5,9 @@ You are playing a classic Snake game. Your goal is to control the snake to eat f
 
 ## Game Rules
 
-* Each time the snake eats food, it grows longer by one segment.
+* Each time the snake eats food with +1 value, it grows longer by one segment and gets a reward of +1.
+* Each time the snake eats food with -1 value, its length does not change and gets a reward of -1.
+* Each food has a life span, which means how many turns(including the current one) it can stay on the board before disappearing.
 * The snake cannot run into walls or its own body. There are 4 walls surrounding the game area, which are:
     * (0, 0) to (0, 7) - Left wall
     * (0, 0) to (7, 0) - Top wall
@@ -39,7 +41,9 @@ You are playing a classic Snake game. Your goal is to control the snake to eat f
 
 ## Game Rules
 
-* Each time the snake eats food, it grows longer by one segment.
+* Each time the snake eats food with +1 value, it grows longer by one segment and gets a reward of +1.
+* Each time the snake eats food with -1 value, its length does not change and gets a reward of -1.
+* Each food has a life span, which means how many turns(including the current one) it can stay on the board before disappearing.
 * The snake cannot run into walls or its own body. There are 4 walls surrounding the game area, which are:
     * (0, 0) to (0, 7) - Left wall
     * (0, 0) to (7, 0) - Top wall
