@@ -113,10 +113,10 @@ def game_loop(log_file, seed, args, thread_id):
 
 def llm_state_builder(env: Env):
     snake = deepcopy(env.snake[::-1])
-    snake = [(y, x) for (x, y) in snake]
+    snake = [(y, 7 - x) for (x, y) in snake]
     foods = []
     for (x, y) in env.food:
-        foods.append((y, x, env.food_attributes[x][y][1], env.food_attributes[x][y][0]))
+        foods.append((y, 7 - x, env.food_attributes[x][y][1], env.food_attributes[x][y][0]))
     return {
         "map": env.state_string(), 
         "snake_dir": dir_mapping[env.dir],
@@ -129,7 +129,7 @@ def state_to_description(state_for_llm, state_prediction = 0, scratch_pad = None
     if scratch_pad is not None:
         description += f"**Plan Advice**: {",".join(scratch_pad)}\n"
     description += f"""**Snake Positions**:{state_for_llm['snake']}\n**Snake Head Direction**: {state_for_llm['snake_dir']}\n"""
-    description += f"**Food Positions, Value and Life Span**:"
+    description += f"**Food Positions, Value and Life Span**:\n"
     for (x, y, value, life_span) in state_for_llm['foods']:
         description += f"\t- ({x}, {y}, {value}, {life_span})\n"
     return description
