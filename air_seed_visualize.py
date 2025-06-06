@@ -1,22 +1,22 @@
 import argparse
 from envs.minatar.environment import Environment
-from seed_generation import greedy
+from air_seed_generation import greedy
 from envs.airraid import seed_mapping
 parser = argparse.ArgumentParser(description="Visualize the seed of a model.")
 parser.add_argument("--s", type=int,nargs='+', default=[0], help="Seed for the environment")
 args = parser.parse_args()
 seeds = args.s
 if args.s == [0]:
-    seeds = [seed_mapping[i][0] for i in range(8)]
+    seeds = [39, 78, 89, 97, 116, 321, 404, 551]
 seed_list = {}
 for i, seed in enumerate(seeds):
     env = Environment('airraid', sticky_action_prob=0)
     env.seed(seed)
     env.reset()
-    best_action, _, _ = greedy(env)
+    best_action, reward, _ = greedy(env)
     env.seed(seed)
     env.reset()
-    seed_list[i] = (seed, len(best_action), 0)
+    seed_list[i] = (seed, reward)
     reward = 0
     with open(f"seed_{seed}.txt", "w") as f:
         for a in best_action:

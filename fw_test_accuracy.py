@@ -140,12 +140,10 @@ if __name__ == "__main__":
             tokenizer = AutoTokenizer.from_pretrained("deepseek-ai/DeepSeek-V3")
         else:
             tokenizer = AutoTokenizer.from_pretrained(args.model)
-        if not os.path.exists(f"logs/{game}-acc"):
-            os.makedirs(f"logs/{game}-acc")
-        if not os.path.exists(f"logs/{game}-acc/{model_name}"):
-            os.makedirs(f"logs/{game}-acc/{model_name}")
+        if not os.path.exists(f"logs-0604/{game}-acc/{model_name}"):
+            os.makedirs(f"logs-0604/{game}-acc/{model_name}")
         time_stamp = datetime.datetime.now().strftime("%Y-%m-%d-%H-%M-%S")
-        args.f = f"logs/{game}-acc/{model_name}/{time_stamp}.csv"
+        args.f = f"logs-0604/{game}-acc/{model_name}/{time_stamp}.csv"
         log_file = args.f.replace(".csv", ".log")
 
         with open(log_file, 'a') as f:

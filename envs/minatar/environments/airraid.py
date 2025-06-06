@@ -16,19 +16,24 @@ class Env:
         self.spawn_timer = 1
     def reset(self):
         self.pos = 4
-        self.space_ships = [(i, -1, 1, 0) for i in range(10)]
+        self.space_ships = [[] for _ in range(10)]  # 10 columns, each with a list of space ships
         self._randomize_spaceships()
         # space ship representation(x, y, speed, reward)
 
     def _randomize_spaceships(self):
-        for _ in range(4):
-            temp = [i for i in range(10) if self.space_ships[i][1] <= 0]
+        for _ in range(2):
+            temp = [i for i in range(10) if len(self.space_ships[i]) <= 2]
             if len(temp) == 0:
                 return
             index = self.random.choice(temp)
             speed = self.random.randint(1, 6)
+            if len(self.space_ships[index]) > 0:
+                if self.space_ships[index][-1][1] == 9:
+                    return
+                speed = self.space_ships[index][-1][2]
             reward = self.random.randint(1, 25)
-            self.space_ships[index] = (index, 9, speed, reward)
+            self.space_ships[index].append((index, 9, speed, reward))
+            assert len(self.space_ships[index]) <= 3, "More than 3 space ships in one column"
         
     # Update environment according to agent action
     def act(self, a):
@@ -40,17 +45,20 @@ class Env:
             self.pos = min(9, self.pos + 1)
         # Move the space ships and check for collisions
         for i in range(10):
-            x, y, speed, reward = self.space_ships[i]
-            if y <= 0:
-                continue
-            y -= speed
-            if y <= 0:
-                # print(f"Collision at {x}, {y} with speed {speed} and reward {reward}")
-                if x == self.pos:
-                    r += reward
-                reward = 0
-                y = -1
-            self.space_ships[i] = (x, y, speed, reward)
+            n_space_ships = []
+            for (x, y, speed, reward) in self.space_ships[i]:
+                if y <= 0:
+                    continue
+                y -= speed
+                if y <= 0:
+                    # print(f"Collision at {x}, {y} with speed {speed} and reward {reward}")
+                    if x == self.pos:
+                        r += reward
+                    reward = 0
+                    y = -1
+                else:
+                    n_space_ships.append((x, y, speed, reward))
+            self.space_ships[i] = deepcopy(n_space_ships)
         self.spawn_timer -= 1
         if self.spawn_timer <= 0:
             self._randomize_spaceships()
@@ -78,11 +86,13 @@ class Env:
         for i in range(10):
             for j in range(10):
                 grid_string_add = ""
-                if self.space_ships[j][1] == 9 - i:
-                    grid_string_add = str(self.space_ships[j][2]) + ' ' + str(self.space_ships[j][3])
-                elif i == 9 and self.pos == j:
+                for (x, y, speed, reward) in self.space_ships[j]:
+                    if x == j and y == 9 - i:
+                        grid_string_add = str(speed) + ' ' + str(reward)
+                        break
+                if i == 9 and self.pos == j:
                     grid_string_add += "P"
-                else:
+                if grid_string_add == "":
                     grid_string_add += "."
                 grid_string += grid_string_add + "".join([" "] * (6 - len(grid_string_add)))
             grid_string += "\n"

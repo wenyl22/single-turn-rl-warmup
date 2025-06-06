@@ -80,7 +80,7 @@ def game_loop(log_file, seed, args, thread_id):
             ]
             sampling_params = SamplingParams(temperature=0.6, top_p=0.95, max_tokens=8192)
             log_supervisor_response = client.run_low_level_inference(thread_id, messages, sampling_params)
-            action = extract_boxed(log_supervisor_response)
+            action = extract_scratch_pad(log_supervisor_response, dir_mapping[env.env.dir], valid_actions="LRUD")[0]
         log_selected_action = action
         if action == scratch_pad[0]:
             log_selected_agent = "B. Follow Plan Agent"
@@ -133,3 +133,28 @@ def state_to_description(state_for_llm, state_prediction = 0, scratch_pad = None
     for (x, y, value, life_span) in state_for_llm['foods']:
         description += f"\t- ({x}, {y}, {value}, {life_span})\n"
     return description
+def tick(state_for_llm, action):
+    """
+    Tick the state for the given action.
+    """
+    snake = state_for_llm['snake']
+    head = snake[0]
+    dx, dy = {'L': (-1, 0), 'U': (0, 1), 'R': (1, 0), 'D': (0, -1)}[action]
+    new_head = (head[0] + dx, head[1] + dy)
+    if new_head in snake or not (0 <= new_head[0] < 8 and 0 <= new_head[1] < 8):
+        return None, -1
+    r = 0
+    new_foods = []
+    new_snake = [new_head] + deepcopy(snake[:-1])
+    for (x, y, value, life_span) in state_for_llm['foods']:
+        if (x, y) == new_head:
+            r += value
+            if value > 0:
+                new_snake.append(snake[-1])
+        elif life_span > 1:
+            new_foods.append((x, y, value, life_span - 1))
+    new_state_for_llm = {
+        'snake': new_snake,
+        'foods': new_foods,
+    }
+    return new_state_for_llm, r

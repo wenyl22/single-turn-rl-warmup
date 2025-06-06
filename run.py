@@ -31,7 +31,7 @@ if __name__ == "__main__":
     # model_name = model_name_from_path(model)
     max_new_tokens = args.max_new_tokens
     token_per_tick = args.token_per_tick
-    logs = f"logs-0602"
+    logs = f"logs-0605"
     if not os.path.exists(f"{logs}/{game}_{args.method}/{model_name}"):
         os.makedirs(f"{logs}/{game}_{args.method}/{model_name}")
     time_stamp = datetime.datetime.now().strftime("%Y-%m-%d-%H-%M-%S")
@@ -52,6 +52,8 @@ if __name__ == "__main__":
         from envs.snake import game_loop as game_func, setup_thread_VLLM_client, get_thread_VLLM_client
     elif game == "pvz":
         from envs.pvz import game_loop as game_func, setup_thread_VLLM_client, get_thread_VLLM_client
+    elif game == "freeway2":
+        from envs.freeway2 import game_loop as game_func, setup_thread_VLLM_client, get_thread_VLLM_client
 
     setup_thread_VLLM_client(token_per_tick, args)
     client = get_thread_VLLM_client()

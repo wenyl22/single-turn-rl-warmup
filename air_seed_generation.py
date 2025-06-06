@@ -50,18 +50,19 @@ def greedy(env, max_steps=50):
     for _ in range(max_steps):
         ships = env.env.space_ships
         tars = []
-        for (x, y, speed, reward) in ships:
-            if y <= 0:
-                continue
-            # print(x, y, speed, reward)
-            tars.append((x, y, (y + speed - 1) // speed, reward))
+        for j in range(10):
+            for (x, y, speed, reward) in ships[j]:
+                if y <= 0:
+                    continue
+                # print(x, y, speed, reward)
+                tars.append((x, y, (y + speed - 1) // speed, reward))
             
         tars.append((env.env.pos, 0, 0, 0))  # Add player position with no reward
         tars = sorted(tars, key=lambda x: x[2])
-        dp = [0] * 12
-        cnt = [0] * 12
+        dp = [0] * 32
+        cnt = [0] * 32
         cnt[0] = 1
-        pre = [0] * 12
+        pre = [0] * 32
         max_r = 0
         max_cnt = 0
         for i in range(len(tars)):

@@ -1,3 +1,5 @@
+LLM_SYSTEM_PROMPT = '''Please think step by step. Then put your final answer within \\boxed{}.'''
+
 MATH_PROMPT = '''
 Given a player starting at \((0, pos)\) on a 2D grid (vertical axis \(y = 0, 1, \dots, 9\)), determine the minimal number of turns \(T\) and a sequence of actions \(\{a_t\}_{t=1}^T\) (\(a_t \in \{U, D, S\}\)) to reach \((0, 9)\), avoiding collisions with cars on freeways \(y = 1, \dots, 8\). 
 
@@ -23,6 +25,13 @@ Given a player starting at \((0, pos)\) on a 2D grid (vertical axis \(y = 0, 1, 
 
 **Objective:**  
 Find a sequence of actions \(\{a_t\}_{t=1}^T\) which minimizes \(T\) such that \(y_T = 9\) and \(0 \notin \text{Span}_{k,i}(t)\) for all \(t \leq T\) and cars on \(y = y_t\).  
+
+**Answer Format**:
+\\boxed{
+Turn 1: a_1
+Turn 2: a_2
+...
+}
 '''
 
 
@@ -58,3 +67,8 @@ a_1
 }
 ---
 '''  
+
+CAR_STATE = '''
+| Freeway \( k \) | Cars (head \( h \), tail \( \tau \), direction \( d \), speed \( s \)) |  
+|-----------------|------------------------------------------------------------------------|
+'''

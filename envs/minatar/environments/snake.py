@@ -5,30 +5,33 @@ class Env:
     def __init__(self, ramping=None, difficulty = 8):
         self.action_map = ['n','l','u','r','d','f']
         self.random = np.random.RandomState()
-    def reset(self):
+    def reset(self, initialize_food=True):
         self.initial_map = [[0 for _ in range(board_size)] for _ in range(board_size)]
         self.snake = [(board_size // 2, board_size // 2 - 1)]
         self.food = []
         self.food_attributes = deepcopy(self.initial_map)
         self.dir = 1
         self.wall = []
-        self.spawn_food()
-    def spawn_food(self):
-        while len(self.food) < 3:
-            x = self.random.randint(1, board_size - 2)
-            y = self.random.randint(1, board_size - 2)
+        if initialize_food:
+            self.spawn_food()
+    def spawn_food(self, tple=None):
+        if tple is None:
+            while len(self.food) < 3:
+                x = self.random.randint(1, board_size - 2)
+                y = self.random.randint(1, board_size - 2)
+                new_food = (x, y)
+                if new_food not in self.snake and new_food not in self.wall and new_food not in self.food:
+                    value = -1
+                    if self.random.rand() < 0.9:
+                        value = 1
+                    life_span = self.random.randint(5, 21)
+                    self.food.append(new_food)
+                    self.food_attributes[x][y] = (life_span, value)
+        else:
+            x, y, life_span, value = tple
             new_food = (x, y)
-            if new_food not in self.snake and new_food not in self.wall and new_food not in self.food:
-                self.food.append(new_food)
-                # Assign a random life span[+5, +20] to the food
-                # Assign a random value {+/-1} to the food
-                # wp 9/10, assign +1
-                # wp 1/10, assign -1
-                life_span = self.random.randint(5, 21)
-                value = -1
-                if self.random.rand() < 0.7:
-                    value = 1
-                self.food_attributes[x][y] = (life_span, value)
+            self.food.append(new_food)
+            self.food_attributes[x][y] = (life_span, value)
     def act(self, a):
         r = 0
         if (a == 1 and self.dir == 3) \

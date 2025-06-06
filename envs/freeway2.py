@@ -8,11 +8,11 @@ from minatar.environments.freeway import Env
 from envs.utils.extract_utils import extract_scratch_pad, extract_boxed
 from envs.utils.client_utils import ApiThreadedLLMClient
 from vllm import SamplingParams
-from envs.prompts.ma_freeway_math import MATH_PROMPT, LLM_SYSTEM_PROMPT, CAR_STATE, MATH_PROMPT_LOW_LEVEL
+from envs.prompts.sa_freeway_math import CAR_STATE, LLM_SYSTEM_PROMPT, STAY_COMPLETION
 VLLM_client = None 
 seed_mapping = {
-    0: (1069, 12, 0), 1: (1093, 14, 0), 2: (1536, 14, 0), 3: (1858, 16, 0), 4: (1447, 19, 0), 5: (2408, 19, 0), 6: (2418, 20, 0), 7: (2661, 21, 0), 8: (1338, 14, 0), 9: (2496, 14, 0), 10: (1933, 15, 0), 11: (1863, 16, 0), 
-    12: (1100, 19, 0), 13: (1944, 19, 0), 14: (1310, 21, 0), 15: (2453, 20, 0)
+    0: (1000, 13, 0), 1: (1001, 11, 0), 2: (1002, 11, 0), 3: (1003, 11, 0),
+    4: (1013, 13, 0), 5: (1014, 12, 0), 6: (1016, 11, 0), 7: (1018, 11, 0)
 }
 def setup_thread_VLLM_client(token_per_tick, args):
     global VLLM_client
@@ -24,6 +24,8 @@ def get_thread_VLLM_client():
 
 def game_loop(log_file, seed, args, thread_id):
     client = VLLM_client
+    from envs.prompts.ma_freeway_math import MATH_PROMPT as LLM_BASE_PROMPT, MATH_PROMPT_LOW_LEVEL
+    from envs.prompts.ma_freeway_game import ORIGINAL_ANSWER_FORMAT as LLM_ANSWER_FORMAT
     client.add_new_thread(thread_id)
     env = Environment('freeway', sticky_action_prob=0)
     if seed in seed_mapping:
@@ -51,7 +53,7 @@ def game_loop(log_file, seed, args, thread_id):
         if args.method != "lsa":
             messages = [
                 {"role": "system", "content": LLM_SYSTEM_PROMPT},
-                {"role": "user", "content": MATH_PROMPT + state_description}
+                {"role": "user", "content": LLM_BASE_PROMPT + LLM_ANSWER_FORMAT + state_description}
             ]
         else:
             messages = []
@@ -328,13 +330,3 @@ def react_to_collision(state_for_llm, X = 0):
             break        
     return perfer_action_ind
 
-def tick(state: dict):
-    new_state = state.copy()
-    for i, car in enumerate(new_state['car_states']):
-        ncar = [car[0], car[1], car[2], car[3], car[4]]
-        if car[2] == 'left':
-            ncar[1] -= ncar[3]
-        else:
-            ncar[1] += ncar[3]
-        new_state['car_states'][i] = ncar
-    return new_state
