@@ -136,7 +136,7 @@ def state_to_description(state_for_llm, state_prediction = 0, scratch_pad = None
     if state_prediction == 0:
         description += f"### **Game State**\n**Current Turn Player Position:** \(({state_for_llm['player_states']}, 0)\) \n"
         if scratch_pad is not None:
-            description += f"**Plan Advice**: {",".join(scratch_pad)}\n"
+            description += f"**Plan Advice**: {','.join(scratch_pad)}\n"
         description += f"**Current Turn Reward State**:\n"
     else:
         description += f"**Predicted Reward State After {state_prediction} Turns**:\n"
