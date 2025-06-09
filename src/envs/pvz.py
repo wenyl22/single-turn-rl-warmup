@@ -8,7 +8,7 @@ from minatar.environments.pvz import Env
 from envs.utils.extract_utils import extract_boxed
 from envs.utils.client_utils import ApiThreadedLLMClient
 from vllm import SamplingParams
-from envs.prompts.ma_pvz_game import LLM_SYSTEM_PROMPT, GAME_PROMPT, GAME_PROMPT_LOW_LEVEL
+from envs.prompts.pvz import LLM_SYSTEM_PROMPT, GAME_PROMPT, GAME_PROMPT_LOW_LEVEL
 
 VLLM_client = None 
 seed_mapping = {0: 1000, 1: 1001, 2: 1002, 3: 1003, 4: 1004, 5: 1005, 6: 1006, 7: 1007}
