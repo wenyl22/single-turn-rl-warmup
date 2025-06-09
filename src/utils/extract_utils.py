@@ -21,7 +21,7 @@ def extract_boxed(text, default_value=""):
                 return text[start_index + 1:i].strip()
     return default_value if default_value else text[start_index + 1:].strip()
 
-def extract_scratch_pad(text, old_scratch_pad, valid_actions=None):
+def extract_belief_state(text, old_scratch_pad, valid_actions=None):
     scratch_pad = extract_boxed(text.split("</think>")[-1], default_value="").strip()
     if scratch_pad != "":
         scratch_pad = re.sub(r'[^' + valid_actions + ']', '', scratch_pad)

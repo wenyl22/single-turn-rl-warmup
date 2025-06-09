@@ -111,6 +111,8 @@ html_content = """
 """
 import argparse
 import os
+import sys
+sys.path.append(os.path.join(os.path.dirname(os.path.dirname(__file__)), "src"))
 from envs.minatar.environment import Environment
 parser = argparse.ArgumentParser(description='Visualize LLM responses from CSV files.')
 parser.add_argument('--f', type=str, default='deepseek-reasoner/2025-04-30-23-22-12_8192_0.csv', help='Path to the CSV file')
@@ -118,16 +120,12 @@ args = parser.parse_args()
 args.f = args.f.replace("_0.csv", "_seed.csv")
 if "freeway" in args.f:
     from envs.freeway import seed_mapping
-    env = Environment('freeway', sticky_action_prob=0)
+    difficulty = 'E' if 'E' in args.f else 'M' if 'M' in args.f else 'H'
+    seed_mapping = seed_mapping[difficulty]
 elif "airraid" in args.f:
     from envs.airraid import seed_mapping
-    env = Environment('airraid', sticky_action_prob=0)
 elif "snake" in args.f:
-    from envs.snake import seed_mapping
-    env = Environment('snake', sticky_action_prob=0)
-elif "pvz" in args.f:
-    from envs.pvz import seed_mapping
-    env = Environment('pvz', sticky_action_prob=0)
+    seed_mapping = {0: 1000, 1: 1001, 2: 1002, 3: 1003, 4: 1004, 5: 1005, 6: 1006, 7: 1007}
 
 # Add seed options to the dropdown
 for seed in seeds:
@@ -142,51 +140,24 @@ html_content += """
     <button onclick="nextPage()">Next</button>
 """
 
-for seed_index, seed in enumerate(seeds):
-    # if isinstance(seed_mapping[seed], int):
-    #     env.seed(seed_mapping[seed])
-    #     print("WWW")
-    # else:
-    #     env.seed(seed_mapping[seed][0])
-    # env.reset()
+for seed in seeds:
     csv_path = args.f.replace("seed", str(seed))
     print(csv_path)
     if not os.path.exists(csv_path):
         continue
     df = pd.read_csv(csv_path)
 
-    html_content += f'<div class="seed-container seed-{seed_index}" style="display: {"block" if seed_index == 0 else "none"};">'
+    html_content += f'<div class="seed-container seed-{seed}" style="display: {"block" if seed == 0 else "none"};">'
     page_index = 0
-    scratch_pad = ""
-    reward = 0
+    belief_state = ""
 
     for _, row in df.iterrows():
         render = row["render"]
-        if "scratch_pad" in row.keys():
-            description = scratch_pad
-            scratch_pad = row["scratch_pad"]
-            selected_agent = row["selected_agent"]
-        else:
-            description = scratch_pad = ""
-            row["selected_agent"] = "A. Plan Agent"
-            selected_agent = "A. Plan Agent"
-
+        belief_state = row["belief_state"]
+        follow_plan = row["follow_plan"]
         selected_action = row["selected_action"]
-        # r = 0
-        # if "pvz" not in args.f:
-        #     act = 0
-        #     if "L" in selected_action:
-        #         act = 1
-        #     elif "U" in selected_action:
-        #         act = 2
-        #     elif "R" in selected_action:
-        #         act = 3
-        #     elif "D" in selected_action:
-        #         act = 4
-        #     r, t = env.act(act)
-        #     reward += r
         reward = row["reward"] if "reward" in row else "Not Recorded"
-        other_columns = {key: preprocess_string(value) for key, value in row.drop(["render", "selected_action", "selected_agent", "Unnamed: 0"]).items()}
+        other_columns = {key: preprocess_string(value) for key, value in row.drop(["render", "selected_action", "follow_plan", 'reward', 'belief_state', "Unnamed: 0"]).items()}
         other_columns_html = "".join(
             [f"<button onclick='toggleVisibility(this)'>{key}</button><div class='hidden' style='max-width: 800px; margin: 0 auto;'><p>{value}</p></div>"
             for key, value in other_columns.items()]
@@ -200,12 +171,10 @@ for seed_index, seed in enumerate(seeds):
                     <pre>{render}</pre>
                 </div>
                 <div class="description">
-                    <h3>Original Scratch Pad:</h3>
-                    <p>{description}</p>
-                    <h3>New Scratch Pad:</h3>
-                    <p>{scratch_pad}</p>
-                    <h3>Selected Agent:</h3>
-                    <p>{selected_agent}</p>
+                    <h3>Belief State:</h3>
+                    <p>{belief_state}</p>
+                    <h3>Follow Plan:</h3>
+                    <p>{follow_plan}</p>
                     <h3>Selected Action | Total Reward</h3>
                     <p>{selected_action} | {reward}</p>
                 </div>

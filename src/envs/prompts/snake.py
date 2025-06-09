@@ -1,6 +1,6 @@
 LLM_SYSTEM_PROMPT = """Please think step by step and put your final answer within \\boxed{}."""
 
-GAME_PROMPT = """
+SLOW_AGENT_PROMPT = """
 You are playing a classic Snake game. Your goal is to control the snake to eat food and survive as long as possible.
 
 ## Game Rules
@@ -41,7 +41,7 @@ Please output the direction letters for the snake's head movement for next **sev
 
 """
 
-GAME_PROMPT_LOW_LEVEL = """
+FAST_AGENT_PROMPT = """
 You are playing a classic Snake game. Your goal is to control the snake to eat food and survive as long as possible.
 
 ## Game Rules
@@ -80,3 +80,7 @@ Please output the direction letters for the snake's head movement for the next o
 \\boxed{action(U/D/L/R)}
 
 """
+
+DEFAULT_ACTION = 'S'
+
+ALL_ACTIONS = 'LRUD'

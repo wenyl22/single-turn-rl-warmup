@@ -1,5 +1,5 @@
 LLM_SYSTEM_PROMPT = '''Please think step by step. Then put your final answer within \\boxed{}.'''
-MATH_PROMPT = '''
+SLOW_AGENT_PROMPT = '''
 Given a plate starting at \((pos, 0)\) on a 2D grid (vertical axis \(y = 0, 1, \dots, 9\)) and some rewards dropping from the ceiling. Determine the way the plate moves in a sequence of actions \(\{a_t\}_{t=1}^T\) (\(a_t \in \{L, R, S\}\)) to collect the maximum total reward.
 
 **Constraints:**
@@ -28,7 +28,7 @@ Turn 2: a_2
 }
 '''
 
-MATH_PROMPT_LOW_LEVEL = '''
+FAST_AGENT_PROMPT = '''
 You are a plate on a reward collection game, starting at \((x_0, 0)\) on a 2D grid (vertical axis \(y = 0, 1, \dots, 9\)). Your goal is to maximize collected rewards falling from the ceiling.
 
 1. **Current State:**
@@ -59,8 +59,6 @@ Choose **one** action \( a_{1} \in \{L, R, S\} \) for turn \( 1 \), adhering to:
 a_1
 }
 '''
+DEFAULT_ACTION = 'S'
 
-REWARD_STATE = '''
-|Reward Value\( r_i \) | Position \((x_i, y_i)\) | Speed \( s_i \) |
-|----------------------|-------------------------|-----------------|
-'''
+ALL_ACTIONS = 'LRS'

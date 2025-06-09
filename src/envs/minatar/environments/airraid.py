@@ -1,23 +1,16 @@
 import numpy as np
 from copy import deepcopy
 class Env:
-    def __init__(self, ramping=None, difficulty = 8):
-        self.channels ={
-            'chicken':0,
-            'car':1,
-            'speed1':2,
-            'speed2':3,
-            'speed3':4,
-            'speed4':5,
-            'speed5':6,
-        }
+    def __init__(self, ramping=None):
         self.action_map = ['n','l','u','r','d','f']
         self.random = np.random.RandomState()
-        self.spawn_timer = 1
     def reset(self):
         self.pos = 4
         self.space_ships = [(i, -1, 1, 0) for i in range(10)]
         self._randomize_spaceships()
+        self.reward = 0
+        self.game_turn = 0
+        self.terminal = False
         # space ship representation(x, y, speed, reward)
 
     def _randomize_spaceships(self):
@@ -32,11 +25,12 @@ class Env:
         
     # Update environment according to agent action
     def act(self, a):
-        r = 0
+        self.r = 0
+        self.game_turn += 1
         # Move the player
-        if a == 1:
+        if a == 'L':
             self.pos = max(0, self.pos - 1)
-        elif a == 3:
+        elif a == 'R':
             self.pos = min(9, self.pos + 1)
         # Move the space ships and check for collisions
         for i in range(10):
@@ -47,15 +41,14 @@ class Env:
             if y <= 0:
                 # print(f"Collision at {x}, {y} with speed {speed} and reward {reward}")
                 if x == self.pos:
-                    r += reward
+                    self.r += reward
                 reward = 0
                 y = -1
             self.space_ships[i] = (x, y, speed, reward)
-        self.spawn_timer -= 1
-        if self.spawn_timer <= 0:
-            self._randomize_spaceships()
-            self.spawn_timer = 1
-        return r, False
+        self._randomize_spaceships()
+        self.reward += self.r
+        self.terminal = True if self.game_turn >= 100 else False
+        return self.r, self.terminal
              
     def difficulty_ramp(self):
         return None
