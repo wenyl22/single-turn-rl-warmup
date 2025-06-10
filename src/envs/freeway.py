@@ -183,3 +183,23 @@ def react_to_collision(state_for_llm, X = 0):
             perfer_action_ind = i
             break        
     return perfer_action_ind
+
+def tick(state_for_llm, action):
+    car_states = []
+    pos = state_for_llm['player_states']
+    for i, car in enumerate(state_for_llm['car_states']):
+        ncar = [car[0], car[1], car[2], car[3], car[4]]
+        if car[2] == 'left':
+            ncar[1] -= ncar[3]
+        else:
+            ncar[1] += ncar[3]
+        car_states.append(ncar)
+    if action == 'U':
+        pos = min(9, pos + 1)
+    elif action == 'D':
+        pos = max(0, pos - 1)
+    new_state = {
+        'player_states': pos,
+        'car_states': car_states
+    }   
+    return new_state

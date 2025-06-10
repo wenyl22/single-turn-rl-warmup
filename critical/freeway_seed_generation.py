@@ -32,7 +32,7 @@ def bfs(env, max_steps=100):
             visited.add((new_env.env.pos, steps + 1))
             queue.append((new_env.env.pos, steps + 1, actions + [action]))
 
-    return []
+    return [0] * 101
 def all_paths(env, optimal_step):
     from collections import deque
     queue = deque()
