@@ -144,7 +144,6 @@ class Env:
         env.chosen = self.chosen
         env.cars = [[car for car in cars] for cars in self.cars]
         env.pos = self.pos
-        env.move_timer = self.move_timer
         env.terminal = self.terminal
         env.game_turn = self.game_turn
         env.reward = self.reward
