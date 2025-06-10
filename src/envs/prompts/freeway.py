@@ -64,3 +64,38 @@ a_1
 DEFAULT_ACTION = "U" 
 
 ALL_ACTIONS = "UDS"
+
+SEQUENCE_FORMAT_PROMPT = '''
+**Answer Format**:
+
+\\boxed{
+Turn 1: a_1(i.e, action_1)
+Turn 2: a_2
+...
+Turn t: a_t
+}
+
+Where each action \(a_t \in \{\text{U (up)},\ \text{D (down)},\ \text{S (stay)}\}\).
+'''
+
+CONCLUSION_FORMAT_PROMPT = '''
+**Answer Format**:
+
+Your answer **must** include both of the following, clearly separated:
+
+**(1) Action Sequence (in order):**
+
+\\boxed{
+Turn 1: a_1(i.e, action_1)
+Turn 2: a_2
+...
+Turn t: a_t
+}
+
+Where each action \(a_t \in \{\text{U (up)},\ \text{D (down)},\ \text{S (stay)}\}\).
+
+**(2) Main Thinking Conclusion (one or two sentences):**
+
+A concise summary explaining the main decision strategy behind your chosen sequence. 
+'''
+
