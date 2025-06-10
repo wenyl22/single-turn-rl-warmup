@@ -72,8 +72,11 @@ def llm_state_builder(env: Env):
 def state_to_description(state_for_llm, scratch_pad = None):
     description = f"""
 ### **Game State**
-**Current Turn Player Position:** \((0, {state_for_llm['player_states']})\)
-**Current Turn Car State**:
+**Current Turn Player Position:** \((0, {state_for_llm['player_states']})\)\n
+"""
+    if scratch_pad is not None:
+        description += f"**Plan Advice**: {",".join(scratch_pad)}\n"
+    description += f"""**Current Turn Car State**:
 | Freeway \( k \) | Cars (head \( h \), tail \( \tau \), direction \( d \), speed \( s \)) |  
 |-----------------|------------------------------------------------------------------------|\n"""
     car_info = ""
@@ -88,8 +91,6 @@ def state_to_description(state_for_llm, scratch_pad = None):
             car_info += ", "
         car_info += f"({car[1]}, {car[1] + span}, {car[2]}, {car[3]})"
     description += f"| {lane} | \({car_info}\) |\n"
-    if scratch_pad is not None:
-        description += f"**Plan Advice**: {",".join(scratch_pad)}\n"
     return description
 
 # some utils function
@@ -160,4 +161,25 @@ def check_collision(state, X, action):
         if len(new_live_pos) == 0:
             return True
         live_pos = new_live_pos
-    return False   
+    return False
+def react_to_collision(state_for_llm, X = 0):
+    """
+    Returns:
+        - stay_collision: bool, True if there is a collision risk by staying
+        - preferred_action: str, next action to take if there is a collision risk
+    """
+    # Check if the player is on the same freeway as any car for next turn
+    collision = [
+        supervise_collision(state_for_llm, 'S'),
+        supervise_collision(state_for_llm, 'U'),
+        supervise_collision(state_for_llm, 'D')
+    ] # [stay, up, down]
+    # corner case: if the player is on freeway 0
+    if state_for_llm['player_states'] == 0:
+        collision[2] = True    
+    perfer_action_ind = 0
+    for i in [1, 0, 2]:
+        if not collision[i] and not check_collision(state_for_llm, X, 'SUD'[i]):
+            perfer_action_ind = i
+            break        
+    return perfer_action_ind
