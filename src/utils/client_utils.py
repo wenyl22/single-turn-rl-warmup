@@ -1,9 +1,7 @@
 import threading
-import queue
 from openai import OpenAI
 from generate import generate
-from transformers import AutoTokenizer
-
+from together import Together
 class ApiThreadedLLMClient:
     def __init__(self, args):
         self.num_threads = 0

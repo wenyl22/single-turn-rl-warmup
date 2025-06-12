@@ -120,7 +120,7 @@ args = parser.parse_args()
 args.f = args.f.replace("_0.csv", "_seed.csv")
 if "freeway" in args.f:
     from envs.freeway import seed_mapping
-    difficulty = 'E' if 'E' in args.f else 'M' if 'M' in args.f else 'H'
+    difficulty = 'E' if 'E' in args.f else 'M' if 'M' in args.f else 'H' if 'H' in args.f else 'M'
     seed_mapping = seed_mapping[difficulty]
 elif "airraid" in args.f:
     from envs.airraid import seed_mapping
@@ -153,11 +153,14 @@ for seed in seeds:
 
     for _, row in df.iterrows():
         render = row["render"]
-        belief_state = row["belief_state"]
-        follow_plan = row["follow_plan"]
-        selected_action = row["selected_action"]
+        belief_state = row["scratch_pad"] if "scratch_pad" in row else row['belief_state']
+        action = row["selected_action"] if "selected_action" in row else row['action']
+        follow_plan = row["follow_plan"] if "follow_plan" in row else "Not Recorded"
         reward = row["reward"] if "reward" in row else "Not Recorded"
-        other_columns = {key: preprocess_string(value) for key, value in row.drop(["render", "selected_action", "follow_plan", 'reward', 'belief_state', "Unnamed: 0"]).items()}
+        meta_control = row["meta_control"] if "meta_control" in row else "Not Recorded"
+        dropped_items = ["render", "action", "follow_plan", 'reward', 'belief_state', 'meta_control', "Unnamed: 0"]
+        dropped_items = [item for item in dropped_items if item in row]
+        other_columns = {key: preprocess_string(value) for key, value in row.drop(dropped_items).items()}
         other_columns_html = "".join(
             [f"<button onclick='toggleVisibility(this)'>{key}</button><div class='hidden' style='max-width: 800px; margin: 0 auto;'><p>{value}</p></div>"
             for key, value in other_columns.items()]
@@ -171,12 +174,14 @@ for seed in seeds:
                     <pre>{render}</pre>
                 </div>
                 <div class="description">
+                    <h3>Meta Control:</h3>
+                    <p>{meta_control}</p>
                     <h3>Belief State:</h3>
                     <p>{belief_state}</p>
                     <h3>Follow Plan:</h3>
                     <p>{follow_plan}</p>
                     <h3>Selected Action | Total Reward</h3>
-                    <p>{selected_action} | {reward}</p>
+                    <p>{action} | {reward}</p>
                 </div>
             </div>
             <div>

@@ -37,7 +37,7 @@ def summarize(seed, difficulty, thread_id, env, client):
         env.env.game_turn = game_turn
         env.env.reward = reward
         while client.token_queue_len[thread_id] > 0:
-            client.run_inference(thread_id, [], "", None)
+            client.run_slow_inference(thread_id, [], "", None)
     print(f"Seed {seed} - {smp} position: {9 - env.env.pos}, turn: {env.env.game_turn}, reward: {env.env.reward}")
     
 

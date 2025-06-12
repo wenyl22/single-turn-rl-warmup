@@ -13,7 +13,7 @@ def get_thread_VLLM_client():
     global VLLM_client
     return VLLM_client
 
-def MetaControl(args, free, env):
+def meta_controller(args, free, env):
     """
     Meta Controller decides whether to trigger slow agent based on:
         - Environment complexity
@@ -28,11 +28,26 @@ def MetaControl(args, free, env):
     elif args.meta_control == "triggered":
         pass
 
+def update_belief_state(args, text, old_belief_state, valid_actions, passed_turns):
+    """
+    Update belief state based on the slow agent response.
+    """
+    if args.format == "A":
+        belief_state = extract_belief_state(text, old_belief_state, valid_actions=valid_actions)
+        belief_state = belief_state[passed_turns:] if passed_turns < len(belief_state) else ""
+        return belief_state
+    elif args.format == "AC":
+        return extract_belief_state(text, belief_state, valid_actions=valid_actions, with_conclusion=True)
+    elif args.format == "TA":
+        return extract_belief_state(text, belief_state, valid_actions=valid_actions, with_thinking=True)
+    else:
+        raise ValueError(f"Format {args.format} is not supported.")
+
 def main_game_loop(file, seed, args, thread_id):
     # import from envs.{args.game}
     if args.game == "freeway":
         from envs.freeway import setup_env, llm_state_builder, state_to_description, summarize
-        from envs.prompts.freeway import LLM_SYSTEM_PROMPT, SLOW_AGENT_PROMPT, FAST_AGENT_PROMPT, DEFAULT_ACTION, ALL_ACTIONS
+        from envs.prompts.freeway import LLM_SYSTEM_PROMPT, SLOW_AGENT_PROMPT, FAST_AGENT_PROMPT, DEFAULT_ACTION, ALL_ACTIONS, SEQUENCE_FORMAT_PROMPT, CONCLUSION_FORMAT_PROMPT
     elif args.game == "snake":
         from envs.snake import setup_env, llm_state_builder, state_to_description, summarize
         from envs.prompts.snake import LLM_SYSTEM_PROMPT, SLOW_AGENT_PROMPT, FAST_AGENT_PROMPT, DEFAULT_ACTION, ALL_ACTIONS
@@ -62,11 +77,12 @@ def main_game_loop(file, seed, args, thread_id):
         fast_agent_response, slow_agent_response = "", ""
         fast_agent_prompt, slow_agent_prompt = "", ""
         ### --- Slow Agent --- ###
-        meta_control = MetaControl(args, client.token_queue_len[thread_id] == 0, env)
+        meta_control = meta_controller(args, client.token_queue_len[thread_id] == 0, env)
         if meta_control:
+            FORMAT = CONCLUSION_FORMAT_PROMPT if args.format == "AC" else SEQUENCE_FORMAT_PROMPT
             messages = [
                 {"role": "system", "content": LLM_SYSTEM_PROMPT},
-                {"role": "user", "content": SLOW_AGENT_PROMPT + state_description}
+                {"role": "user", "content": SLOW_AGENT_PROMPT + FORMAT + state_description}
             ]
             slow_agent_prompt = f"<system>\n{messages[0]['content']}\n</system>\n<user>\n{messages[1]['content']}\n</user>\n"
         else:
@@ -75,8 +91,7 @@ def main_game_loop(file, seed, args, thread_id):
         slow_agent_response, turns = client.run_slow_inference(thread_id, messages, "", sampling_params)
         ### --- Update Belief State --- ###
         if slow_agent_response != "":
-            belief_state = extract_belief_state(slow_agent_response, belief_state, valid_actions = ALL_ACTIONS)
-            belief_state = belief_state[turns:] if turns < len(belief_state) else ""
+            belief_state = update_belief_state(args, slow_agent_response, belief_state, ALL_ACTIONS, turns)
         if belief_state == "":
             belief_state = DEFAULT_ACTION
         logs['belief_state'].append(belief_state)
@@ -92,7 +107,7 @@ def main_game_loop(file, seed, args, thread_id):
             fast_agent_prompt = f"<system>\n{messages[0]['content']}\n</system>\n<user>\n{messages[1]['content']}\n</user>\n"
             sampling_params = SamplingParams(temperature=0.6, top_p=0.95, max_tokens=8192)
             fast_agent_response = client.run_fast_inference(thread_id, messages, sampling_params)
-            action = extract_boxed(fast_agent_response)        
+            action = extract_boxed(fast_agent_response)
         ### --- Act in Environment --- ###
         r, terminal = env.act(action)
         ### --- Log Information --- ###

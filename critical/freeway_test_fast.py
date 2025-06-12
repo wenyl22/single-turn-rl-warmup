@@ -23,12 +23,16 @@ def process_entry(i, seed, api_key, args):
     env = Environment('freeway', sticky_action_prob=0)
     env.seed(seed[0])
     env.reset()
+    for _ in range(seed[2]):
+        env.act(0)
     env.env.pos = seed[1]
+    if seed[5][0] == 'U':
+        return []
     state_for_llm = llm_state_builder(env.env)
     if args.h == "correct":
         description = state_to_description(state_for_llm, scratch_pad = seed[5])
     elif args.h == "wrong":
-        description = state_to_description(state_for_llm, scratch_pad = ['U'] * env.env.pos)
+        description = state_to_description(state_for_llm, scratch_pad = 'U')
     else:
         description = state_to_description(state_for_llm)
     client = OpenAI(api_key=api_key, base_url=args.base_url)
@@ -113,6 +117,8 @@ if __name__ == "__main__":
         df = pd.DataFrame(all_metrics)
         df.to_csv(args.f, index=False)
     df = pd.read_csv(args.f)
+    # drop columns where seed[5][0] == 'U'
+    df = df[df['seed'].apply(lambda x: ast.literal_eval(x)[5][0] != 'U')]
     log_file = args.f.replace(".csv", ".log")
     with open(log_file, 'a') as f:
         f.write("Results:\n")

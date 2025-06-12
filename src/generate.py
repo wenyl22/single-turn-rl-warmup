@@ -2,6 +2,7 @@ from vllm import SamplingParams
 from typing import List, Dict
 from openai import OpenAI
 import time
+# from together import Together
 
 def generate(llm: OpenAI, model: str, messages: List[Dict], sampling_params: SamplingParams) -> str:
     params = {
