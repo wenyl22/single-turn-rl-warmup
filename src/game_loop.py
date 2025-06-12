@@ -81,10 +81,10 @@ def main_game_loop(file, seed, args, thread_id):
         if meta_control:
             FORMAT = CONCLUSION_FORMAT_PROMPT if args.format == "AC" else SEQUENCE_FORMAT_PROMPT
             messages = [
-                {"role": "system", "content": LLM_SYSTEM_PROMPT},
+                # {"role": "system", "content": LLM_SYSTEM_PROMPT},
                 {"role": "user", "content": SLOW_AGENT_PROMPT + FORMAT + state_description}
             ]
-            slow_agent_prompt = f"<system>\n{messages[0]['content']}\n</system>\n<user>\n{messages[1]['content']}\n</user>\n"
+            slow_agent_prompt = messages[0]['content']
         else:
             messages = []
         sampling_params = SamplingParams(temperature=0.6, top_p=0.95, max_tokens=32768)
@@ -101,10 +101,10 @@ def main_game_loop(file, seed, args, thread_id):
         else:
             state_description = state_to_description(state_for_llm, belief_state)
             messages = [
-                {"role": "system", "content": LLM_SYSTEM_PROMPT},
+                # {"role": "system", "content": LLM_SYSTEM_PROMPT},
                 {"role": "user", "content": FAST_AGENT_PROMPT + state_description}
             ]
-            fast_agent_prompt = f"<system>\n{messages[0]['content']}\n</system>\n<user>\n{messages[1]['content']}\n</user>\n"
+            fast_agent_prompt = messages[0]['content']
             sampling_params = SamplingParams(temperature=0.6, top_p=0.95, max_tokens=8192)
             fast_agent_response = client.run_fast_inference(thread_id, messages, sampling_params)
             action = extract_boxed(fast_agent_response)
@@ -137,13 +137,3 @@ def main_game_loop(file, seed, args, thread_id):
         'reward': env.env.reward,
         'game_time': time.time() - start_time
     }
-
-        
-        
-        
-        
-    
-        
-        
-        
-

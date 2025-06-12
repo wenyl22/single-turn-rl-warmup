@@ -1,7 +1,7 @@
 import threading
 from openai import OpenAI
 from generate import generate
-from together import Together
+from anthropic import AnthropicVertex
 class ApiThreadedLLMClient:
     def __init__(self, args):
         self.num_threads = 0
@@ -27,10 +27,16 @@ class ApiThreadedLLMClient:
         self.token_queue_len[idx] = 0
         self.resp[idx] = ""
         if self.method != "fast":
-            self.slow_llm[idx] = OpenAI(api_key=self.api_keys[idx], base_url=self.slow_base_url)
-            print(f"Thread {idx} using slow model: {self.slow_model} at {self.slow_base_url} with API key {self.api_keys[idx]}")
+            if "claude" in self.slow_model:
+                self.slow_llm[idx] = AnthropicVertex(region="us-east5", project_id="gcp-multi-agent")
+            else:
+                self.slow_llm[idx] = OpenAI(base_url=self.slow_base_url, api_key=self.api_keys[idx])
+                print(f"Thread {idx} using slow model: {self.slow_model} at {self.slow_base_url} with API key {self.api_keys[idx]}")
         if self.method != "slow":
-            self.fast_llm[idx] = OpenAI(api_key=self.api_keys[idx], base_url=self.fast_base_url)
+            if "claude" in self.fast_model:
+                self.fast_llm[idx] = AnthropicVertex(region="us-east5", project_id="gcp-multi-agent")
+            else:                
+                self.fast_llm[idx] = OpenAI(ase_url=self.slow_base_url, api_key=self.api_keys[idx])
             print(f"Thread {idx} using fast model: {self.fast_model} at {self.fast_base_url} with API key {self.api_keys[idx]}")
         self.lock.release()
 
