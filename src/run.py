@@ -50,9 +50,9 @@ if __name__ == "__main__":
     with ThreadPoolExecutor(max_workers=max_workers) as executor:
         futures = [
             executor.submit(
-                main_game_loop, log_file.replace(".log", f"_{i}_{j}.csv") , i, args, next(api_cycle)
+                main_game_loop, log_file.replace(".log", f"_{j}_{i}.csv") , i, args, next(api_cycle)
             )
-            for i in range(args.seed_num) for j in range(args.repeat_times)
+            for j in range(args.repeat_times) for i in range(args.seed_num) 
         ]
         results = []
         total = len(futures)
