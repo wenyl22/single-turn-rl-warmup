@@ -36,7 +36,7 @@ class ApiThreadedLLMClient:
             if "claude" in self.fast_model:
                 self.fast_llm[idx] = AnthropicVertex(region="us-east5", project_id="gcp-multi-agent")
             else:                
-                self.fast_llm[idx] = OpenAI(ase_url=self.slow_base_url, api_key=self.api_keys[idx])
+                self.fast_llm[idx] = OpenAI(base_url=self.slow_base_url, api_key=self.api_keys[idx])
             print(f"Thread {idx} using fast model: {self.fast_model} at {self.fast_base_url} with API key {self.api_keys[idx]}")
         self.lock.release()
 

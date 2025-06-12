@@ -8,7 +8,7 @@ def setup_env(seed, difficulty):
     env = Environment('airraid', sticky_action_prob=0)
     env.seed(seed_mapping[seed][0])
     env.reset()
-    return env
+    return env, seed_mapping[seed]
 
 def summarize(seed, difficulty, thread_id, env, client):
     print(f"Seed {seed} - {seed_mapping[seed]}: game_turn: {env.env.game_turn}, reward: {env.env.reward}")

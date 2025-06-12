@@ -61,7 +61,7 @@ def main_game_loop(file, seed, args, thread_id):
     assert client is not None, "VLLM client is not initialized. Call setup_thread_VLLM_client first."
     client.add_new_thread(thread_id)
     # set up env, load prompt - environment specific
-    env = setup_env(seed, args.difficulty)
+    env, real_seed = setup_env(seed, args.difficulty)
     belief_state = ""
     start_time = time.time()
     logs = {
@@ -81,7 +81,7 @@ def main_game_loop(file, seed, args, thread_id):
         if meta_control:
             FORMAT = CONCLUSION_FORMAT_PROMPT if args.format == "AC" else SEQUENCE_FORMAT_PROMPT
             messages = [
-                # {"role": "system", "content": LLM_SYSTEM_PROMPT},
+                {"role": "system", "content": LLM_SYSTEM_PROMPT},
                 {"role": "user", "content": SLOW_AGENT_PROMPT + FORMAT + state_description}
             ]
             slow_agent_prompt = messages[0]['content']
@@ -101,7 +101,7 @@ def main_game_loop(file, seed, args, thread_id):
         else:
             state_description = state_to_description(state_for_llm, belief_state)
             messages = [
-                # {"role": "system", "content": LLM_SYSTEM_PROMPT},
+                {"role": "system", "content": LLM_SYSTEM_PROMPT},
                 {"role": "user", "content": FAST_AGENT_PROMPT + state_description}
             ]
             fast_agent_prompt = messages[0]['content']
@@ -132,7 +132,7 @@ def main_game_loop(file, seed, args, thread_id):
         if terminal:
             break
     return {
-        'seed': seed,
+        'seed': real_seed,
         'game_turn': env.env.game_turn, 
         'reward': env.env.reward,
         'game_time': time.time() - start_time

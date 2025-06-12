@@ -8,7 +8,7 @@ def setup_env(seed, difficulty):
     env = Environment("snake", sticky_action_prob=0)
     env.seed(seed + 1000)
     env.reset()
-    return env
+    return env, seed + 1000
 
 def summarize(seed, difficulty, thread_id, env, client):
     print(f"Seed {seed} - {env.env.game_turn} turns, reward: {env.env.reward}")

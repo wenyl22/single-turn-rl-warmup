@@ -18,7 +18,7 @@ def setup_env(seed, difficulty):
     env = Environment('freeway', sticky_action_prob=0)
     env.seed(seed_mapping[difficulty][seed][0])
     env.reset()
-    return env
+    return env, seed_mapping[difficulty][seed]
 
 def summarize(seed, difficulty, thread_id, env, client):
     smp = seed_mapping[difficulty][seed]
