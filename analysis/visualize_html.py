@@ -113,7 +113,6 @@ import argparse
 import os
 import sys
 sys.path.append(os.path.join(os.path.dirname(os.path.dirname(__file__)), "src"))
-from envs.minatar.environment import Environment
 parser = argparse.ArgumentParser(description='Visualize LLM responses from CSV files.')
 parser.add_argument('--f', type=str, default='deepseek-reasoner/2025-04-30-23-22-12_8192_0.csv', help='Path to the CSV file')
 args = parser.parse_args()
@@ -198,7 +197,12 @@ html_content += """
 </html>
 """
 
-output_path = "index.html"
+# output_path = "index.html"
+output_path = args.f.replace("_seed.csv", "_visualization.html")
+if os.path.exists(output_path):
+    os.remove(output_path)
+output_path = os.path.join(os.path.dirname(args.f), "visualization.html")
+
 with open(output_path, "w") as f:
     f.write(html_content)
 

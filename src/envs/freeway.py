@@ -5,7 +5,6 @@ import time
 import pandas as pd
 from minatar.environment import Environment
 from minatar.environments.freeway import Env
-from vllm import SamplingParams
 VLLM_client = None 
 seed_mapping = {
     'E': { 0: (1000, 13), 1: (1001, 11), 2: (1002, 11), 3: (1003, 11), 4: (1013, 13), 5: (1014, 12), 6: (1016, 11), 7: (1018, 11)},
