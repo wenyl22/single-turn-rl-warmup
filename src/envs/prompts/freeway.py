@@ -28,37 +28,135 @@ Find a sequence of actions \(\{a_t\}_{t=1}^T\) which minimizes \(T\) such that \
 '''
 
 
+# Sample prompts for the fast agent, which uses a previous thinking model's output as a reference.
+# ‼️ Template Para: Need to provide the current game state and a past thinking model's output.
 FAST_AGENT_PROMPT = '''
-You are a player on a freeway game, starting at \((0, y_0)\) on a 2D grid (vertical axis \(y = 0, 1, \dots, 9\)). Your goal is to reach \((0, 9)\) while avoiding collisions with cars on freeways \(y = 1, \dots, 8\).
-1. **Current State:**  
-   - Player position at turn \( 0 \): \( (0, y_0) \)  
-   - Plan Advice(may exist or not given): Sequence of advised actions \(\{a_{i}^\text{adv}\}_{i=1}^{H}\) (horizon \( H \)), where \( a_{i}^\text{adv} \in \{U, D, S\} \). This is only a reference which may be neither safe nor optimal.
-   - Observed car spans \(\{\text{Span}_{k,i}(t = 0)\}\) for freeways \( k = 1, \dots, 8 \).  
+You are a player in a freeway game, starting at \((0, y_0)\) on a 2D grid (vertical axis \(y = 0, 1, \dots, 9\)). Your goal is to reach \((0, 9)\) while avoiding collisions with cars on freeways \(y = 1, \dots, 8\).
 
-2. **Dynamics:**  
-   - Player: \( y_{t+1} = y_t + \Delta y_{t+1} \), where \( \Delta y_{t+1} = 
-     \begin{cases} 
-     +1 & \text{if } a_{t+1} = U, \\ 
-     -1 & \text{if } a_{t+1} = D, \\ 
-     0 & \text{if } a_{t+1} = S. 
-     \end{cases} \)  
-     Constraint: \( y_{t+1} \in [0, 9] \).  
-   - Cars: For each car on freeway \( k \), span at \( t+1 \) is:  
-     - Left-moving: \([h_{k,i} - s_{k,i}(t+1), \tau_{k,i} - s_{k,i}(t+1)]\)  
-     - Right-moving: \([\tau_{k,i} + s_{k,i}(t+1), h_{k,i} + s_{k,i}(t+1)]\).  
+---
 
-**Task:**  
-Choose **one** action \( a_{1} \in \{U, D, S\} \) for turn \( 1 \), adhering to:  
-1. **Collision Avoidance:**  
-    Ensure the action in this turn does not lead to a collision with any car on freeway \( k \) at \( y = y_t \) for all cars \( i \) in the next few turns. Sometimes under the problem constraints, a wrong a_1 can lead to a must-collision **several turns later**. 
-2. **Plan Adherence(Optional):**  
-   The advice may have mistakes, you can take it as a reference. If you follow the advice, the action should be \( a_{1} = a_{1}^\text{adv} \).
+### 1. **Current State (Turn \(t\)):**  
+- Player position: \( (0, y_t) \)  
+- Observed car spans \(\{\text{Span}_{k,i}(t)\}\) for freeways \(k = 1, \dots, 8\)
+
+<Current game state data provided here>
+
+---
+
+### 2. **Guidance from a Previous Thinking Model (Turn \(t_0 < t\)):**  
+You have access to a past output from a thinking model, computed at turn \(t_0\) based on then-current observations. It includes a proposed **action sequence**. This guidance may no longer perfectly match the current situation but can still be valuable for decision-making.
+
+> **Thinking Model Output (from Turn \(t_0\)):**
+>
+> #### Action Sequence (starts from \(t_0+1\)):
+> Turn \(t_0+1\): D  
+> Turn \(t_0+2\): S  
+> Turn \(t_0+3\): U  
+> Turn \(t_0+4\): U  
+> ...  
+
+Use this plan as a **strategic reference**, not a mandatory instruction. Consider how much of the original strategy is still valid under the current dynamics.
+
+---
+
+### 3. **Game Dynamics:**
+
+- Player update:  
+  \( y_{t+1} = y_t + \Delta y_{t+1} \), where  
+  \[
+  \Delta y_{t+1} = \begin{cases} 
+  +1 & \text{if } a_{t+1} = U \\ 
+  -1 & \text{if } a_{t+1} = D \\ 
+  0 & \text{if } a_{t+1} = S 
+  \end{cases}, \quad y_{t+1} \in [0,9]
+  \]
+
+- Car update rules:
+  - Left-moving: \([h_{k,i} - s_{k,i}(t+1), \tau_{k,i} - s_{k,i}(t+1)]\)  
+  - Right-moving: \([\tau_{k,i} + s_{k,i}(t+1), h_{k,i} + s_{k,i}(t+1)]\)
+
+---
+
+### 4. **Task (Turn \(t\)):**
+
+Choose **one** action \(a_t \in \{U, D, S\}\) for the current turn, with the following considerations:
+
+- **Collision Avoidance:**  
+  Ensure the action avoids both immediate and near-future collisions.
+
+- **Strategic Consistency (Optional):**  
+  Reference the thinking model’s prior strategy. If the current environment still aligns with its assumptions, you may choose to continue along the same strategic direction. If not, adapt as needed.
 
 **Answer Format**:
 \\boxed{
-a_1
+a_t
 }
+'''
+
+FAST_AGENT_CONCLUSION_PROMPT = '''
+You are a player in a freeway game, starting at \((0, y_0)\) on a 2D grid (vertical axis \(y = 0, 1, \dots, 9\)). Your goal is to reach \((0, 9)\) while avoiding collisions with cars on freeways \(y = 1, \dots, 8\).
+
 ---
+
+### 1. **Current State (Turn \(t\)):**  
+- Player position: \( (0, y_t) \)  
+- Observed car spans \(\{\text{Span}_{k,i}(t)\}\) for freeways \(k = 1, \dots, 8\)
+
+<Current game state data provided here>
+
+---
+
+### 2. **Guidance from a Previous Thinking Model (Turn \(t_0 < t\)):**  
+You have access to a past output from a thinking model, computed at turn \(t_0\) based on then-current observations. It includes a proposed **action sequence** and a **main strategy explanation**. This guidance may no longer perfectly match the current situation but can still be valuable for decision-making.
+
+> **Thinking Model Output (from Turn \(t_0\)):**
+>
+> #### Action Sequence (starts from \(t_0+1\)):
+> Turn \(t_0+1\): D  
+> Turn \(t_0+2\): S  
+> Turn \(t_0+3\): U  
+> Turn \(t_0+4\): U  
+> ...  
+>
+> #### Main Strategy:
+> The plan was to descend early to row 3 to avoid mid-row congestion at \(t=2\), then ascend through safe rows during \(t=3\) to \(t=9\), avoiding late-phase threats on rows 7-8 at \(t=10,11,12\).
+
+Use this plan as a **strategic reference**, not a mandatory instruction. Consider how much of the original strategy is still valid under the current dynamics.
+
+---
+
+### 3. **Game Dynamics:**
+
+- Player update:  
+  \( y_{t+1} = y_t + \Delta y_{t+1} \), where  
+  \[
+  \Delta y_{t+1} = \begin{cases} 
+  +1 & \text{if } a_{t+1} = U \\ 
+  -1 & \text{if } a_{t+1} = D \\ 
+  0 & \text{if } a_{t+1} = S 
+  \end{cases}, \quad y_{t+1} \in [0,9]
+  \]
+
+- Car update rules:
+  - Left-moving: \([h_{k,i} - s_{k,i}(t+1), \tau_{k,i} - s_{k,i}(t+1)]\)  
+  - Right-moving: \([\tau_{k,i} + s_{k,i}(t+1), h_{k,i} + s_{k,i}(t+1)]\)
+
+---
+
+### 4. **Task (Turn \(t\)):**
+
+Choose **one** action \(a_t \in \{U, D, S\}\) for the current turn, with the following considerations:
+
+- **Collision Avoidance:**  
+  Ensure the action avoids both immediate and near-future collisions.
+
+- **Strategic Consistency (Optional):**  
+  Reference the thinking model’s prior strategy. If the current environment still aligns with its assumptions, you may choose to continue along the same strategic direction. If not, adapt as needed.
+
+**Answer Format**:
+\\boxed{
+a_t
+}
 '''
 
 DEFAULT_ACTION = "U" 
