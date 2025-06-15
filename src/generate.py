@@ -11,7 +11,8 @@ def generate(llm: OpenAI | AnthropicVertex, model: str, messages: List[Dict], sa
         "messages": messages,
         "max_tokens": sampling_params.max_tokens,
         "temperature": sampling_params.temperature,
-        "top_p": sampling_params.top_p
+        "top_p": sampling_params.top_p,
+        "timeout": 600
     }
     while True:
         try:

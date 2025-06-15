@@ -16,8 +16,8 @@ def get_thread_VLLM_client():
 def meta_controller(args, free, env):
     """
     Meta Controller decides whether to trigger slow agent based on:
-        - Environment complexity
-        - Slow agent state: whether the agent is still running
+    - Environment complexity
+    - Slow agent state: whether the agent is still running
     """
     if args.method == "fast":
         return False
@@ -28,26 +28,11 @@ def meta_controller(args, free, env):
     elif args.meta_control == "triggered":
         pass
 
-def update_belief_state(args, text, old_belief_state, valid_actions, passed_turns):
-    """
-    Update belief state based on the slow agent response.
-    """
-    if args.format == "A":
-        belief_state = extract_belief_state(text, old_belief_state, valid_actions=valid_actions)
-        belief_state = belief_state[passed_turns:] if passed_turns < len(belief_state) else ""
-        return belief_state
-    elif args.format == "AC":
-        return extract_belief_state(text, belief_state, valid_actions=valid_actions, with_conclusion=True)
-    elif args.format == "TA":
-        return extract_belief_state(text, belief_state, valid_actions=valid_actions, with_thinking=True)
-    else:
-        raise ValueError(f"Format {args.format} is not supported.")
-
-def main_game_loop(file, seed, args, thread_id):
+def main_game_loop(file, ckpt, seed, args, thread_id):
     # import from envs.{args.game}
     if args.game == "freeway":
         from envs.freeway import setup_env, llm_state_builder, state_to_description, summarize
-        from envs.prompts.freeway import LLM_SYSTEM_PROMPT, SLOW_AGENT_PROMPT, FAST_AGENT_PROMPT, DEFAULT_ACTION, ALL_ACTIONS, SEQUENCE_FORMAT_PROMPT, CONCLUSION_FORMAT_PROMPT
+        from envs.prompts.freeway import LLM_SYSTEM_PROMPT, SLOW_AGENT_PROMPT, FAST_AGENT_ACTION_PROMPT, FAST_AGENT_CONCLUSION_PROMPT, DEFAULT_ACTION, ALL_ACTIONS, ACTION_FORMAT_PROMPT, CONCLUSION_FORMAT_PROMPT
     elif args.game == "snake":
         from envs.snake import setup_env, llm_state_builder, state_to_description, summarize
         from envs.prompts.snake import LLM_SYSTEM_PROMPT, SLOW_AGENT_PROMPT, FAST_AGENT_PROMPT, DEFAULT_ACTION, ALL_ACTIONS
@@ -56,6 +41,9 @@ def main_game_loop(file, seed, args, thread_id):
         from envs.prompts.airraid import LLM_SYSTEM_PROMPT, SLOW_AGENT_PROMPT, FAST_AGENT_PROMPT, DEFAULT_ACTION, ALL_ACTIONS
     else:
         raise ValueError(f"Game {args.game} is not supported.")
+    FORMAT = ACTION_FORMAT_PROMPT if args.format == "A" else CONCLUSION_FORMAT_PROMPT
+    FAST_AGENT_PROMPT = FAST_AGENT_ACTION_PROMPT if args.format == "A" else FAST_AGENT_CONCLUSION_PROMPT
+    
     # set up model client
     client = VLLM_client
     assert client is not None, "VLLM client is not initialized. Call setup_thread_VLLM_client first."
@@ -70,7 +58,21 @@ def main_game_loop(file, seed, args, thread_id):
         'fast_agent_prompt': [], 'fast_agent_response': [], 'follow_plan': [], 
         'action': [], 'reward': []
     }
-    while True:
+    
+    # load checkpoint if exists
+    if ckpt is not None:
+        logs = pd.read_csv(ckpt, index_col=0).to_dict(orient='list')
+        for a in logs['action']:
+            r, t = env.act(a)
+            if r < 0 and not t:
+                game_turn = env.env.game_turn
+                reward = env.env.reward
+                env.seed(real_seed[0])
+                env.reset()
+                env.env.game_turn = game_turn
+                env.env.reward = reward
+        # print(f"Thread {thread_id} loaded checkpoint from {ckpt} with {len(logs['action'])} actions.")
+    while env.env.terminal == False:
         logs['render'].append('\n' + env.env.state_string())
         state_for_llm = llm_state_builder(env.env)
         state_description = state_to_description(state_for_llm)
@@ -79,19 +81,22 @@ def main_game_loop(file, seed, args, thread_id):
         ### --- Slow Agent --- ###
         meta_control = meta_controller(args, client.token_queue_len[thread_id] == 0, env)
         if meta_control:
-            FORMAT = CONCLUSION_FORMAT_PROMPT if args.format == "AC" else SEQUENCE_FORMAT_PROMPT
             messages = [
                 {"role": "system", "content": LLM_SYSTEM_PROMPT},
                 {"role": "user", "content": SLOW_AGENT_PROMPT + FORMAT + state_description}
             ]
-            slow_agent_prompt = messages[0]['content']
+            slow_agent_prompt = messages[-1]['content']
         else:
             messages = []
         sampling_params = SamplingParams(temperature=0.6, top_p=0.95, max_tokens=32768)
         slow_agent_response, turns = client.run_slow_inference(thread_id, messages, "", sampling_params)
         ### --- Update Belief State --- ###
-        if slow_agent_response != "":
-            belief_state = update_belief_state(args, slow_agent_response, belief_state, ALL_ACTIONS, turns)
+        if slow_agent_response.split("</think>")[-1] != "":
+            belief_state = f"""**Guidance from a Previous Thinking Model \(Turn {env.env.game_turn - turns}\)**\n"""
+            if args.format == "A":
+                belief_state += extract_boxed(slow_agent_response)
+            else:
+                belief_state += slow_agent_response.split("</think>")[-1].strip()
         if belief_state == "":
             belief_state = DEFAULT_ACTION
         logs['belief_state'].append(belief_state)
@@ -104,19 +109,17 @@ def main_game_loop(file, seed, args, thread_id):
                 {"role": "system", "content": LLM_SYSTEM_PROMPT},
                 {"role": "user", "content": FAST_AGENT_PROMPT + state_description}
             ]
-            fast_agent_prompt = messages[0]['content']
+            fast_agent_prompt = messages[-1]['content']
             sampling_params = SamplingParams(temperature=0.6, top_p=0.95, max_tokens=8192)
             fast_agent_response = client.run_fast_inference(thread_id, messages, sampling_params)
             action = extract_boxed(fast_agent_response)
         ### --- Act in Environment --- ###
         r, terminal = env.act(action)
         ### --- Log Information --- ###
-        if belief_state[0] == action:
-            follow_plan = True
-            belief_state = belief_state[1:]
-        else:
-            follow_plan = False
-            belief_state = ""
+        belief_state_action = belief_state.split(f"Turn {env.env.game_turn + 1}: ")[-1].split('\n')[0].strip()
+        follow_plan = True
+        if belief_state_action in ALL_ACTIONS and belief_state_action != "":
+            follow_plan = belief_state_action == action
         logs['description'].append(state_description)
         logs['meta_control'].append(meta_control)
         logs['slow_agent_prompt'].append(slow_agent_prompt)
@@ -128,9 +131,13 @@ def main_game_loop(file, seed, args, thread_id):
         logs['reward'].append(env.env.reward)
         df = pd.DataFrame(logs)
         df.to_csv(file)
-        summarize(seed, args.difficulty, thread_id, env, client)
-        if terminal:
-            break
+        if summarize(seed, args.difficulty, thread_id, env):
+            # clear the belief state and stop the slow agent
+            belief_state = ""
+            while client.token_queue_len[thread_id] > 0:
+                client.run_slow_inference(thread_id, [], "", None)
+    
+    df.to_csv(file)
     return {
         'seed': real_seed,
         'game_turn': env.env.game_turn, 

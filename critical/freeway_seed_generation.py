@@ -1,4 +1,5 @@
-from src.envs.minatar.environment import Environment
+from envs.minatar.environment import Environment
+from envs.freeway import llm_state_builder, react_to_collision    
 
 # Bfs to find the best action
 def bfs(env, max_steps=100):
@@ -32,7 +33,8 @@ def bfs(env, max_steps=100):
             visited.add((new_env.env.pos, steps + 1))
             queue.append((new_env.env.pos, steps + 1, actions + [action]))
 
-    return [0] * 101
+    return ['S'] * 101
+
 def all_paths(env, optimal_step):
     from collections import deque
     queue = deque()
@@ -70,17 +72,12 @@ def all_paths(env, optimal_step):
             queue.append((new_env.env.pos, steps + 1, actions + [action], new_tm))
 
     return sols
-from src.envs.freeway import llm_state_builder, react_to_collision    
 def greedy(env: Environment, X): # greedy with X steps looking forward
     env.env.pos = 9
     step = 0
     while step < 100:
         state = llm_state_builder(env.env)
         action = react_to_collision(state, X)
-        # print(env.env.state_string())
-        # print(f"Step: {step}, Action: {action}")
-
-        action = 2 if action == 1 else 4 if action == 2 else 0
         r, terminal = env.act(action)
         step += 1
         if r > 0:
@@ -89,47 +86,40 @@ def greedy(env: Environment, X): # greedy with X steps looking forward
             return 101
     return step
 
-        
-        
 import pandas as pd
 import numpy as np
 if __name__ == "__main__":
     env = Environment('freeway', sticky_action_prob=0)
-    env.env.difficulty = 8
-    env.env.pos = 0
-    env.env.special_pattern = True
     optimal_path = []
     logs = {
         'seed': [],
         'action': [],
         'greedy': []
     }
-    # for seed in range(1000, 3001):
-    #     env.seed(seed)
-    #     env.env.special_pattern = True
-    #     env.reset()
-    #     best_action = bfs(env, max_steps=100)
-    #     if best_action == []:
-    #         continue
-    #     optimal_path.append(best_action)
-    #     logs['seed'].append(seed)
-    #     logs['action'].append(best_action)
-    #     X = 0
-    #     for i in range(len(best_action)):
-    #         env.seed(seed)
-    #         env.env.special_pattern = True
-    #         env.reset()
-    #         step = greedy(env, X)
-    #         if step == len(best_action):
-    #             break
-    #         X += 1
-    #     logs['greedy'].append(X)
-    #     if X >= len(best_action):
-    #         continue
-    #     if X > 0:
-    #         print(f"Seed: {seed}, Path: {best_action}, Greedy Level: {X}")
-    # df = pd.DataFrame(logs)
-    # df.to_csv('optimal_path.csv', index=False)
+    for seed in range(1000, 3001):
+        env.seed(seed)
+        env.reset()
+        best_action = bfs(env, max_steps=100)
+        if best_action == []:
+            continue
+        optimal_path.append(best_action)
+        logs['seed'].append(seed)
+        logs['action'].append(best_action)
+        X = 0
+        for i in range(len(best_action)):
+            env.seed(seed)
+            env.reset()
+            step = greedy(env, X)
+            if step == len(best_action):
+                break
+            X += 1
+        logs['greedy'].append(X)
+        if X >= len(best_action):
+            continue
+        if X > 0:
+            print(f"Seed: {seed}, Path: {best_action}, Greedy Level: {X}")
+    df = pd.DataFrame(logs)
+    df.to_csv('optimal_path.csv', index=False)
     df = pd.read_csv('optimal_path.csv')
     glvl = df['greedy'].tolist()
     
@@ -137,37 +127,3 @@ if __name__ == "__main__":
     counts, bins, _ = plt.hist(glvl, bins=max(glvl) - min(glvl), edgecolor='black')
     for i in range(len(bins) - 1):
         print(f"Range: {bins[i]} - {bins[i+1]}, X: {counts[i]}") 
-    # plt.savefig('histogram.png')
-    # font_path = '/usr/share/fonts/truetype/dejavu/DejaVuSansMono.ttf'
-    # seeds = [1069, 1093, 1447, 1953, 1536, 1798, 1858, 2408]
-
-    # seed_mapping_list = {}
-
-    # for i, seed in enumerate(seeds):
-    #     env.seed(seed)
-    #     env.reset()
-    #     best_action = bfs(env, max_steps=100)
-    #     print(f"--------------------Seed{seed}--------------------")
-    #     env.seed(seed)
-    #     env.reset()
-    #     sols = all_paths(env, len(best_action))
-    #     env.seed(seed)
-    #     env.reset()
-    #     string_maps = []
-    #     flag = False
-    #     tmp = 0
-        
-    #     for action in best_action:
-    #         str_mp = env.env.state_string()
-    #         string_maps.append(str_mp)
-    #         env.act(action)
-    #         if seed == 1798:
-    #             if tmp < 5:
-    #                 string_maps = []
-    #                 tmp += 1
-    #                 continue
-    #         # print(str_mp)
-    #         flag = True
-    #     seed_mapping_list[i] = (seed, len(string_maps), tmp)
-    #     # generate_gif_from_string_map(string_maps, f"example_gifs/{seed}.gif", font_path=font_path, font_size=20)
-    # print(seed_mapping_list)

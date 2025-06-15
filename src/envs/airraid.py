@@ -10,8 +10,9 @@ def setup_env(seed, difficulty):
     env.reset()
     return env, seed_mapping[seed]
 
-def summarize(seed, difficulty, thread_id, env, client):
+def summarize(seed, difficulty, thread_id, env):
     print(f"Seed {seed} - {seed_mapping[seed]}: game_turn: {env.env.game_turn}, reward: {env.env.reward}")
+    return True
 
 def llm_state_builder(env: Env):
     player_states = env.pos

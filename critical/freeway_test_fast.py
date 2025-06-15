@@ -8,8 +8,8 @@ import pandas as pd
 from itertools import cycle
 from openai import OpenAI
 from envs.minatar.environment import Environment
-from envs.freeway import state_to_description, llm_state_builder, check_collision
-from envs.prompts.freeway import LLM_SYSTEM_PROMPT, FAST_AGENT_PROMPT
+from envs.freeway import state_to_description, llm_state_builder
+from envs.prompts.freeway import LLM_SYSTEM_PROMPT, FAST_AGENT_ACTION_PROMPT, FAST_AGENT_CONCLUSION_PROMPT
 from utils.extract_utils import extract_boxed
 from generate import generate
 from concurrent.futures import ThreadPoolExecutor, as_completed
@@ -18,45 +18,60 @@ import time
 from vllm import SamplingParams
 
 tokenizer = None
-def process_entry(i, seed, api_key, args):
-    seed = ast.literal_eval(seed)
+def process_entry(i, dic, api_key, args):
+    seed = ast.literal_eval(dic['seed'])
+    safe_actions = ast.literal_eval(dic['safe_actions'])
+    optimal_actions = ast.literal_eval(dic['optimal_actions'])
+    print(seed, safe_actions, optimal_actions)
     env = Environment('freeway', sticky_action_prob=0)
     env.seed(seed[0])
     env.reset()
-    for _ in range(seed[2]):
+    for _ in range(seed[1]):
         env.act(0)
-    env.env.pos = seed[1]
-    if seed[5][0] == 'U':
-        return []
+    env.env.pos = 9 - seed[2]
     state_for_llm = llm_state_builder(env.env)
     if args.h == "correct":
-        description = state_to_description(state_for_llm, scratch_pad = seed[5])
+        description = state_to_description(state_for_llm, scratch_pad = seed[-1])
     elif args.h == "wrong":
-        description = state_to_description(state_for_llm, scratch_pad = 'U')
+        a = 'U'
+        for a in ['U', 'S', 'D']:
+            if a not in optimal_actions:
+                break
+        description = state_to_description(state_for_llm, scratch_pad = a)
     else:
-        description = state_to_description(state_for_llm)
+        description = state_to_description(state_for_llm, scratch_pad ='U')
     client = OpenAI(api_key=api_key, base_url=args.base_url)
     messages = [
         {"role": "system", "content": LLM_SYSTEM_PROMPT},
         {"role": "user", "content": FAST_AGENT_PROMPT + description}
     ]
-    sampling_params = SamplingParams(temperature=0.6, top_p=0.95, max_tokens=8192)
+    sampling_params = SamplingParams(temperature=0.3, top_p=0.95, max_tokens=8192)
     response = generate(client, args.model, messages, sampling_params)
+    response = dict(text = "U", token_num = 1)  # Mock response for testing
     text = response['text']
     token_num = response['token_num']
-    scratch_pad = extract_boxed(text)
-    safe = not check_collision(state_for_llm, 5, scratch_pad)
+    action = extract_boxed(text)
+    safe = action in safe_actions
+    optimal = action in optimal_actions   
     metrics = []
     metrics.append({
-        "seed": seed,
-        "safe": safe,
-        "scratch_pad": scratch_pad,
-        "response_token_num": token_num,
+        'seed': seed,
+        'render': dic['render'],
+        'need_planning': dic['need_planning'],
+        'action': action,
+        'safe': safe,
+        'optimal': optimal,
+        'response_token_num': token_num
     })
     if i < 5:
         with open(args.f.replace(".csv", f"_{i}.txt"), 'a') as f:
-            f.write(f"Seed: {seed}, Scratch Pad: {scratch_pad}, Safe: {safe}, Response Token Num: {token_num}\n")
+            f.write(f"Seed: {seed}, Need Planning: {dic['need_planning']}\n")
+            f.write(f"Safe Actions: {safe_actions}\n")
+            f.write(f"Optimal Actions: {optimal_actions}\n")
+            f.write(f"LLM Select Action: {action}, Safe: {safe}, Optimal: {optimal}\n")
+            f.write(f"Response Token Num: {token_num}\n")
             f.write("\n" + env.env.state_string() + "\n")
+            f.write(f"State Description: {description}\n")
             f.write(f"Response: {text}\n")
             f.write("--------------------------------\n")
     return metrics
@@ -70,13 +85,13 @@ if __name__ == "__main__":
     parser.add_argument('--model', type=str, default = 'deepseek-ai/DeepSeek-R1')
     parser.add_argument('--f', type=str, default=None)
     parser.add_argument('--h', type=str, default='correct', choices=['correct', 'wrong', 'no'], help='whether there is a help')
+    parser.add_argument('--format', type=str, default='action', choices=['action', 'conclusion'], help='format of the prompt')
     args = parser.parse_args()
-    
     if args.f is None:
         game = args.game
         model = args.model
         model_name = args.model.split("/")[-1]
-        log_dir = f"logs-0611/{game}-acc/{model_name}"
+        log_dir = f"logs-0614/{game}-acc/{model_name}"
         if not os.path.exists(log_dir):
             os.makedirs(log_dir)
         time_stamp = datetime.datetime.now().strftime("%Y-%m-%d-%H-%M-%S")
@@ -88,14 +103,14 @@ if __name__ == "__main__":
             for arg, value in vars(args).items():
                 f.write(f"{arg}: {value}\n")
             f.write("\n")
-        dataset = f'data/{game}/dataset.csv'
+        dataset = f'data/{game}/SingleStepDataset.csv'
         df = pd.read_csv(dataset)
         
         max_workers = len(args.api_keys)
         api_key_cycle = cycle(args.api_keys)
         with ThreadPoolExecutor(max_workers=max_workers) as executor:
             futures = [
-                executor.submit(process_entry, i, df['seed'][i], next(api_key_cycle), args)
+                executor.submit(process_entry, i, df.iloc[i], next(api_key_cycle), args)
                 for i in range(len(df))
             ]
             results = []
@@ -117,12 +132,17 @@ if __name__ == "__main__":
         df = pd.DataFrame(all_metrics)
         df.to_csv(args.f, index=False)
     df = pd.read_csv(args.f)
-    # drop columns where seed[5][0] == 'U'
-    df = df[df['seed'].apply(lambda x: ast.literal_eval(x)[5][0] != 'U')]
     log_file = args.f.replace(".csv", ".log")
     with open(log_file, 'a') as f:
         f.write("Results:\n")
-        f.write(f"Total: {len(df)}\n")
-        f.write(f"Safe: {df['safe'].sum()}/{len(df)} = {df['safe'].sum()/len(df)}\n")
-        f.write(f"Response Token Num: {df['response_token_num'].sum()}/{len(df)} = {df['response_token_num'].sum()/len(df)}\n")
-        f.write("\n")
+        # aggregate results: mean safe, optimal, response_token_num
+        f.write(f"Safe: {df['safe'].mean()}, Optimal: {df['optimal'].mean()}, Response Token Num: {df['response_token_num'].mean()}\n")
+        f.write("\nDetailed Results:\n")
+        # aggregate by need_planning or not
+        for need_planning in df['need_planning'].unique():
+            sub_df = df[df['need_planning'] == need_planning]
+            if sub_df.empty:
+                continue
+            f.write(f"Need Planning: {need_planning}\n")
+            f.write(f"Safe: {sub_df['safe'].mean()}, Optimal: {sub_df['optimal'].mean()}, Response Token Num: {sub_df['response_token_num'].mean()}\n")
+            f.write("\n")

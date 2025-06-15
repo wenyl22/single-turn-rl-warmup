@@ -10,9 +10,9 @@ def setup_env(seed, difficulty):
     env.reset()
     return env, seed + 1000
 
-def summarize(seed, difficulty, thread_id, env, client):
+def summarize(seed, difficulty, thread_id, env):
     print(f"Seed {seed} - {env.env.game_turn} turns, reward: {env.env.reward}")
-    return 
+    return True
 
 def llm_state_builder(env: Env):
     snake = deepcopy(env.snake[::-1])

@@ -19,8 +19,9 @@ def setup_env(seed, difficulty):
     env.reset()
     return env, seed_mapping[difficulty][seed]
 
-def summarize(seed, difficulty, thread_id, env, client):
+def summarize(seed, difficulty, thread_id, env):
     smp = seed_mapping[difficulty][seed]
+    reset = False
     if env.env.r > 0:
         print(f"Seed {seed} - {smp} get to the other side in {env.env.game_turn} turns.")
         return
@@ -35,9 +36,9 @@ def summarize(seed, difficulty, thread_id, env, client):
         env.reset()
         env.env.game_turn = game_turn
         env.env.reward = reward
-        while client.token_queue_len[thread_id] > 0:
-            client.run_slow_inference(thread_id, [], "", None)
+        reset = True
     print(f"Seed {seed} - {smp} position: {9 - env.env.pos}, turn: {env.env.game_turn}, reward: {env.env.reward}")
+    return reset
     
 
 def llm_state_builder(env: Env):
@@ -65,17 +66,14 @@ def llm_state_builder(env: Env):
     state_for_llm = {
         'player_states': player_states,
         'car_states': car_states,
+        'turn': env.game_turn
     }
     return state_for_llm
 
 def state_to_description(state_for_llm, scratch_pad = None):
-    description = f"""
-### **Game State**
-**Current Turn Player Position:** \((0, {state_for_llm['player_states']})\)\n
-"""
-    if scratch_pad is not None:
-        description += f"**Plan Advice**: {",".join(scratch_pad)}\n"
-    description += f"""**Current Turn Car State**:
+    description = f"""Current Turn t_0 = {state_for_llm['turn']}\n"""
+    description += f"""**Player Position:** \((0, {state_for_llm['player_states']})\)\n"""
+    description += f"""**Car State**:
 | Freeway \( k \) | Cars (head \( h \), tail \( \tau \), direction \( d \), speed \( s \)) |  
 |-----------------|------------------------------------------------------------------------|\n"""
     car_info = ""
@@ -90,6 +88,11 @@ def state_to_description(state_for_llm, scratch_pad = None):
             car_info += ", "
         car_info += f"({car[1]}, {car[1] + span}, {car[2]}, {car[3]})"
     description += f"| {lane} | \({car_info}\) |\n"
+    if scratch_pad is not None:
+        # add ">" before each line of scratch_pad
+        lines = scratch_pad.split('\n')
+        for line in lines:
+            description += f"> {line.strip()}\n"
     return description
 
 # some utils function
@@ -139,6 +142,9 @@ def check_collision(state, X, action):
             head = head + car[3] * (t + 2)
             tail = tail + car[3] * (t + 2)
         return head <= 0 <= tail or tail <= 0 <= head
+    for car in state['car_states']:
+        if car_collision(car, -1, pos):
+            return True
     live_pos = set()
     live_pos.add(pos)
     for t in range(X):
@@ -167,25 +173,18 @@ def react_to_collision(state_for_llm, X = 0):
         - stay_collision: bool, True if there is a collision risk by staying
         - preferred_action: str, next action to take if there is a collision risk
     """
-    # Check if the player is on the same freeway as any car for next turn
-    collision = [
-        supervise_collision(state_for_llm, 'S'),
-        supervise_collision(state_for_llm, 'U'),
-        supervise_collision(state_for_llm, 'D')
-    ] # [stay, up, down]
-    # corner case: if the player is on freeway 0
-    if state_for_llm['player_states'] == 0:
-        collision[2] = True    
-    perfer_action_ind = 0
-    for i in [1, 0, 2]:
-        if not collision[i] and not check_collision(state_for_llm, X, 'SUD'[i]):
-            perfer_action_ind = i
-            break        
-    return perfer_action_ind
+    prefer_action = 'S'
+    for i in ['U', 'S', 'D']:
+        if not check_collision(state_for_llm, X, i):
+            prefer_action = i
+            break    
+    return prefer_action
 
 def tick(state_for_llm, action):
     car_states = []
     pos = state_for_llm['player_states']
+    if supervise_collision(state_for_llm, action):
+        return None, -1
     for i, car in enumerate(state_for_llm['car_states']):
         ncar = [car[0], car[1], car[2], car[3], car[4]]
         if car[2] == 'left':
@@ -193,12 +192,24 @@ def tick(state_for_llm, action):
         else:
             ncar[1] += ncar[3]
         car_states.append(ncar)
+    r = 0
     if action == 'U':
         pos = min(9, pos + 1)
+        if pos == 9:
+            r = 1
     elif action == 'D':
         pos = max(0, pos - 1)
     new_state = {
         'player_states': pos,
         'car_states': car_states
     }   
-    return new_state
+    return new_state, r
+
+def po_navigate(state_for_llm):
+    actions = []
+    n_state_for_llm = state_for_llm.copy()
+    while n_state_for_llm['player_states'] < 9:
+        action = react_to_collision(n_state_for_llm, 10)
+        actions.append(action)
+        n_state_for_llm, r = tick(n_state_for_llm, action)
+    return actions
