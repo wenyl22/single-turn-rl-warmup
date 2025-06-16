@@ -1,7 +1,7 @@
 LLM_SYSTEM_PROMPT = '''Please think step by step. Then put your final answer within \\boxed{}.'''
 
 SLOW_AGENT_PROMPT = '''
-Now a player is playing a multi-turn game, and suppose current turn is \{t_0\}. Given the inital position \((0, y_{t_0})\) on a 2D grid (vertical axis \(y = 0, 1, \dots, 9\)), determine the minimal number of turns \(H\) and a sequence of actions \(\{a_{t_0 + t}\}_{t=0}^{H-1}\) to reach \((0, 9)\), avoiding collisions with cars on freeways \(y = 1, \dots, 8\). 
+Now a player is playing a multi-turn game, and suppose current turn is \{t_1\}. Given the inital position \((0, y_{t_1})\) on a 2D grid (vertical axis \(y = 0, 1, \dots, 9\)), determine the minimal number of turns \(H\) and a sequence of actions \(\{a_{t_1 + t}\}_{t=0}^{H-1}\) to reach \((0, 9)\), avoiding collisions with cars on freeways \(y = 1, \dots, 8\). 
 ---
 ### 1. **Game Dynamics:**
 - Player update:  
@@ -14,28 +14,28 @@ Now a player is playing a multi-turn game, and suppose current turn is \{t_0\}. 
   \end{cases}, \quad y_{t+1} \in [0,9]
   \]
 - Car update rules: 
-    For car \(k\) on freeway \(i\), suppose its head is at \(h\), tail is at \(\tau\) at turn \(t_0\), and speed is \(s\). Then at turn \(T > t_0\), the car span becomes:
-  - Left-moving: \(\text{Span}(t_0) = [h, \tau] \rightarrow \text{Span}(T) = [h - s (T-t_0), \tau - s (T-t_0)]\)
-  - Right-moving: \([\text{Span}(t_0) = [\tau, h] \rightarrow \text{Span}(T) = [\tau + s (T-t_0), h + s (T-t_0)]\)
+    For car \(k\) on freeway \(i\), suppose its head is at \(h\), tail is at \(\tau\) at turn \(t_1\), and speed is \(s\). Then at turn \(T > t_1\), the car span becomes:
+  - Left-moving: \(\text{Span}(t_1) = [h, \tau] \rightarrow \text{Span}(T) = [h - s (T-t_1), \tau - s (T-t_1)]\)
+  - Right-moving: \([\text{Span}(t_1) = [\tau, h] \rightarrow \text{Span}(T) = [\tau + s (T-t_1), h + s (T-t_1)]\)
 - Collision occurs at turn \(T\) only if \( 0 \in \text{Span}(T) \) for any car on freeway \(y_T\). 
 - Note that if you decide to move to \( y_{T+1}\not= y_{T}\) at turn \(T\), you will **NOT** be considered to be on \(y_{T+1}\) at turn \(T\), thus will **NOT** be collided by cars on \(y_{T+1}\) if \(0 \in \text{Span}(T)\) but \(0 \notin \text{Span}(T+1)\).
 ---
-### 2. **Task (Turn \(t_0\)):**
-Find a sequence of actions \(\{a_{t_0 + t\}_{t=1}^{H-1}\) which minimizes \(H\) such that \(y_{t_0 + H - 1} = 9\).  
+### 2. **Task (Turn \(t_1\)):**
+Find a sequence of actions \(\{a_{t_1 + t\}_{t=1}^{H-1}\) which minimizes \(H\) such that \(y_{t_1 + H - 1} = 9\).  
 '''
 
 ACTION_FORMAT_PROMPT = '''
 **Answer Format**:
 
 \\boxed{
-Turn t_0: a_\{t_0\}
-Turn t_0 + 1: a_\{t_0 + 1\}
+Turn t_1: a_\{t_1\}
+Turn t_1 + 1: a_\{t_1 + 1\}
 ...
 }
 
-Where each action \(a_t \in \{\text{U (up)},\ \text{D (down)},\ \text{S (stay)}\}\).
+Where each action \(a_t \in \{ U, D, S\}\).
 ---
-### 3. **Current State (Turn \(t_0\)):**
+### 3. **Current State (Turn \(t_1\)):**
 '''
 
 CONCLUSION_FORMAT_PROMPT = '''
@@ -46,18 +46,18 @@ Your answer **must** include both of the following, clearly separated:
 **(1) Action Sequence (in order):**
 
 \\boxed{
-Turn t_0: a_\{t_0\}
-Turn t_0 + 1: a_\{t_0 + 1\}
+Turn t_1: a_\{t_1\}
+Turn t_1 + 1: a_\{t_1 + 1\}
 ...
 }
 
-Where each action \(a_t \in \{\text{U (up)},\ \text{D (down)},\ \text{S (stay)}\}\).
+Where each action \(a_t \in \{ U, D, S\}\).
 
 **(2) Main Thinking Conclusion (one or two sentences):**
 
 A concise summary explaining the main decision strategy behind your chosen sequence. 
 ---
-### 3. **Current State (Turn \(t_0\)):**
+### 3. **Current State (Turn \(t_1\)):**
 '''
 
 FAST_AGENT_ACTION_PROMPT = '''

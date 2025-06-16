@@ -3,6 +3,7 @@ from utils.client_utils import ApiThreadedLLMClient
 from utils.extract_utils import extract_boxed, extract_belief_state
 from vllm import SamplingParams
 import time
+import re
 
 VLLM_client = None
 def setup_thread_VLLM_client(args):
@@ -32,13 +33,13 @@ def main_game_loop(file, ckpt, seed, args, thread_id):
     # import from envs.{args.game}
     if args.game == "freeway":
         from envs.freeway import setup_env, llm_state_builder, state_to_description, summarize
-        from envs.prompts.freeway import LLM_SYSTEM_PROMPT, SLOW_AGENT_PROMPT, FAST_AGENT_ACTION_PROMPT, FAST_AGENT_CONCLUSION_PROMPT, DEFAULT_ACTION, ALL_ACTIONS, ACTION_FORMAT_PROMPT, CONCLUSION_FORMAT_PROMPT
+        from envs.prompts.freeway import SLOW_AGENT_PROMPT, FAST_AGENT_ACTION_PROMPT, FAST_AGENT_CONCLUSION_PROMPT, DEFAULT_ACTION, ALL_ACTIONS, ACTION_FORMAT_PROMPT, CONCLUSION_FORMAT_PROMPT
     elif args.game == "snake":
         from envs.snake import setup_env, llm_state_builder, state_to_description, summarize
-        from envs.prompts.snake import LLM_SYSTEM_PROMPT, SLOW_AGENT_PROMPT, FAST_AGENT_ACTION_PROMPT, FAST_AGENT_CONCLUSION_PROMPT, DEFAULT_ACTION, ALL_ACTIONS, ACTION_FORMAT_PROMPT, CONCLUSION_FORMAT_PROMPT
+        from envs.prompts.snake import SLOW_AGENT_PROMPT, FAST_AGENT_ACTION_PROMPT, FAST_AGENT_CONCLUSION_PROMPT, DEFAULT_ACTION, ALL_ACTIONS, ACTION_FORMAT_PROMPT, CONCLUSION_FORMAT_PROMPT
     elif args.game == "airraid":
         from envs.airraid import setup_env, llm_state_builder, state_to_description, summarize
-        from envs.prompts.airraid import LLM_SYSTEM_PROMPT, SLOW_AGENT_PROMPT, FAST_AGENT_PROMPT, DEFAULT_ACTION, ALL_ACTIONS
+        from envs.prompts.airraid import SLOW_AGENT_PROMPT, FAST_AGENT_ACTION_PROMPT, FAST_AGENT_CONCLUSION_PROMPT, DEFAULT_ACTION, ALL_ACTIONS, ACTION_FORMAT_PROMPT, CONCLUSION_FORMAT_PROMPT
     else:
         raise ValueError(f"Game {args.game} is not supported.")
     FORMAT = ACTION_FORMAT_PROMPT if args.format == "A" else CONCLUSION_FORMAT_PROMPT
@@ -68,17 +69,16 @@ def main_game_loop(file, ckpt, seed, args, thread_id):
         ### --- Slow Agent --- ###
         meta_control = meta_controller(args, client.token_queue_len[thread_id] == 0, env)
         if meta_control:
-            messages = [
-                # {"role": "system", "content": LLM_SYSTEM_PROMPT},
-                {"role": "user", "content": SLOW_AGENT_PROMPT + FORMAT + state_description}
-            ]
+            messages = [ {"role": "user", "content": SLOW_AGENT_PROMPT + FORMAT + state_description} ]
             slow_agent_prompt = messages[-1]['content']
         else:
             messages = []
         sampling_params = SamplingParams(temperature=0.6, top_p=0.95, max_tokens=32768)
         slow_agent_response, turns = client.run_slow_inference(thread_id, messages, "", sampling_params)
         ### --- Update Belief State --- ###
-        if slow_agent_response.split("</think>")[-1] != "":
+        if args.format == "T":
+            pass
+        elif slow_agent_response.split("</think>")[-1] != "":
             belief_state = f"""**Guidance from a Previous Thinking Model:** Turn \( t_1 = {env.env.game_turn - turns} \)\n"""
             if args.format == "A":
                 belief_state += extract_boxed(slow_agent_response)
@@ -90,10 +90,7 @@ def main_game_loop(file, ckpt, seed, args, thread_id):
             action = belief_state[0] if belief_state != "" else DEFAULT_ACTION
         else:
             state_description = state_to_description(state_for_llm, belief_state if belief_state != "" else None)
-            messages = [
-                # {"role": "system", "content": LLM_SYSTEM_PROMPT},
-                {"role": "user", "content": FAST_AGENT_PROMPT + state_description}
-            ]
+            messages = [ {"role": "user", "content": FAST_AGENT_PROMPT + state_description} ]
             fast_agent_prompt = messages[-1]['content']
             sampling_params = SamplingParams(temperature=1, top_p=1, max_tokens=8192)
             fast_agent_response = client.run_fast_inference(thread_id, messages, sampling_params)
@@ -104,6 +101,7 @@ def main_game_loop(file, ckpt, seed, args, thread_id):
         follow_plan = False
         if belief_state != "":
             advice = belief_state.split(f"Turn {env.env.game_turn}: ")[-1].strip()
+            advice = re.sub(r'[^' + ALL_ACTIONS + ']', '', advice)
             if advice in ALL_ACTIONS and advice != "":
                 follow_plan = advice[0] == action
         logs['description'].append(state_description)

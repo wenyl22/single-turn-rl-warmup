@@ -47,7 +47,7 @@ class Env:
             self.space_ships[i] = (x, y, speed, reward)
         self._randomize_spaceships()
         self.reward += self.r
-        self.terminal = True if self.game_turn >= 100 else False
+        self.terminal = True if self.game_turn >= 50 else False
         return self.r, self.terminal
              
     def difficulty_ramp(self):

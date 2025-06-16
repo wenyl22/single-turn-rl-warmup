@@ -12,24 +12,29 @@ def setup_env(seed, difficulty):
 
 def summarize(seed, difficulty, thread_id, env):
     print(f"Seed {seed} - {env.env.game_turn} turns, reward: {env.env.reward}")
-    return True
+    return False
 
 def llm_state_builder(env: Env):
     snake = deepcopy(env.snake[::-1])
-    foods = deepcopy(env.food)
+    foods = []
+    for (x, y) in env.food:
+        l, v = env.food_attributes[x][y]
+        foods.append((x, y, l, v))
     return {
-        "map": env.state_string(), 
+        "turn": env.game_turn,
         "snake_dir": env.dir,
         "foods": foods,
         "snake": snake
     }
 
 def state_to_description(state_for_llm, scratch_pad = None):
-    description = """## Current game state\n"""
+    description = f"**Current Turn**: \( t_0 = {state_for_llm['turn']} \)\n"
     description += f"""**Snake Positions**:{state_for_llm['snake']}\n**Snake Head Direction**: {state_for_llm['snake_dir']}\n"""
     description += f"**Food Positions, Life Span and Value**:\n"
-    for (x, y, value, life_span) in state_for_llm['foods']:
+    for (x, y, life_span, value) in state_for_llm['foods']:
         description += f"\t- ({x}, {y}, {life_span}, {value})\n"
     if scratch_pad is not None:
-        description += f"**Plan Advice**: {",".join(scratch_pad)}\n"
+        lines = scratch_pad.split('\n')
+        for line in lines:
+            description += f"> {line.strip()}\n"
     return description
