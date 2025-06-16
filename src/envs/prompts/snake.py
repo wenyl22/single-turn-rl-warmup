@@ -1,8 +1,7 @@
 LLM_SYSTEM_PROMPT = """Please think step by step and put your final answer within \\boxed{}."""
 
 SLOW_AGENT_PROMPT = """
-You are an AI playing Snake on an 8x8 grid. Control the snake to maximize survival time and score by eating positive food while avoiding risks.
-
+You are an AI playing Snake on an 8x8 grid. Maximize survival time and score by eating positive food while avoiding risks. **Think 5+ turns ahead** - prioritize long-term survival over immediate rewards.
 ## Core Rules 
 **1. Food Mechanics**
 - **Positive Food** 
