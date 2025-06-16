@@ -35,7 +35,7 @@ def main_game_loop(file, ckpt, seed, args, thread_id):
         from envs.prompts.freeway import LLM_SYSTEM_PROMPT, SLOW_AGENT_PROMPT, FAST_AGENT_ACTION_PROMPT, FAST_AGENT_CONCLUSION_PROMPT, DEFAULT_ACTION, ALL_ACTIONS, ACTION_FORMAT_PROMPT, CONCLUSION_FORMAT_PROMPT
     elif args.game == "snake":
         from envs.snake import setup_env, llm_state_builder, state_to_description, summarize
-        from envs.prompts.snake import LLM_SYSTEM_PROMPT, SLOW_AGENT_PROMPT, FAST_AGENT_PROMPT, DEFAULT_ACTION, ALL_ACTIONS
+        from envs.prompts.snake import LLM_SYSTEM_PROMPT, SLOW_AGENT_PROMPT, FAST_AGENT_ACTION_PROMPT, FAST_AGENT_CONCLUSION_PROMPT, DEFAULT_ACTION, ALL_ACTIONS, ACTION_FORMAT_PROMPT, CONCLUSION_FORMAT_PROMPT
     elif args.game == "airraid":
         from envs.airraid import setup_env, llm_state_builder, state_to_description, summarize
         from envs.prompts.airraid import LLM_SYSTEM_PROMPT, SLOW_AGENT_PROMPT, FAST_AGENT_PROMPT, DEFAULT_ACTION, ALL_ACTIONS

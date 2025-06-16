@@ -32,6 +32,24 @@ You are an AI playing Snake on an 8×8 grid. Control the snake to maximize survi
 - ( (x2,y2), value2, life_span2 )
 }
 
+"""
+
+ACTION_FORMAT_PROMPT= """
+## Answer Format
+
+\\boxed{
+Turn 1: action_1
+Turn 2: action_2
+...
+Turn t: action_t
+}
+
+Where each action \(action_t \in \{\text{U (up)},\ \text{D (down)},\ \text{L (left)},\ \text{R (right)}\}\).
+
+## Current State:
+"""
+
+CONCLUSION_FORMAT_PROMPT = """
 ## Answer Format
 
 Your answer **must** include both of the following, clearly separated:
@@ -42,6 +60,7 @@ Your answer **must** include both of the following, clearly separated:
     Turn 1: action_1
     Turn 2: action_2
     ...
+    Turn t: action_t
 }
 
 Where each action \(action_t \in \{\text{U (up)},\ \text{D (down)},\ \text{L (left)},\ \text{R (right)}\}\).
@@ -50,11 +69,10 @@ Where each action \(action_t \in \{\text{U (up)},\ \text{D (down)},\ \text{L (le
 
 A concise summary explaining the main decision strategy behind your chosen sequence. 
 
-
+## Current State:
 """
 
-
-FAST_AGENT_PROMPT= """
+FAST_AGENT_CONCLUSION_PROMPT= """
 You are an AI playing Snake on an 8×8 grid. Control the snake to maximize survival time and score by eating positive food while avoiding risks. As a **non-thinking executor**, your task is to output **only the next immediate action** based on:
 1. Current game state
 2. Thinking Model's past plan
@@ -93,8 +111,11 @@ You are an AI playing Snake on an 8×8 grid. Control the snake to maximize survi
 
 \\boxed{action(U/D/L/R)}
 
-
+## Current State:
 """
+
+
+FAST_AGENT_ACTION_PROMPT = FAST_AGENT_CONCLUSION_PROMPT
 
 # FAST_AGENT_PROMPT = """
 # You are playing a classic Snake game. Your goal is to control the snake to eat food and survive as long as possible.
