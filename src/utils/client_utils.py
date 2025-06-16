@@ -2,6 +2,7 @@ import threading
 from openai import OpenAI
 from generate import generate
 from anthropic import AnthropicVertex
+from transformers import AutoTokenizer
 class ApiThreadedLLMClient:
     def __init__(self, args):
         self.num_threads = 0
@@ -9,6 +10,7 @@ class ApiThreadedLLMClient:
         self.api_keys = args.api_keys
         self.accum = [0] * len(args.api_keys)
         self.token_queue_len = [0] * len(args.api_keys)
+        self.token_queue = [0] * len(args.api_keys)
         self.resp = [0] * len(args.api_keys)
  
         self.slow_llm = [0] * len(args.api_keys)
@@ -16,6 +18,7 @@ class ApiThreadedLLMClient:
 
         self.token_per_tick = args.token_per_tick
         self.method = args.method
+        self.format = args.format
         self.slow_model = args.slow_model
         self.slow_base_url = args.slow_base_url
         self.fast_model = args.fast_model
@@ -32,6 +35,8 @@ class ApiThreadedLLMClient:
             else:
                 self.slow_llm[idx] = OpenAI(base_url=self.slow_base_url, api_key=self.api_keys[idx])
                 print(f"Thread {idx} using slow model: {self.slow_model} at {self.slow_base_url} with API key {self.api_keys[idx]}")
+            if self.slow_model == "deepseek-reasoner" or "R1" in self.slow_model:
+                self.tokenizer = AutoTokenizer.from_pretrained("deepseek-ai/DeepSeek-R1")
         if self.method != "slow":
             if "claude" in self.fast_model:
                 self.fast_llm[idx] = AnthropicVertex(region="us-east5", project_id="gcp-multi-agent")
@@ -70,16 +75,26 @@ class ApiThreadedLLMClient:
                 self.token_queue_len[id] = 0
                 return self.resp[id], turn
             else:
-                return DEFAULT_COMPLETION, turn
+                if self.format == 'T':
+                    resp = self.tokenizer.decode(self.token_queue[id][:self.accum[id]], skip_special_tokens=True)
+                else:
+                    resp = DEFAULT_COMPLETION
+                return resp, turn
         response = self.generate(id, messages, sampling_params)
         self.resp[id] = response['text']
         self.token_queue_len[id] = response['token_num']
+        if self.format == 'T':
+            self.token_queue[id] = self.tokenizer(self.resp[id])
         if self.accum[id] >= self.token_queue_len[id]:
             self.accum[id] = 0
             self.token_queue_len[id] = 0
             return self.resp[id], turn
         else:
-            return DEFAULT_COMPLETION, turn
+            if self.format == 'T':
+                resp = self.tokenizer.decode(self.token_queue[id][:self.accum[id]], skip_special_tokens=True)
+            else:
+                resp = DEFAULT_COMPLETION
+            return resp, turn
 
     def run_fast_inference(self, id, messages, sampling_params):
         response = self.generate(id, messages, sampling_params, fast = True)

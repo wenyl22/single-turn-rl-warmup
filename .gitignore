@@ -188,5 +188,5 @@ calc_token_num.py
 24-snake/
 41-PVZ/
 *logs*
-debug.py
+debug*
 google*
