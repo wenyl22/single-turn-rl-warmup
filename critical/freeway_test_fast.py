@@ -22,7 +22,6 @@ def process_entry(i, dic, api_key, args):
     seed = ast.literal_eval(dic['seed'])
     safe_actions = ast.literal_eval(dic['safe_actions'])
     optimal_actions = ast.literal_eval(dic['optimal_actions'])
-    print(seed, safe_actions, optimal_actions)
     env = Environment('freeway', sticky_action_prob=0)
     env.seed(seed[0])
     env.reset()
@@ -31,23 +30,20 @@ def process_entry(i, dic, api_key, args):
     env.env.pos = 9 - seed[2]
     state_for_llm = llm_state_builder(env.env)
     if args.h == "correct":
-        description = state_to_description(state_for_llm, scratch_pad = seed[-1])
+        scratch_pad = f"**Guidance from a Previous Thinking Model:** Turn \(t_1 = {env.env.game_turn}\) \n"
+        scratch_pad += '\n'.join(f"Turn {_ + env.env.game_turn}: {seed[-1][_]}" for _ in range(len(seed[-1])))
+        description = state_to_description(state_for_llm, scratch_pad)
     elif args.h == "wrong":
-        a = 'U'
-        for a in ['U', 'S', 'D']:
-            if a not in optimal_actions:
-                break
-        description = state_to_description(state_for_llm, scratch_pad = a)
+        pass
     else:
-        description = state_to_description(state_for_llm, scratch_pad ='U')
+        description = state_to_description(state_for_llm)
     client = OpenAI(api_key=api_key, base_url=args.base_url)
     messages = [
-        {"role": "system", "content": LLM_SYSTEM_PROMPT},
-        {"role": "user", "content": FAST_AGENT_PROMPT + description}
+        # {"role": "system", "content": LLM_SYSTEM_PROMPT},
+        {"role": "user", "content": FAST_AGENT_ACTION_PROMPT + description}
     ]
-    sampling_params = SamplingParams(temperature=0.3, top_p=0.95, max_tokens=8192)
+    sampling_params = SamplingParams(temperature=1, top_p=0.95, max_tokens=8192)
     response = generate(client, args.model, messages, sampling_params)
-    response = dict(text = "U", token_num = 1)  # Mock response for testing
     text = response['text']
     token_num = response['token_num']
     action = extract_boxed(text)
@@ -63,6 +59,7 @@ def process_entry(i, dic, api_key, args):
         'optimal': optimal,
         'response_token_num': token_num
     })
+    print(seed, safe_actions, optimal_actions, action)
     if i < 5:
         with open(args.f.replace(".csv", f"_{i}.txt"), 'a') as f:
             f.write(f"Seed: {seed}, Need Planning: {dic['need_planning']}\n")
@@ -91,7 +88,7 @@ if __name__ == "__main__":
         game = args.game
         model = args.model
         model_name = args.model.split("/")[-1]
-        log_dir = f"logs-0614/{game}-acc/{model_name}"
+        log_dir = f"logs-0616/{game}-acc/{model_name}"
         if not os.path.exists(log_dir):
             os.makedirs(log_dir)
         time_stamp = datetime.datetime.now().strftime("%Y-%m-%d-%H-%M-%S")

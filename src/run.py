@@ -30,7 +30,7 @@ if __name__ == "__main__":
 
     args = parser.parse_args()
     model = args.slow_model if args.slow_model != "" else args.fast_model
-    logging_dir = f"logs-0614/{args.game}_{args.method}_{args.difficulty}/{model}"
+    logging_dir = f"logs-0616/{args.game}_{args.method}_{args.difficulty}/{model}"
     if not os.path.exists(logging_dir):
         os.makedirs(logging_dir)
     time_stamp = datetime.datetime.now().strftime("%Y-%m-%d-%H-%M-%S")

@@ -71,8 +71,8 @@ def llm_state_builder(env: Env):
     return state_for_llm
 
 def state_to_description(state_for_llm, scratch_pad = None):
-    description = f"""Current Turn t_0 = {state_for_llm['turn']}\n"""
-    description += f"""**Player Position:** \((0, {state_for_llm['player_states']})\)\n"""
+    description = f"""**Current Turn:** \( t_0 = {state_for_llm['turn']} \) \n"""
+    description += f"""**Player Position:** \( (0, {state_for_llm['player_states']}) \)\n"""
     description += f"""**Car State**:
 | Freeway \( k \) | Cars (head \( h \), tail \( \tau \), direction \( d \), speed \( s \)) |  
 |-----------------|------------------------------------------------------------------------|\n"""

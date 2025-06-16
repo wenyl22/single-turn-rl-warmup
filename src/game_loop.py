@@ -58,20 +58,7 @@ def main_game_loop(file, ckpt, seed, args, thread_id):
         'fast_agent_prompt': [], 'fast_agent_response': [], 'follow_plan': [], 
         'action': [], 'reward': []
     }
-    
-    # load checkpoint if exists
-    if ckpt is not None:
-        logs = pd.read_csv(ckpt, index_col=0).to_dict(orient='list')
-        for a in logs['action']:
-            r, t = env.act(a)
-            if r < 0 and not t:
-                game_turn = env.env.game_turn
-                reward = env.env.reward
-                env.seed(real_seed[0])
-                env.reset()
-                env.env.game_turn = game_turn
-                env.env.reward = reward
-        # print(f"Thread {thread_id} loaded checkpoint from {ckpt} with {len(logs['action'])} actions.")
+
     while env.env.terminal == False:
         logs['render'].append('\n' + env.env.state_string())
         state_for_llm = llm_state_builder(env.env)
@@ -82,7 +69,7 @@ def main_game_loop(file, ckpt, seed, args, thread_id):
         meta_control = meta_controller(args, client.token_queue_len[thread_id] == 0, env)
         if meta_control:
             messages = [
-                {"role": "system", "content": LLM_SYSTEM_PROMPT},
+                # {"role": "system", "content": LLM_SYSTEM_PROMPT},
                 {"role": "user", "content": SLOW_AGENT_PROMPT + FORMAT + state_description}
             ]
             slow_agent_prompt = messages[-1]['content']
@@ -92,34 +79,33 @@ def main_game_loop(file, ckpt, seed, args, thread_id):
         slow_agent_response, turns = client.run_slow_inference(thread_id, messages, "", sampling_params)
         ### --- Update Belief State --- ###
         if slow_agent_response.split("</think>")[-1] != "":
-            belief_state = f"""**Guidance from a Previous Thinking Model \(Turn {env.env.game_turn - turns}\)**\n"""
+            belief_state = f"""**Guidance from a Previous Thinking Model:** Turn \( t_1 = {env.env.game_turn - turns} \)\n"""
             if args.format == "A":
                 belief_state += extract_boxed(slow_agent_response)
             else:
                 belief_state += slow_agent_response.split("</think>")[-1].strip()
-        if belief_state == "":
-            belief_state = DEFAULT_ACTION
         logs['belief_state'].append(belief_state)
         ### --- Fast Agent --- ###
         if args.method == "slow":
-            action = belief_state[0]
+            action = belief_state[0] if belief_state != "" else DEFAULT_ACTION
         else:
-            state_description = state_to_description(state_for_llm, belief_state)
+            state_description = state_to_description(state_for_llm, belief_state if belief_state != "" else None)
             messages = [
-                {"role": "system", "content": LLM_SYSTEM_PROMPT},
+                # {"role": "system", "content": LLM_SYSTEM_PROMPT},
                 {"role": "user", "content": FAST_AGENT_PROMPT + state_description}
             ]
             fast_agent_prompt = messages[-1]['content']
-            sampling_params = SamplingParams(temperature=0.6, top_p=0.95, max_tokens=8192)
+            sampling_params = SamplingParams(temperature=1, top_p=1, max_tokens=8192)
             fast_agent_response = client.run_fast_inference(thread_id, messages, sampling_params)
             action = extract_boxed(fast_agent_response)
         ### --- Act in Environment --- ###
         r, terminal = env.act(action)
         ### --- Log Information --- ###
-        belief_state_action = belief_state.split(f"Turn {env.env.game_turn + 1}: ")[-1].split('\n')[0].strip()
-        follow_plan = True
-        if belief_state_action in ALL_ACTIONS and belief_state_action != "":
-            follow_plan = belief_state_action == action
+        follow_plan = False
+        if belief_state != "":
+            advice = belief_state.split(f"Turn {env.env.game_turn}: ")[-1].strip()
+            if advice in ALL_ACTIONS and advice != "":
+                follow_plan = advice[0] == action
         logs['description'].append(state_description)
         logs['meta_control'].append(meta_control)
         logs['slow_agent_prompt'].append(slow_agent_prompt)
