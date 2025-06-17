@@ -69,9 +69,11 @@ A concise summary explaining the main decision strategy behind your chosen seque
 """
 
 FAST_AGENT_CONCLUSION_PROMPT= """
-You are an AI playing Snake on an 8×8 grid. Control the snake to maximize survival time and score by eating positive food while avoiding risks. Your task is to calculate **the next one action** based on:
+You are an AI playing Snake on an 8×8 grid. Control the snake to maximize survival time and score by eating positive food while avoiding risks. As a **non-thinking executor**, your task is to decide **the immediate action for the current Turn \(t_0\** based on:
 1. Current game state
-2. Thinking Model's previous plan, which can be outdated. You can take it as a reference.
+2. Thinking Model's past plan
+
+Action will apply BEFORE countdown updates.
 
 ## Core Rules 
 **1. Food Mechanics**
