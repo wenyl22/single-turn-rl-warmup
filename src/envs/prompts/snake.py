@@ -91,7 +91,7 @@ You are an AI playing Snake on an 8×8 grid. Control the snake to maximize survi
 - Body collision (head touches any body segment). But note you can still move into the cell occupied by the tail segment, since the tail will also move forward.
 - Wall collision (grid borders)
   - Cells occupied by walls: `x=0`/`x=7` or `y=0`/`y=7`.
-  - **Walls have*width of 1 cell**, so the snake head cannot move to cells with `x=0`/`x=7` or `y=0`/`y=7`.
+  - The wall takes up the whole row or column, so the snake cannot move to these coordinates.
 
 ## State Input Format
 **Current turn**: \(t_0 = some integer\)

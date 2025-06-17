@@ -84,7 +84,7 @@ class ApiThreadedLLMClient:
         self.resp[id] = response['text']
         self.token_queue_len[id] = response['token_num']
         if self.format == 'T':
-            self.token_queue[id] = self.tokenizer(self.resp[id])
+            self.token_queue[id] = self.tokenizer.encode(self.resp[id])
         if self.accum[id] >= self.token_queue_len[id]:
             self.accum[id] = 0
             self.token_queue_len[id] = 0
