@@ -2,15 +2,13 @@ from envs.minatar.environment import Environment
 from envs.minatar.environments.snake import Env
 from copy import deepcopy
 
-VLLM_client = None 
-
 def setup_env(seed, difficulty):
     env = Environment("snake", sticky_action_prob=0)
     env.seed(seed + 1000)
     env.reset()
     return env, seed + 1000
 
-def summarize(seed, difficulty, thread_id, env):
+def summarize(seed, difficulty, env):
     print(f"Seed {seed} - {env.env.game_turn} turns, reward: {env.env.reward}")
     return False
 

@@ -10,7 +10,7 @@ def setup_env(seed, difficulty):
     env.reset()
     return env, seed_mapping[seed]
 
-def summarize(seed, difficulty, thread_id, env):
+def summarize(seed, difficulty, env):
     print(f"Seed {seed} - {seed_mapping[seed]}: game_turn: {env.env.game_turn}, reward: {env.env.reward}")
     return False
 

@@ -5,14 +5,14 @@ from anthropic import AnthropicVertex
 import time
 # from together import Together
 
-def generate(llm: OpenAI | AnthropicVertex, model: str, messages: List[Dict], sampling_params: SamplingParams) -> str:
+def generate(llm: OpenAI | AnthropicVertex, model: str, messages: List[Dict], sampling_params: SamplingParams, fast: bool) -> str:
     params = {
         "model": model,
         "messages": messages,
         "max_tokens": sampling_params.max_tokens,
         "temperature": sampling_params.temperature,
         "top_p": sampling_params.top_p,
-        "timeout": 600
+        "timeout": 600,
     }
     while True:
         try:

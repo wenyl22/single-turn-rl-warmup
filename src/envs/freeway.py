@@ -5,7 +5,6 @@ import time
 import pandas as pd
 from minatar.environment import Environment
 from minatar.environments.freeway import Env
-VLLM_client = None 
 seed_mapping = {
     'E': { 0: (1000, 13), 1: (1001, 11), 2: (1002, 11), 3: (1003, 11), 4: (1013, 13), 5: (1014, 12), 6: (1016, 11), 7: (1018, 11)},
     'M':{ 0: (1069, 12), 1: (1093, 14), 2: (1536, 14), 3: (1858, 16), 4: (1447, 19), 5: (2408, 19), 6: (2418, 20), 7: (2661, 21)},
@@ -19,7 +18,7 @@ def setup_env(seed, difficulty):
     env.reset()
     return env, seed_mapping[difficulty][seed]
 
-def summarize(seed, difficulty, thread_id, env):
+def summarize(seed, difficulty, env):
     smp = seed_mapping[difficulty][seed]
     reset = False
     if env.env.r > 0:
