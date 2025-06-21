@@ -3,6 +3,7 @@ from openai import OpenAI
 from generate import generate
 from anthropic import AnthropicVertex
 from transformers import AutoTokenizer
+from google import genai
 class ApiThreadedLLMClient:
     def __init__(self, args):
         self.num_threads = 0
@@ -13,8 +14,8 @@ class ApiThreadedLLMClient:
         self.token_queue = [0] * len(args.api_keys)
         self.resp = [0] * len(args.api_keys)
  
-        self.slow_llm = [0] * len(args.api_keys)
-        self.fast_llm = [0] * len(args.api_keys)
+        self.slow_llm = [0] * len(args.slow_api_keys)
+        self.fast_llm = [0] * len(args.slow_api_keys)
 
         self.token_per_tick = args.token_per_tick
         self.method = args.method
@@ -32,6 +33,8 @@ class ApiThreadedLLMClient:
         if self.method != "fast":
             if "claude" in self.slow_model:
                 self.slow_llm[idx] = AnthropicVertex(region="us-east5", project_id="gcp-multi-agent")
+            elif "gemini" in self.slow_model:
+                self.slow_llm[idx] = genai.Client(vertexai=True, project="gcp-multi-agent", location="global")
             else:
                 self.slow_llm[idx] = OpenAI(base_url=self.slow_base_url, api_key=self.api_keys[idx])
                 print(f"Thread {idx} using slow model: {self.slow_model} at {self.slow_base_url} with API key {self.api_keys[idx]}")
@@ -40,9 +43,11 @@ class ApiThreadedLLMClient:
         if self.method != "slow":
             if "claude" in self.fast_model:
                 self.fast_llm[idx] = AnthropicVertex(region="us-east5", project_id="gcp-multi-agent")
+            elif "gemini" in self.fast_model:
+                self.fast_llm[idx] = genai.Client(vertexai=True, project="gcp-multi-agent", location="global")
             else:                
                 self.fast_llm[idx] = OpenAI(base_url=self.fast_base_url, api_key=self.api_keys[idx])
-            print(f"Thread {idx} using fast model: {self.fast_model} at {self.fast_base_url} with API key {self.api_keys[idx]}")
+                print(f"Thread {idx} using fast model: {self.fast_model} at {self.fast_base_url} with API key {self.api_keys[idx]}")
         self.lock.release()
 
     def generate(self, thread_id, messages, sampling_params, fast = False):
@@ -123,6 +128,8 @@ class ApiSingleThreadedLLMClient:
         if self.method != "fast":
             if "claude" in self.slow_model:
                 self.slow_llm = AnthropicVertex(region="us-east5", project_id="gcp-multi-agent")
+            elif "gemini" in self.slow_model:
+                self.slow_llm = genai.Client(vertexai=True, project="gcp-multi-agent", location="global")
             else:
                 self.slow_llm = OpenAI(base_url=self.slow_base_url, api_key=self.api_keys)
                 print(f"Using slow model: {self.slow_model} at {self.slow_base_url} with API key {self.api_keys}")
@@ -131,7 +138,9 @@ class ApiSingleThreadedLLMClient:
         if self.method != "slow":
             if "claude" in self.fast_model:
                 self.fast_llm = AnthropicVertex(region="us-east5", project_id="gcp-multi-agent")
-            else:                
+            elif "gemini" in self.fast_model:
+                self.fast_llm = genai.Client(vertexai=True, project="gcp-multi-agent", location="global")
+            else:
                 self.fast_llm = OpenAI(base_url=self.fast_base_url, api_key=self.api_keys)
                 print(f"Using fast model: {self.fast_model} at {self.fast_base_url} with API key {self.api_keys}")
     def generate(self, messages, sampling_params, fast = False):
@@ -176,3 +185,4 @@ class ApiSingleThreadedLLMClient:
     def run_fast_inference(self, messages, sampling_params):
         response = self.generate(messages, sampling_params, fast = True)
         return response["text"]
+    

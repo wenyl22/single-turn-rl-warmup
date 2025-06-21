@@ -119,8 +119,6 @@ def main_game_loop(file, seed, args, api_keys):
             belief_state = ""
             while client.token_queue_len > 0:
                 client.run_slow_inference([], "", None)
-        if env.env.game_turn > 5:
-            break
     
     df.to_csv(file)
     dir = '/'.join(file.split('/')[:-1])

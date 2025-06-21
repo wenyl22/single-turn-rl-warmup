@@ -14,24 +14,25 @@ class Env:
         self.game_turn = 0
         self.reward = 0
         self.terminal = False
+        # random permute coords
+        self.coords = [(x, y) for x in range(1, self.B - 1) for y in range(1, self.B - 1)]
+        self.random.shuffle(self.coords)
+        self.random.shuffle(self.coords)
+        # random choose 
+        self.value = [1 for _ in 200]
+
         self.spawn_food()
     def spawn_food(self):
-        self.empty_coords = [(x, y) for x in range(1, self.B - 1) for y in range(1, self.B - 1)]
-        for (x, y) in self.snake:
-            self.empty_coords.remove((x, y))
-        for (x, y) in self.food:
-            self.empty_coords.remove((x, y))
-        while len(self.food) < 3 and len(self.empty_coords) > 0:
-            idx = self.random.randint(len(self.empty_coords))
-            x, y = self.empty_coords[idx]
+        if len(self.food) < 5 and len(self.empty_coords) > 0:
+            idx = (idx + 1) % len(self.coords)
+            x, y = self.coords[idx]
             new_food = (x, y)
-            if new_food not in self.snake and new_food not in self.food:
-                self.food.append(new_food)
-                life_span = self.random.randint(5, 21)
-                value = -1
-                if self.random.rand() < 0.7:
-                    value = 1
-                self.food_attributes[x][y] = (life_span, value)
+            self.food.append(new_food)
+            life_span = self.random.randint(5, 21)
+            value = -1
+            if self.random.rand() < 0.7:
+                value = 1
+            self.food_attributes[x][y] = (life_span, value)
     def act(self, a):
         self.r = 0
         self.game_turn += 1

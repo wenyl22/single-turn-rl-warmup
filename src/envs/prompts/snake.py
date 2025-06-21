@@ -1,7 +1,7 @@
 LLM_SYSTEM_PROMPT = """Please think step by step and put your final answer within \\boxed{}."""
 
 SLOW_AGENT_PROMPT = """
-You are an AI playing Snake on an 8x8 grid. Maximize survival time and score by eating positive food while avoiding risks. **Think 5+ turns ahead** - prioritize long-term survival over immediate rewards.
+You are an AI playing Snake on an 8x8 grid. Maximize score by eating positive food while avoiding risks. **Think 5+ turns ahead** - prioritize long-term survival over immediate rewards.
 ## Core Rules 
 **1. Food Mechanics**
 - **Positive Food** 
@@ -11,6 +11,7 @@ You are an AI playing Snake on an 8x8 grid. Maximize survival time and score by 
 - **Life-span** 
   - Disappears after N turns (N = life_span)
   - Countdown decreases every turn (including current)
+- Note food may appear simultaneously in a grid with snake's body, but it can only be eaten if the body moves away and the head moves to that cell.
 
 **2. Movement Constraints**
 - In each turn you can choose to move 1 cell in following directions: U`(x,y+1)`, D`(x,y-1)`, L`(x-1,y)`, R`(x+1,y)`
@@ -69,7 +70,7 @@ A concise summary explaining the main decision strategy behind your chosen seque
 """
 
 FAST_AGENT_CONCLUSION_PROMPT= """
-You are an AI playing Snake on an 8×8 grid. Control the snake to maximize survival time and score by eating positive food while avoiding risks. As a **non-thinking executor**, your task is to decide **the immediate action for the current Turn \(t_0\** based on:
+You are an AI playing Snake on an 8×8 grid. Control the snake to maximize score by eating positive food while avoiding risks. As a **non-thinking executor**, your task is to decide **the immediate action for the current Turn \(t_0\** based on:
 1. Current game state
 2. Thinking Model's past plan
 
@@ -84,6 +85,7 @@ Action will apply BEFORE countdown updates.
 - **Life-span** 
   - Disappears after N turns (N = life_span)
   - Countdown decreases every turn (including current)
+- Note food may appear simultaneously in a grid with snake's body, but it can only be eaten if the body moves away and the head moves to that cell.
 
 **2. Movement Constraints**
 - Moves 1 cell/turn: U`(x,y+1)`, D`(x,y-1)`, L`(x-1,y)`, R`(x+1,y)`

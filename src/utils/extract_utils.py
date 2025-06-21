@@ -6,7 +6,12 @@ def extract_boxed(text, default_value=""):
     pattern = r'oxed{' 
     start_index = text.rfind(pattern)
     if start_index == -1:
-        return default_value if default_value else text.strip()
+        # Try to extract content enclosed in triple backticks if \boxed{...} is not found
+        triple_backtick_pattern = r"```(.*?)```"
+        matches = re.findall(triple_backtick_pattern, text, re.DOTALL)
+        if matches:
+            return matches[-1].strip()
+        return default_value
     start_index += len(pattern) - 1
     stack = []
     for i in range(start_index, len(text)):

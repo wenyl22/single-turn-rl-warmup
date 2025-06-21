@@ -72,23 +72,23 @@ from game_loop import main_game_loop
 
 def jobs_to_schedule(Args):
     # game-method-difficulty-token_per_tick-format-repeat_times
-    seed_num = 8
-    instance_groupnum = 6
-    instance_num = 216
+    seed_num = 1
+    instance_groupnum = 2
+    instance_num = 2
     temp = []
-    temp.extend(['freeway-slow-M-4096-A-1', 'freeway-slow-M-8192-A-1', 'freeway-slow-M-32768-A-1'])
     temp.extend(
-        [f'freeway-parallel-M-{x}-{y}-2' for x in [4096, 8192, 32768] for y in ['T']]
+        [f'snake-parallel-M-{x}-{y}-1' for x in [8192] for y in ['A']]
     )
+    temp.extend(
+        [f'snake-fast-{z}-32768-A-1' for z in ['M']]
+    ) 
     assert len(temp) == instance_groupnum, f"Expected {instance_groupnum} settings, got {len(temp)}"
     
     settings = temp.copy()
-    settings.extend([t.replace('freeway', 'snake') for t in temp])
-    settings.extend([t.replace('freeway', 'airraid') for t in temp])
     instance = []
     for s in settings:
         repeat_times = int(s.split('-')[-1])
-        log_file = f"logs-0621/{s.replace('-', '_')[:-2]}"
+        log_file = f"logs-snake/{s.replace('-', '_')[:-2]}"
         if not os.path.exists(log_file):
             os.makedirs(log_file)
         # make an argument instance

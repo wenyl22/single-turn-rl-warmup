@@ -190,3 +190,5 @@ calc_token_num.py
 *logs*
 debug*
 google*
+plot*
+src/run.py

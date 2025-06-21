@@ -2,10 +2,11 @@ from vllm import SamplingParams
 from typing import List, Dict
 from openai import OpenAI
 from anthropic import AnthropicVertex
+from google import genai
 import time
 # from together import Together
 
-def generate(llm: OpenAI | AnthropicVertex, model: str, messages: List[Dict], sampling_params: SamplingParams, fast: bool) -> str:
+def generate(llm: OpenAI | AnthropicVertex | genai.Client, model: str, messages: List[Dict], sampling_params: SamplingParams, fast: bool) -> str:
     params = {
         "model": model,
         "messages": messages,
