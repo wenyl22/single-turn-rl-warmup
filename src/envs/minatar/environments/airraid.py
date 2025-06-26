@@ -2,7 +2,6 @@ import numpy as np
 from copy import deepcopy
 class Env:
     def __init__(self, ramping=None):
-        self.action_map = ['n','l','u','r','d','f']
         self.random = np.random.RandomState()
     def reset(self):
         self.pos = 4
@@ -11,6 +10,7 @@ class Env:
         self.reward = 0
         self.game_turn = 0
         self.terminal = False
+        self.MAX_TURN = 50
         # space ship representation(x, y, speed, reward)
 
     def _randomize_spaceships(self):
@@ -47,7 +47,7 @@ class Env:
             self.space_ships[i] = (x, y, speed, reward)
         self._randomize_spaceships()
         self.reward += self.r
-        self.terminal = True if self.game_turn >= 50 else False
+        self.terminal = True if self.game_turn >= self.MAX_TURN else False
         return self.r, self.terminal
              
     def difficulty_ramp(self):
@@ -56,15 +56,6 @@ class Env:
     # Process the game-state into the 10x10xn state provided to the agent and return
     def state(self):
         return None
-
-    # Dimensionality of the game-state (10x10xn)
-    def state_shape(self):
-        return [10,10,len(self.channels)]
-
-    # Subset of actions that actually have a unique impact in this environment
-    def minimal_action_set(self):
-        minimal_actions = ['n', 'l', 'r']
-        return [self.action_map.index(x) for x in minimal_actions]
         
     def state_string(self):
         grid_string = ""
@@ -83,10 +74,11 @@ class Env:
         return grid_string
     def deep_copy(self):
         new_env = Env()
-        new_env.channels = self.channels.copy()
-        new_env.action_map = self.action_map.copy()
-        new_env.random = self.random
-        new_env.spawn_timer = self.spawn_timer
-        new_env.pos = self.pos
+        new_env.random = deepcopy(self.random)
         new_env.space_ships = deepcopy(self.space_ships)
+        new_env.pos = self.pos
+        new_env.reward = self.reward
+        new_env.game_turn = self.game_turn
+        new_env.terminal = self.terminal
+        new_env.MAX_TURN = self.MAX_TURN
         return new_env

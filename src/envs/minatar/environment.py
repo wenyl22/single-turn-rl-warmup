@@ -5,6 +5,7 @@
 ################################################################################################################
 from importlib import import_module
 import numpy as np
+import random
 
 try:
     from matplotlib import pyplot as plt
@@ -29,7 +30,7 @@ class Environment:
         self.random = np.random.RandomState()
         self.env_name = env_name
         self.env = env_module.Env(ramping=difficulty_ramping)
-        # self.n_channels = self.env.state_shape()[2]
+        self.n_channels = self.env.state_shape()[2] if hasattr(self.env, 'state_shape') else 1
         self.sticky_action_prob = sticky_action_prob
         self.last_action = 0
         self.visualized = False
@@ -40,6 +41,9 @@ class Environment:
         if seed is not None:
             self.random = np.random.RandomState(seed)
             self.env.random = self.random
+            self.env.seed = seed
+            np.random.seed(seed)
+            random.seed(seed)
 
     # Wrapper for env.act
     def act(self, a):

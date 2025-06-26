@@ -17,9 +17,13 @@ def summarize(seed, difficulty, env):
 def llm_state_builder(env: Env):
     player_states = env.pos
     reward_states = []
-    for (x, y, speed, reward) in env.space_ships:
-        if y > 0:
-            reward_states.append((x, y, speed, reward))
+    for j in range(10):
+        ships = env.space_ships[j]
+        if isinstance(ships, tuple):
+            ships = [ships]
+        for (x, y, speed, reward) in env.space_ships[j]:
+            if y > 0:
+                reward_states.append((x, y, speed, reward))
     state_for_llm = {
         'turn': env.game_turn,
         'player_states': player_states,
@@ -27,8 +31,8 @@ def llm_state_builder(env: Env):
     }
     return state_for_llm
 
-def state_to_description(state_for_llm, scratch_pad = None):
-    description = f"**Current Turn:** \( t_0 = {state_for_llm['turn']} \)\n"
+def state_to_description(state_for_llm, scratch_pad = None, fast = False):
+    description = f"**Current Turn:** \( t_{0 if fast else 1} = {state_for_llm['turn']} \)\n"
     description += f"*Player Position:** \(({state_for_llm['player_states']}, 0)\) \n"
     description += f"**Reward Value, Position and Speed:**\n"
     description += \

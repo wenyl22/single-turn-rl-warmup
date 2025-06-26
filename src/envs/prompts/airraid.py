@@ -58,7 +58,7 @@ A concise summary explaining the main decision strategy behind your chosen seque
 '''
 
 
-FAST_AGENT_ACTION_PROMPT = '''
+FAST_AGENT_PROMPT = '''
 Now a player is playing a multi-turn game, and suppose current turn is \{t_0\}. You will be given a plate starting at \((x_{t_0}, 0)\) on a 2D grid (vertical axis \(y = 0, 1, \dots, 9\)) and some rewards dropping from the ceiling. 
 ---
 ### Core Rules
@@ -92,7 +92,6 @@ a_{t_0}
 ---
 ### **Current State (Turn \(t_0\)):**
 '''
-FAST_AGENT_CONCLUSION_PROMPT = FAST_AGENT_ACTION_PROMPT
 
 DEFAULT_ACTION = 'S'
 

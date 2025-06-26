@@ -1,8 +1,6 @@
 import sys
 import os
 sys.path.append(os.path.dirname(os.path.abspath(__file__)))
-import time 
-import pandas as pd
 from minatar.environment import Environment
 from minatar.environments.freeway import Env
 seed_mapping = {
@@ -29,12 +27,12 @@ def summarize(seed, difficulty, env):
         return
     if env.env.r < 0:
         print(f"Seed {seed} - {smp} hit by a car, reset the game.")
-        game_turn = env.env.game_turn
-        reward = env.env.reward
-        env.seed(smp[0])
-        env.reset()
-        env.env.game_turn = game_turn
-        env.env.reward = reward
+        # game_turn = env.env.game_turn
+        # reward = env.env.reward
+        # env.seed(smp[0])
+        # env.reset()
+        # env.env.game_turn = game_turn
+        # env.env.reward = reward
         reset = True
     print(f"Seed {seed} - {smp} position: {9 - env.env.pos}, turn: {env.env.game_turn}, reward: {env.env.reward}")
     return reset
@@ -69,8 +67,8 @@ def llm_state_builder(env: Env):
     }
     return state_for_llm
 
-def state_to_description(state_for_llm, scratch_pad = None):
-    description = f"""**Current Turn:** \( t_0 = {state_for_llm['turn']} \) \n"""
+def state_to_description(state_for_llm, scratch_pad = None, fast = False):
+    description = f"""**Current Turn:** \( t_{0 if fast else 1} = {state_for_llm['turn']} \) \n"""
     description += f"""**Player Position:** \( (0, {state_for_llm['player_states']}) \)\n"""
     description += f"""**Car State**:
 | Freeway \( k \) | Cars (head \( h \), tail \( \tau \), direction \( d \), speed \( s \)) |  

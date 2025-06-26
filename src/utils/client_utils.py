@@ -155,34 +155,36 @@ class ApiSingleThreadedLLMClient:
             self.token_queue_len = 0
             self.resp = ""
         turn = self.accum // self.token_per_tick
+        temp = self.token_queue_len
         self.accum += self.token_per_tick
         if self.token_queue_len > 0:
             if self.token_queue_len <= self.accum:
                 self.accum = 0
                 self.token_queue_len = 0
-                return self.resp, turn
+                return self.resp, turn, temp
             else:
                 if self.format == 'T':
                     resp = self.tokenizer.decode(self.token_queue[:self.accum], skip_special_tokens=True)
                 else:
                     resp = DEFAULT_COMPLETION
-                return resp, turn
+                return resp, turn, 0
         response = self.generate(messages, sampling_params)
         self.resp = response['text']
         self.token_queue_len = response['token_num']
         if self.format == 'T':
             self.token_queue = self.tokenizer.encode(self.resp)
+        temp = self.token_queue_len
         if self.accum >= self.token_queue_len:
             self.accum = 0
             self.token_queue_len = 0
-            return self.resp, turn
+            return self.resp, turn, temp 
         else:
             if self.format == 'T':
                 resp = self.tokenizer.decode(self.token_queue[:self.accum], skip_special_tokens=True)
             else:
                 resp = DEFAULT_COMPLETION
-            return resp, turn
+            return resp, turn, 0
     def run_fast_inference(self, messages, sampling_params):
         response = self.generate(messages, sampling_params, fast = True)
-        return response["text"]
+        return response["text"], response['token_num']
     

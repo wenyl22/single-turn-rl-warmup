@@ -1,7 +1,8 @@
 LLM_SYSTEM_PROMPT = """Please think step by step and put your final answer within \\boxed{}."""
 
 SLOW_AGENT_PROMPT = """
-You are an AI playing Snake on an 8x8 grid. Maximize score by eating positive food while avoiding risks. **Think 5+ turns ahead** - prioritize long-term survival over immediate rewards.
+You are an AI playing Snake on a 2D grid. Maximize score by eating positive food while avoiding risks. **Think 5+ turns ahead** - prioritize long-term survival over immediate rewards.
+
 ## Core Rules 
 **1. Food Mechanics**
 - **Positive Food** 
@@ -69,8 +70,8 @@ A concise summary explaining the main decision strategy behind your chosen seque
 ## Current State (Turn \(t_1\)):
 """
 
-FAST_AGENT_CONCLUSION_PROMPT= """
-You are an AI playing Snake on an 8×8 grid. Control the snake to maximize score by eating positive food while avoiding risks. As a **non-thinking executor**, your task is to decide **the immediate action for the current Turn \(t_0\** based on:
+FAST_AGENT_PROMPT= """
+You are an AI playing Snake on a 2D grid. Control the snake to maximize score by eating positive food while avoiding risks. As a **non-thinking executor**, your task is to decide **the immediate action for the current Turn \(t_0)\** based on:
 1. Current game state
 2. Thinking Model's past plan
 
@@ -111,9 +112,6 @@ Action will apply BEFORE countdown updates.
 
 ## Current State (Turn \(t_0\)):
 """
-
-
-FAST_AGENT_ACTION_PROMPT = FAST_AGENT_CONCLUSION_PROMPT
 
 DEFAULT_ACTION = 'S'
 

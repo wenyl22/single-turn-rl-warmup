@@ -25,8 +25,8 @@ def llm_state_builder(env: Env):
         "snake": snake
     }
 
-def state_to_description(state_for_llm, scratch_pad = None):
-    description = f"**Current Turn**: \( t_0 = {state_for_llm['turn']} \)\n"
+def state_to_description(state_for_llm, scratch_pad = None, fast = False):
+    description = f"**Current Turn**: \( t_{0 if fast else 1} = {state_for_llm['turn']} \)\n"
     description += f"""**Snake Positions**:{state_for_llm['snake']}\n**Snake Head Direction**: {state_for_llm['snake_dir']}\n"""
     description += f"**Food Positions, Life Span and Value**:\n"
     for (x, y, life_span, value) in state_for_llm['foods']:

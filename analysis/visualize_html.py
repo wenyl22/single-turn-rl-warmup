@@ -125,6 +125,8 @@ elif "airraid" in args.f:
     from envs.airraid import seed_mapping
 elif "snake" in args.f:
     seed_mapping = {0: 1000, 1: 1001, 2: 1002, 3: 1003, 4: 1004, 5: 1005, 6: 1006, 7: 1007}
+elif "overcooked" in args.f:
+    seed_mapping = {0: 0, 1: 1, 2: 2, 3: 3, 4: 4, 5: 5, 6: 6, 7: 7}
 
 # Add seed options to the dropdown
 for seed in seeds:

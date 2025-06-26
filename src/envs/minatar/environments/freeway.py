@@ -2,8 +2,9 @@ import numpy as np
 
 class Env:
     def __init__(self, ramping=None):
-        self.action_map = ['n','l','u','r','d','f']
+        self.action_map = ['N','L','U','R','D','F']
         self.random = np.random.RandomState()
+        self.seed = 42
 
     # Reset to start state for new episode
     def reset(self):
@@ -96,15 +97,14 @@ class Env:
                     self.r = -1
         self.reward += self.r
         self.terminal = True if self.game_turn >= 100 else False
+        if not self.terminal and self.r < 0:
+            R = self.reward
+            G = self.game_turn
+            self.random = np.random.RandomState(self.seed)
+            self.reset()
+            self.reward = R
+            self.game_turn = G
         return self.r, self.terminal
-
-    def from_dict(self, d):
-        self.pos = d['pos']
-        self.move_timer = d['move_timer']
-        self.cars = d['cars']
-        self.terminal = False
-        self.game_turn = 0
-        self.reward = 0
         
     def state_string(self):
         grid_string = ""

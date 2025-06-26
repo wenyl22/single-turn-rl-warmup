@@ -1,5 +1,5 @@
 import pandas as pd
-from utils.client_utils import ApiThreadedLLMClient, ApiSingleThreadedLLMClient
+from utils.client_utils import ApiSingleThreadedLLMClient
 from utils.extract_utils import extract_boxed
 from vllm import SamplingParams
 import time
@@ -24,17 +24,19 @@ def main_game_loop(file, seed, args, api_keys):
     # import from envs.{args.game}
     if args.game == "freeway":
         from envs.freeway import setup_env, llm_state_builder, state_to_description, summarize
-        from envs.prompts.freeway import SLOW_AGENT_PROMPT, FAST_AGENT_ACTION_PROMPT, FAST_AGENT_CONCLUSION_PROMPT, DEFAULT_ACTION, ALL_ACTIONS, ACTION_FORMAT_PROMPT, CONCLUSION_FORMAT_PROMPT
+        from envs.prompts.freeway import SLOW_AGENT_PROMPT, FAST_AGENT_PROMPT, DEFAULT_ACTION, ALL_ACTIONS, ACTION_FORMAT_PROMPT, CONCLUSION_FORMAT_PROMPT
     elif args.game == "snake":
         from envs.snake import setup_env, llm_state_builder, state_to_description, summarize
-        from envs.prompts.snake import SLOW_AGENT_PROMPT, FAST_AGENT_ACTION_PROMPT, FAST_AGENT_CONCLUSION_PROMPT, DEFAULT_ACTION, ALL_ACTIONS, ACTION_FORMAT_PROMPT, CONCLUSION_FORMAT_PROMPT
+        from envs.prompts.snake import SLOW_AGENT_PROMPT, FAST_AGENT_PROMPT, DEFAULT_ACTION, ALL_ACTIONS, ACTION_FORMAT_PROMPT, CONCLUSION_FORMAT_PROMPT
     elif args.game == "airraid":
         from envs.airraid import setup_env, llm_state_builder, state_to_description, summarize
-        from envs.prompts.airraid import SLOW_AGENT_PROMPT, FAST_AGENT_ACTION_PROMPT, FAST_AGENT_CONCLUSION_PROMPT, DEFAULT_ACTION, ALL_ACTIONS, ACTION_FORMAT_PROMPT, CONCLUSION_FORMAT_PROMPT
+        from envs.prompts.airraid import SLOW_AGENT_PROMPT, FAST_AGENT_PROMPT, DEFAULT_ACTION, ALL_ACTIONS, ACTION_FORMAT_PROMPT, CONCLUSION_FORMAT_PROMPT
+    elif args.game == "overcooked":
+        from envs.overcooked import setup_env, llm_state_builder, state_to_description, summarize
+        from envs.prompts.overcooked import SLOW_AGENT_PROMPT, FAST_AGENT_PROMPT, DEFAULT_ACTION, ALL_ACTIONS, ACTION_FORMAT_PROMPT, CONCLUSION_FORMAT_PROMPT
     else:
         raise ValueError(f"Game {args.game} is not supported.")
     FORMAT = ACTION_FORMAT_PROMPT if args.format == "A" else CONCLUSION_FORMAT_PROMPT
-    FAST_AGENT_PROMPT = FAST_AGENT_ACTION_PROMPT if args.format == "A" else FAST_AGENT_CONCLUSION_PROMPT
     
     # set up model client
     client = ApiSingleThreadedLLMClient(args, api_keys)
@@ -46,28 +48,33 @@ def main_game_loop(file, seed, args, api_keys):
         'description': [], 'render':[], 'meta_control': [],
         'slow_agent_prompt':[], 'slow_agent_response':[], 'belief_state': [],
         'fast_agent_prompt': [], 'fast_agent_response': [], 'follow_plan': [], 
-        'action': [], 'reward': []
+        'action': [], 'reward': [], "slow_response_token_num": [], "fast_response_token_num": []
     }
 
     while env.env.terminal == False:
         logs['render'].append('\n' + env.env.state_string())
+        print("\n" + env.env.state_string())
         state_for_llm = llm_state_builder(env.env)
-        state_description = state_to_description(state_for_llm)
+        state_description = state_to_description(state_for_llm, fast = False)
         fast_agent_response, slow_agent_response = "", ""
         fast_agent_prompt, slow_agent_prompt = "", ""
+        fast_response_token_num, slow_response_token_num = 0, 0
         ### --- Slow Agent --- ###
         meta_control = meta_controller(args, client.token_queue_len == 0, env)
         if meta_control:
             messages = [ {"role": "user", "content": SLOW_AGENT_PROMPT + FORMAT + state_description} ]
             slow_agent_prompt = messages[-1]['content']
+            if "gemini" in args.slow_model:
+                messages[-1]['content'] += "\n Remember to put the action sequence in \\boxed{...} format."
         else:
             messages = []
         sampling_params = SamplingParams(temperature=0.6, top_p=0.95, max_tokens=32768)
-        slow_agent_response, turns = client.run_slow_inference(messages, "", sampling_params)
-        ### --- Update Belief State --- ###
+        slow_agent_response, turns, slow_response_token_num = client.run_slow_inference(messages, "", sampling_params)
+        ## --- Update Belief State --- ###
         if args.method == "slow":
-            if slow_agent_response != "":
-                belief_state = re.sub(r'[^' + ALL_ACTIONS + ']', '', extract_boxed(slow_agent_response))
+            temp = extract_boxed(slow_agent_response)
+            if temp != "":
+                belief_state = re.sub(r'[^' + ALL_ACTIONS + ']', '', temp)
                 belief_state = belief_state[turns:] if len(belief_state) > turns else ""
         elif args.format == "T":
             belief_state = f"""Guidance from a Previous Thinking Model: Turn \( t_1 = {env.env.game_turn - turns} \)\n"""
@@ -85,15 +92,17 @@ def main_game_loop(file, seed, args, api_keys):
             action = belief_state[0] if belief_state != "" else DEFAULT_ACTION
             belief_state = belief_state[1:] if belief_state != "" else ""
         else:
-            state_description = state_to_description(state_for_llm, belief_state if belief_state != "" else None)
+            state_description = state_to_description(state_for_llm, belief_state if belief_state != "" else None, fast = True)
             messages = [ {"role": "user", "content": FAST_AGENT_PROMPT + state_description} ]
             fast_agent_prompt = messages[-1]['content']
             sampling_params = SamplingParams(temperature=1, top_p=1, max_tokens=8192)
-            fast_agent_response = client.run_fast_inference(messages, sampling_params)
+            fast_agent_response, fast_response_token_num = client.run_fast_inference(messages, sampling_params)
             action = extract_boxed(fast_agent_response)
             action = re.sub(r'[^' + ALL_ACTIONS + ']', '', action)
             if action == "":
                 action = DEFAULT_ACTION
+            else:
+                action = action[-1]
         ### --- Act in Environment --- ###
         r, terminal = env.act(action)
         ### --- Log Information --- ###
@@ -107,11 +116,13 @@ def main_game_loop(file, seed, args, api_keys):
         logs['meta_control'].append(meta_control)
         logs['slow_agent_prompt'].append(slow_agent_prompt)
         logs['slow_agent_response'].append(slow_agent_response)
-        logs["fast_agent_prompt"].append(fast_agent_prompt)
+        logs['fast_agent_prompt'].append(fast_agent_prompt)
         logs['fast_agent_response'].append(fast_agent_response)
         logs['follow_plan'].append(follow_plan)
         logs['action'].append(action)
         logs['reward'].append(env.env.reward)
+        logs['slow_response_token_num'].append(slow_response_token_num)
+        logs['fast_response_token_num'].append(fast_response_token_num)
         df = pd.DataFrame(logs)
         df.to_csv(file)
         if summarize(seed, args.difficulty, env):
@@ -119,13 +130,20 @@ def main_game_loop(file, seed, args, api_keys):
             belief_state = ""
             while client.token_queue_len > 0:
                 client.run_slow_inference([], "", None)
+        print("Reward:", env.env.reward)
     
-    df.to_csv(file)
+    # df.to_csv(file)
     dir = '/'.join(file.split('/')[:-1])
+    slow_response_token = [_ for _ in logs["slow_response_token_num"] if _ > 0]
+    fast_response_token = [_ for _ in logs["fast_response_token_num"] if _ > 0]
+    mean_slow_response_token_num = sum(slow_response_token) / len(slow_response_token) if len(slow_response_token) > 0 else 0
+    fast_fast_response_token_num = sum(fast_response_token) / len(fast_response_token) if len(fast_response_token) > 0 else 0
     return {
         'logdir': dir,
         'seed': real_seed,
         'game_turn': env.env.game_turn, 
         'reward': env.env.reward,
-        'game_time': time.time() - start_time
+        'game_time': time.time() - start_time,
+        'slow_response_token_num': mean_slow_response_token_num,
+        'fast_response_token_num': fast_fast_response_token_num,
     }

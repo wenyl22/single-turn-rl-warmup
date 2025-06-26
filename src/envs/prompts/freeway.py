@@ -60,7 +60,7 @@ A concise summary explaining the main decision strategy behind your chosen seque
 ### 3. **Current State (Turn \(t_1\)):**
 '''
 
-FAST_AGENT_ACTION_PROMPT = '''
+FAST_AGENT_PROMPT = '''
 You are a player in a freeway game, starting at \((0, y_\{t_0\})\) on a 2D grid (vertical axis \(y = 0, 1, \dots, 9\)). Your goal is to reach \((0, 9)\) while avoiding collisions with cars on freeways \(y = 1, \dots, 8\).
 ---
 ### 1. **Game Dynamics:**
@@ -96,8 +96,6 @@ a_{t_0}
 ---
 ### 4. **Current State (Turn \(t_0\)):**  
 '''
-
-FAST_AGENT_CONCLUSION_PROMPT = FAST_AGENT_ACTION_PROMPT
 
 DEFAULT_ACTION = "U" 
 
