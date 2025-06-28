@@ -1,34 +1,72 @@
-SLOW_AGENT_PROMPT="""
-You are helping Alice playing the cooperative game Overcooked. Your goal is to prepare and deliver soup to maximize the sum of reward of the delivered recipes. You must coordinate with your teammate Bob efficiently, plan ahead, and make optimal decisions based on the current game state. Please analyze the game state carefully and select the best action from the available options.
+SLOW_AGENT_PROMPT = """
+Help Alice collaborate with Bob in *Overcooked* to maximize the total reward from delivered soup recipes. Optimize coordination, planning, and decision-making based on the current game state.
+---
+### **Game Rules & Mechanics**  
+#### **1. Game Grid (2D Tile Types)**  
+- **Empty Tile:** Walkable space.  
+- **Dispensers:** Sources for items (tomato/onion/clean plate).  
+- **Pot:** Cooks soup (3 ingredients → auto-starts cooking).  
+- **Serving Counter:** Deliver cooked soup for rewards.  
+- **Kitchen Counter:** Temporary item storage.  
 
-## Game Rules and Mechanics
-- The game is played on a 2D grid, with each tile being one of the following:
-    - Empty Tile: Walkable area
-    - Wall: Obstacle areas where players cannot walk on or interact with
-    - Tomato Dispenser: Source of tomatoes
-    - Onion Dispenser: Source of onions
-    - Plate Dispenser: Source of clean plates
-    - Pot: Place to cook soup
-    - Serving Counter: Place to deliver the cooked soup
+#### **2. Player Actions per Turn**  
+Each player (Alice/Bob) can:  
+- **Move** (L/R/U/D): Changes position *and* orientation. Specifically, L (x-1, y), R (x+1, y), U (x, y+1), D (x, y-1).
+- **Change Orientation** (L/R/U/D): No move if the adjacent tile is not an empty one.  
+- **Interact (I):** Player can interact with a non-empty tile if it is 1) standing on an empty tile adjacent to the tile and 2) facing the tile. Interact effects depend on game state and tile type:
+  - **Dispensers:** Grab item (if player is empty-handed).
+  - **Pot:**  
+    - Add ingredient (if pot is not full and player is holding ingredient) → cooks automatically at 3 ingredients.  
+    - Serve soup (if player is holding a clean plate and pot has cooked soup).
+  - **Serving Counter:** Deliver soup (if player is holding a soup in plate).
+  - **Kitchen Counter:** Pick up items (if player is empty-handed and counter is occupied) or place items (if player is holding an item and counter is empty).
+- **Stay (S):** Do nothing.
 
-- The player needs to grab ingredients from onions and tomatoes and put them into one pot to cook a recipe. Different recipes require different ingredients and cooking time, and give different rewards upon delivery. After a soup is cooked, the player must use a clean plate to serve and deliver it to the delivery point.
+#### **3. Key Constraints**  
+- Players can carry **one item at a time**.  
+- Players cannot walk onto/through each other.
+- Players cannot walk onto/through non-empty tiles. 
 
-- In each turn, each player can be on an empty tile (x, y) and face one of the four directions: Up(U), Down(D), Left(L), Right(R). They can perform one action from the following options, respectively:
-    - Move to an adjacent tile using action L (x-1, y), R (x+1, y), U (x, y+1), D (x, y-1). Note once the player moves in the direction, its orientation will change to that direction.
-    - Change orientation: If the player wants to interact with a tile, they must face the tile. They can change their orientation to face the tile using action L, R, U, or D. Note by default, the player will move one unit in that direction. However, if the tile is not empty, they just change their orientation to face the tile.
-    - Interact with a tile: If the player is facing a tile, they can interact with it using the action I. The interaction depends on the tile type and game state, for example:
-        - Tomato/Onion/Plate Dispenser: If the player is not holding an item, 'I' will grab a tomato/onion/clean plate from the dispenser.
-        - Pot(Not full): If the player is holding an ingredient, 'I' will place the ingredient into the pot. Once the pot is full with 3 ingredients, it will **AUTOMATICALLY** start cooking. If the ingredients do not match any recipe in the order, the cooking process will last 20 turns, but serving the soup does not give any reward.
-        - Pot(With cooked soup): If the player is holding a clean plate, 'I' will serve the soup onto the plate.
-        - Serving Counter: If the player is holding a plate with soup, 'I' will deliver the soup and receive the recipe reward.
-        - Kitchen Counter(Empty): If the player is holding an item, 'I' will put the item on the counter.
-        - Kitchen Counter(Occupied): If the player is not holding an item, 'I' will grab the item from the counter.
-- Players can only carry one item at a time
-- Players cannot walk through each other.
+#### **4. Recipes & Rewards**
+- Each recipe requires different ingredients, cooking time, and yields varying rewards.
+- Cooking time is 20 turns if ingredients do not match any recipe in the order, and serving the recipe does not yield rewards.
+---
 
-## Your Task
-Suppose current game turn is \(t_1\). Plan for the next several turns(say, H turns). Find a sequence of actions \(\{a_{t_1 + t\}_{t=1}^{H-1}\) in order to maximize the total reward of delivered recipes.
+### **Your Task**  
+At turn \( t_1 \), plan a sequence of actions \(\{a_{t_1 + t}\}_{t=1}^{H-1}\) for Alice (and optionally Bob) over next several turns(say, H turns) to maximize total reward from delivered recipes.
+
 """
+# SLOW_AGENT_PROMPT="""
+# You are helping Alice playing the cooperative game Overcooked. Your goal is to prepare and deliver soup to maximize the sum of reward of the delivered recipes. You must coordinate with your teammate Bob efficiently, plan ahead, and make optimal decisions based on the current game state.
+
+# ## Game Rules and Mechanics
+# - The game is played on a 2D grid, with each tile being one of the following:
+#     - Empty Tile: Walkable area
+#     - Tomato Dispenser: Source of tomatoes
+#     - Onion Dispenser: Source of onions
+#     - Plate Dispenser: Source of clean plates
+#     - Pot: Place to cook soup
+#     - Serving Counter: Place to deliver the cooked soup
+#     - Kitchen Counter: Place to put items temporarily
+
+# - The player needs to grab ingredients from onions and tomatoes and put them into one pot to cook a recipe. After a soup is cooked, the player must use a clean plate to serve and deliver it to the delivery point. Different recipes require different ingredients and cooking time, and give different rewards upon delivery. 
+
+# - In each turn, each player can be on an empty tile (x, y) and face one of the four directions: Up(U), Down(D), Left(L), Right(R). They can perform one action from the following options, respectively:
+#     - Move to an adjacent tile using action L (x-1, y), R (x+1, y), U (x, y+1), D (x, y-1). Note once the player moves in the direction, its orientation will change to that direction.
+#     - Change orientation: If the player wants to interact with a tile, they must be 1) standing on an empty tile adjacent to the tile and 2) facing the tile. They can change their orientation to face the tile using action L, R, U, or D. Note by default, the player will move one unit in that direction. However, if the tile is not an empty tile, they just change their orientation to face the tile.
+#     - Interact with a tile: If the player is facing a tile, they can interact with it using the action I. The interaction depends on the tile type and game state, for example:
+#         - Tomato/Onion/Plate Dispenser: If the player is not holding an item, 'I' will grab an item from the dispenser.
+#         - Pot(Not full): If the player is holding an ingredient, 'I' will place the ingredient into the pot. Once the pot has 3 ingredients, it will **AUTOMATICALLY** start cooking. If the ingredients do not match any recipe in the order, the cooking process will last 20 turns, but serving the soup does not give any reward.
+#         - Pot(With cooked soup): If the player is holding a clean plate, 'I' will serve the soup onto the plate.
+#         - Serving Counter: If the player is holding a plate with soup, 'I' will deliver the soup and receive the recipe reward.
+#         - Kitchen Counter(Empty): If the player is holding an item, 'I' will put the item on the counter.
+#         - Kitchen Counter(Occupied): If the player is not holding an item, 'I' will grab the item from the counter.
+# - Players can only carry one item at a time
+# - Players cannot walk through each other.
+
+# ## Your Task
+# Suppose current game turn is \(t_1\). Plan for the next several turns(say, H turns). Find a sequence of actions \(\{a_{t_1 + t\}_{t=1}^{H-1}\) in order to maximize the total reward of delivered recipes.
+# """
 
 ACTION_FORMAT_PROMPT = '''
 **Answer Format**:
@@ -39,9 +77,7 @@ Turn t_1 + 1: a_\{t_1 + 1\}
 ...
 }
 
-Where each action \(a_t \in \{ U, D, L, R, I, S\}\).
----
-**Current State (Turn \(t_1\)):**
+Where each action \(a_t \in \{U, D, L, R, I, S\}\).
 '''
 
 CONCLUSION_FORMAT_PROMPT = '''
@@ -57,51 +93,56 @@ Turn t_1 + 1: a_\{t_1 + 1\}
 ...
 }
 
-Where each action \(a_t \in \{ U, D, L, R, I, S\}\).
+Where each action \(a_t \in \{U, D, L, R, I, S\}\).
 
 **(2) Main Thinking Conclusion (one or two sentences):**
 
 A concise summary explaining the main decision strategy behind your chosen sequence. 
----
 '''
 
 FAST_AGENT_PROMPT = """
-You are an AI helping Alice playing Overcooked. Your goal is to coordinate with Bob to prepare and deliver soup to maximize the sum of reward of the delivered recipes. Your need to decide the immediate action for the current Turn \(t_0\) based on:
+Help Alice collaborate with Bob in *Overcooked* to maximize the total reward from delivered soup recipes. You need to decide the immediate action for the current Turn \(t_0\) based on:
 1. Layout information and current game state
-2. Thinking model's past plan. Sometimes you may be given a plan generated by a thinking model at turn \(t_1\), which might be outdated or inaccurate, but it can still provide useful information for your decision making. You can take it as a **strategic reference**, not a mandatory instruction. 
+2. Thinking model's past plan. Sometimes you may be given a plan generated by a thinking model at turn \(t_1 \leq t_0\), which might be outdated or inaccurate, but it can still provide useful information for your decision making. You can take it as a **strategic reference**, not a mandatory instruction. 
 
-## Game Rules and Mechanics
-- The game is played on a 2D grid, with each tile being one of the following:
-    - Empty Tile: Walkable area
-    - Tomato Dispenser: Source of tomatoes
-    - Onion Dispenser: Source of onions
-    - Plate Dispenser: Source of clean plates
-    - Pot: Place to cook soup
-    - Serving Counter: Place to deliver the cooked soup
-    - Kitchen Counter: Place to put items temporarily
+### **Game Rules & Mechanics**  
+#### **1. Game Grid (2D Tile Types)**  
+- **Empty Tile:** Walkable space.  
+- **Dispensers:** Sources for items (tomato/onion/clean plate).  
+- **Pot:** Cooks soup (3 ingredients → auto-starts cooking).  
+- **Serving Counter:** Deliver cooked soup for rewards.  
+- **Kitchen Counter:** Temporary item storage.  
 
-- The player needs to grab ingredients from onions and tomatoes and put them into one pot to cook a recipe. Different recipes require different ingredients and cooking time, and give different rewards upon delivery. After a soup is cooked, the player must use a clean plate to serve and deliver it to the delivery point.
+#### **2. Player Actions per Turn**  
+Each player (Alice/Bob) can:  
+- **Move** (L/R/U/D): Changes position *and* orientation. Specifically, L (x-1, y), R (x+1, y), U (x, y+1), D (x, y-1).
+- **Change Orientation** (L/R/U/D): No move if the adjacent tile is not an empty one.  
+- **Interact (I):** Player can interact with a non-empty tile if it is 1) standing on an empty tile adjacent to the tile and 2) facing the tile. Interact effects depend on game state and tile type:
+  - **Dispensers:** Grab item (if player is empty-handed).
+  - **Pot:**  
+    - Add ingredient (if pot is not full and player is holding ingredient) → cooks automatically at 3 ingredients.  
+    - Serve soup (if player is holding a clean plate and pot has cooked soup).
+  - **Serving Counter:** Deliver soup (if player is holding a soup in plate).
+  - **Kitchen Counter:** Pick up items (if player is empty-handed and counter is occupied) or place items (if player is holding an item and counter is empty).
+- **Stay (S):** Do nothing.
 
-- In each turn, each player can be on an empty tile (x, y) and face one of the four directions: Up(U), Down(D), Left(L), Right(R). They can perform one action from the following options, respectively:
-    - Move to an adjacent tile using action L (x-1, y), R (x+1, y), U (x, y+1), D (x, y-1). Note once the player moves in the direction, its orientation will change to that direction.
-    - Change orientation: If the player wants to interact with a tile, they must face the tile. They can change their orientation to face the tile using action L, R, U, or D. Note by default, the player will move one unit in that direction. However, if the tile is not empty, they just change their orientation to face the tile.
-    - Interact with a tile: If the player is facing a tile, they can interact with it using the action I. The interaction depends on the tile type and game state, for example:
-        - Tomato/Onion/Plate Dispenser: If the player is not holding an item, 'I' will grab a tomato/onion/clean plate from the dispenser.
-        - Pot(Not full): If the player is holding an ingredient, 'I' will place the ingredient into the pot. Once the pot is full with 3 ingredients, it will **AUTOMATICALLY** start cooking. If the ingredients do not match any recipe in the order, the cooking process will last 20 turns, but serving the soup does not give any reward.
-        - Pot(With cooked soup): If the player is holding a clean plate, 'I' will serve the soup onto the plate.
-        - Serving Counter: If the player is holding a plate with soup, 'I' will deliver the soup and receive the recipe reward.
-        - Kitchen Counter(Empty): If the player is holding an item, 'I' will put the item on the counter.
-        - Kitchen Counter(Occupied): If the player is not holding an item, 'I' will grab the item from the counter.
-- Players can only carry one item at a time
-- Players cannot walk through each other.
+#### **3. Key Constraints**  
+- Players can carry **one item at a time**.  
+- Players cannot walk onto/through each other.
+- Players cannot walk onto/through non-empty tiles. 
 
-## Your Task
-Suppose current game turn is \(t_0\). Decide the immediate action \(a_\{t_0\}\) for Alice based on the current game state and the past plan from a thinking model at turn \(t_1\).
+#### **4. Recipes & Rewards**
+- Each recipe requires different ingredients, cooking time, and yields varying rewards.
+- Cooking time is 20 turns if ingredients do not match any recipe in the order, and serving the recipe does not yield rewards.
+---
+
+### **Your Task**
+Decide the immediate action \(a_\{t_0\}\) at turn \(t_0\) for Alice based on the current game state and the past plan from a thinking model at turn \(t_1\).
 
 **Answer Format**:
 \\boxed{a_{t_0}}
 
-Where \(a_{t_0} \in \{ U, D, L, R, I, S\}\).
+Where \(a_{t_0} \in \{U, D, L, R, I, S\}\).
 """
 
 GAME_STATE_PROMPT="""

@@ -21,7 +21,7 @@ You are an AI playing Snake on a 2D grid. Maximize score by eating positive food
 **3. Deadly Collisions**
 - Body collision (head touches any body segment). But note you can still move into the cell occupied by the tail segment, since the tail will also move forward.
 - Wall collision (grid borders)
-  - Cells occupied by walls: `x=0`/`x=7` or `y=0`/`y=7`.
+  - Cells occupied by walls (given in the state description).
   - The wall takes up the whole row or column, so the snake cannot move to these coordinates.
 
 ## State Input Format
@@ -95,7 +95,7 @@ Action will apply BEFORE countdown updates.
 **3. Deadly Collisions**
 - Body collision (head touches any body segment). But note you can still move into the cell occupied by the tail segment, since the tail will also move forward.
 - Wall collision (grid borders)
-  - Cells occupied by walls: `x=0`/`x=7` or `y=0`/`y=7`.
+  - Cells occupied by walls (given in the state description).
   - The wall takes up the whole row or column, so the snake cannot move to these coordinates.
 
 ## State Input Format

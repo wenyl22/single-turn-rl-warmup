@@ -28,10 +28,10 @@ def setup_env(seed, difficulty):
     all_args.algorithm_name = "population"
     all_args.agent0_policy_name = "script:LLM"
     all_args.agent1_policy_name = "script:place_tomato_and_deliver_soup"
-    all_args.episode_length = 200
+    all_args.episode_length = 100
     all_args.num_agents = 2
     run_dir = Path("vislogs/overcooked-vislogs") / all_args.layout_name
-    if not run_dir.exists():
+    if not os.path.exists(str(run_dir)):
         os.makedirs(str(run_dir))
     env = Environment('overcooked', sticky_action_prob=0.0)
     env.seed(seed)

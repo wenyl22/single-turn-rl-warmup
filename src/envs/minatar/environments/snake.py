@@ -60,7 +60,7 @@ class Env:
             (a == 'U' and self.dir == 'D') or \
             (a == 'D' and self.dir == 'U'):
                 a = self.dir # prevent reverse direction
-                raise ValueError(f"Invalid action a = {a}, dir = {self.dir}")
+#                raise ValueError(f"Invalid action a = {a}, dir = {self.dir}")
         if a in ['L', 'R', 'U', 'D']: # ignore invalid actions
             self.dir = a
         head_x, head_y = self.snake[-1]

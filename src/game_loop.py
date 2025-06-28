@@ -4,6 +4,7 @@ from utils.extract_utils import extract_boxed
 from vllm import SamplingParams
 import time
 import re
+import os
 
 def meta_controller(args, free, env):
     """
@@ -50,10 +51,21 @@ def main_game_loop(file, seed, args, api_keys):
         'fast_agent_prompt': [], 'fast_agent_response': [], 'follow_plan': [], 
         'action': [], 'reward': [], "slow_response_token_num": [], "fast_response_token_num": []
     }
-
+    ckpt = file.replace('0629', '0628')
+    if os.path.exists(ckpt):
+        logs = pd.read_csv(ckpt).to_dict(orient='list')
+        for a in logs['action']:
+            if env.env.terminal:
+                print("Warning: Environment is terminal, but action {} is still being processed.".format(a))
+                print(file)
+                #raise ValueError(f"Environment is terminal, but action {a} is still being processed.")
+            r, t = env.act(a)
+        print(f"env.reward: {env.env.reward}, game_turn: {env.env.game_turn}, terminal: {env.env.terminal}")
+        print(f"ckpt {ckpt} loaded, resuming from turn {env.env.game_turn}. reward {logs['reward'][-1]}")
+        assert env.env.reward == logs['reward'][-1], f"Reward mismatch: {env.env.reward} != {logs['reward'][-1]}"
     while env.env.terminal == False:
         logs['render'].append('\n' + env.env.state_string())
-        print("\n" + env.env.state_string())
+        # print("\n" + env.env.state_string())
         state_for_llm = llm_state_builder(env.env)
         state_description = state_to_description(state_for_llm, fast = False)
         fast_agent_response, slow_agent_response = "", ""
@@ -131,8 +143,8 @@ def main_game_loop(file, seed, args, api_keys):
             while client.token_queue_len > 0:
                 client.run_slow_inference([], "", None)
         print("Reward:", env.env.reward)
-    
-    # df.to_csv(file)
+    df = pd.DataFrame(logs)
+    df.to_csv(file)
     dir = '/'.join(file.split('/')[:-1])
     slow_response_token = [_ for _ in logs["slow_response_token_num"] if _ > 0]
     fast_response_token = [_ for _ in logs["fast_response_token_num"] if _ > 0]
