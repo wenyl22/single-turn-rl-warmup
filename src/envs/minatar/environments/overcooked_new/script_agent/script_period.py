@@ -18,6 +18,7 @@ class Pickup_Object(BaseScriptPeriod):
         """
         super().__init__(("random_" if random_pos else "") + "pickup_" + str(obj))
 
+        self.random = np.random.RandomState(42)
         self.__put_pos = None
         self.__obj_pos = None
         self.__random_pos = None
@@ -40,15 +41,15 @@ class Pickup_Object(BaseScriptPeriod):
 
         if player.has_object() and player.get_object().name not in self.target_obj:
              # not target obj, place in random position
-            action, self.__put_pos = utils.interact(mdp, state, player_idx, pre_goal = self.__put_pos, random=self.random_put, terrain_type="XOPDS", obj=["can_put"])
+            action, self.__put_pos = utils.interact(mdp, state, player_idx, pre_goal = self.__put_pos, random=self.random_put, terrain_type="XOPDS", obj=["can_put"], random_state=self.random)
             return action
         
         if not player.has_object():
             # find target obj
-            action, self.__obj_pos = utils.interact(mdp, state, player_idx, pre_goal = self.__obj_pos, random=self.random_pos, terrain_type=self.terrain_type, obj=self.target_obj)
+            action, self.__obj_pos = utils.interact(mdp, state, player_idx, pre_goal = self.__obj_pos, random=self.random_pos, terrain_type=self.terrain_type, obj=self.target_obj, random_state=self.random)
             return action
 
-        action, self.__random_pos = utils.random_move(mdp, state, player_idx, pre_goal = self.__random_pos)
+        action, self.__random_pos = utils.random_move(mdp, state, player_idx, pre_goal = self.__random_pos, random_state=self.random)
         return action
     
     def done(self, mdp, state, player_idx):
@@ -64,7 +65,7 @@ class Put_Object(BaseScriptPeriod):
             if True, put the irrelevant obj at random position
         """
         super().__init__(("random_" if random_put else "") + "put")
-
+        self.random = np.random.RandomState(42)
         self.__put_pos = None
         self.__random_pos = None
         self.__obj = obj
@@ -83,10 +84,10 @@ class Put_Object(BaseScriptPeriod):
 
         if player.has_object():
              # not target obj, place in random position
-            action, self.__put_pos = utils.interact(mdp, state, player_idx, pre_goal = self.__put_pos, random=self.random_put, terrain_type=self.terrain_type, obj=[self.__obj] if type(self.__obj) == str else self.__obj, pos_mask=self.pos_mask, move_mask=self.move_mask)
+            action, self.__put_pos = utils.interact(mdp, state, player_idx, pre_goal = self.__put_pos, random=self.random_put, terrain_type=self.terrain_type, obj=[self.__obj] if type(self.__obj) == str else self.__obj, pos_mask=self.pos_mask, move_mask=self.move_mask, random_state=self.random)
             return action
 
-        action, self.__random_pos = utils.random_move(mdp, state, player_idx, pre_goal = self.__random_pos, move_mask=self.move_mask)
+        action, self.__random_pos = utils.random_move(mdp, state, player_idx, pre_goal = self.__random_pos, move_mask=self.move_mask, random_state=self.random)
         return action
     
     def done(self, mdp, state, player_idx):
@@ -155,6 +156,7 @@ class Pickup_Ingredient_and_Place_Mix(BaseScriptPeriod):
         super().__init__(period_name="Pickup_Ingredient_and_Place_in_Pot")
 
         
+        self.random = np.random.RandomState(42)
         self.random_put = random_put
         self.random_pot = random_pot
         self.random_ingredient = random_ingredient
@@ -163,11 +165,11 @@ class Pickup_Ingredient_and_Place_Mix(BaseScriptPeriod):
         self.__random_pos = None
 
         self.__stage = 1
-        self.__current_period = Pickup_Object(obj=random.choice(self.target_obj), terrain_type="OTX", random_put=self.random_put, random_pos=self.random_ingredient)
+        self.__current_period = Pickup_Object(obj=self.random.choice(self.target_obj), terrain_type="OTX", random_put=self.random_put, random_pos=self.random_ingredient)
     
     def reset(self, mdp, state, player_idx):
         self.__stage = 1
-        self.__current_period = Pickup_Object(obj=random.choice(self.target_obj), terrain_type="OTX", random_put=self.random_put, random_pos=self.random_ingredient)
+        self.__current_period = Pickup_Object(obj=self.random.choice(self.target_obj), terrain_type="OTX", random_put=self.random_put, random_pos=self.random_ingredient)
     
     def step(self, mdp, state, player_idx):
         player = state.players[player_idx]
@@ -190,19 +192,19 @@ class Pickup_Ingredient_and_Place_Mix(BaseScriptPeriod):
         assert current_obj in ["onion", "tomato"]
         if current_obj == "onion":
             if utils.exists(mdp, state, player_idx, "P", ["unfull_soup_1t"]):
-                action, self.__put_pos = utils.interact(mdp, state, player_idx, pre_goal = self.__put_pos, random=self.random_put, terrain_type="P", obj=["unfull_soup_1t"])
+                action, self.__put_pos = utils.interact(mdp, state, player_idx, pre_goal = self.__put_pos, random=self.random_put, terrain_type="P", obj=["unfull_soup_1t"], random_state=self.random)
                 return action
             elif utils.exists(mdp, state, player_idx, "P", ["empty"]):
-                action, self.__put_pos = utils.interact(mdp, state, player_idx, pre_goal = self.__put_pos, random=self.random_put, terrain_type="P", obj=["empty"])
+                action, self.__put_pos = utils.interact(mdp, state, player_idx, pre_goal = self.__put_pos, random=self.random_put, terrain_type="P", obj=["empty"], random_state=self.random)
                 return action
         else:
             if utils.exists(mdp, state, player_idx, "P", ["unfull_soup_1o"]):
-                action, self.__put_pos = utils.interact(mdp, state, player_idx, pre_goal = self.__put_pos, random=self.random_put, terrain_type="P", obj=["unfull_soup_1o"])
+                action, self.__put_pos = utils.interact(mdp, state, player_idx, pre_goal = self.__put_pos, random=self.random_put, terrain_type="P", obj=["unfull_soup_1o"], random_state=self.random)
                 return action
             elif utils.exists(mdp, state, player_idx, "P", ["empty"]):
-                action, self.__put_pos = utils.interact(mdp, state, player_idx, pre_goal = self.__put_pos, random=self.random_put, terrain_type="P", obj=["empty"])
+                action, self.__put_pos = utils.interact(mdp, state, player_idx, pre_goal = self.__put_pos, random=self.random_put, terrain_type="P", obj=["empty"], random_state=self.random)
                 return action
-        action, self.__random_pos = utils.random_move(mdp, state, player_idx, pre_goal = self.__random_pos)
+        action, self.__random_pos = utils.random_move(mdp, state, player_idx, pre_goal = self.__random_pos, random_state=self.random)
         return action
 
     def done(self, mdp, state, player_idx):
@@ -229,7 +231,7 @@ class Mixed_Order(BaseScriptPeriod):
         """
         super().__init__(period_name="Mixed_Order")
 
-        
+        self.random = np.random.RandomState(42)
         self.random_put = random_put
         self.random_pot = random_pot
         self.random_ingredient = random_ingredient
@@ -238,11 +240,11 @@ class Mixed_Order(BaseScriptPeriod):
         self.__random_pos = None
 
         self.__stage = 1
-        self.__current_period = Pickup_Object(obj=random.choice(self.target_obj), terrain_type="OTX", random_put=self.random_put, random_pos=self.random_ingredient)
+        self.__current_period = Pickup_Object(obj=self.random.choice(self.target_obj), terrain_type="OTX", random_put=self.random_put, random_pos=self.random_ingredient)
     
     def reset(self, mdp, state, player_idx):
         self.__stage = 1
-        self.__current_period = Pickup_Object(obj=random.choice(self.target_obj), terrain_type="OTX", random_put=self.random_put, random_pos=self.random_ingredient)
+        self.__current_period = Pickup_Object(obj=self.random.choice(self.target_obj), terrain_type="OTX", random_put=self.random_put, random_pos=self.random_ingredient)
     
     def step(self, mdp, state, player_idx):
         player = state.players[player_idx]
@@ -265,25 +267,25 @@ class Mixed_Order(BaseScriptPeriod):
         assert current_obj in ["onion", "tomato"]
         if current_obj == "onion":
             if utils.exists(mdp, state, player_idx, "P", ["unfull_soup_1t"]):
-                action, self.__put_pos = utils.interact(mdp, state, player_idx, pre_goal = self.__put_pos, random=self.random_put, terrain_type="P", obj=["unfull_soup_1t"])
+                action, self.__put_pos = utils.interact(mdp, state, player_idx, pre_goal = self.__put_pos, random=self.random_put, terrain_type="P", obj=["unfull_soup_1t"], random_state=self.random)
                 return action
             elif utils.exists(mdp, state, player_idx, "P", ["empty"]):
-                action, self.__put_pos = utils.interact(mdp, state, player_idx, pre_goal = self.__put_pos, random=self.random_put, terrain_type="P", obj=["empty"])
+                action, self.__put_pos = utils.interact(mdp, state, player_idx, pre_goal = self.__put_pos, random=self.random_put, terrain_type="P", obj=["empty"], random_state=self.random)
                 return action
         else:
             if utils.exists(mdp, state, player_idx, "P", ["unfull_soup_ot"]):
-                action, self.__put_pos = utils.interact(mdp, state, player_idx, pre_goal = self.__put_pos, random=self.random_put, terrain_type="P", obj=["unfull_soup_ot"])
+                action, self.__put_pos = utils.interact(mdp, state, player_idx, pre_goal = self.__put_pos, random=self.random_put, terrain_type="P", obj=["unfull_soup_ot"], random_state=self.random)
                 return action
             elif utils.exists(mdp, state, player_idx, "P", ["unfull_soup_1o"]):
-                action, self.__put_pos = utils.interact(mdp, state, player_idx, pre_goal = self.__put_pos, random=self.random_put, terrain_type="P", obj=["unfull_soup_1o"])
+                action, self.__put_pos = utils.interact(mdp, state, player_idx, pre_goal = self.__put_pos, random=self.random_put, terrain_type="P", obj=["unfull_soup_1o"], random_state=self.random)
                 return action
             elif utils.exists(mdp, state, player_idx, "P", ["unfull_soup_1t"]):
-                action, self.__put_pos = utils.interact(mdp, state, player_idx, pre_goal = self.__put_pos, random=self.random_put, terrain_type="P", obj=["unfull_soup_1o"])
+                action, self.__put_pos = utils.interact(mdp, state, player_idx, pre_goal = self.__put_pos, random=self.random_put, terrain_type="P", obj=["unfull_soup_1o"], random_state=self.random)
                 return action
             elif utils.exists(mdp, state, player_idx, "P", ["empty"]):
-                action, self.__put_pos = utils.interact(mdp, state, player_idx, pre_goal = self.__put_pos, random=self.random_put, terrain_type="P", obj=["empty"])
+                action, self.__put_pos = utils.interact(mdp, state, player_idx, pre_goal = self.__put_pos, random=self.random_put, terrain_type="P", obj=["empty"], random_state=self.random)
                 return action
-        action, self.__random_pos = utils.random_move(mdp, state, player_idx, pre_goal = self.__random_pos)
+        action, self.__random_pos = utils.random_move(mdp, state, player_idx, pre_goal = self.__random_pos, random_state=self.random)
         return action
 
     def done(self, mdp, state, player_idx):

@@ -10,6 +10,7 @@ import functools
 class RandomScriptAgent(BaseScriptAgent):
     def __init__(self, periods_config):
         super().__init__()
+        self.random = np.random.RandomState(42)
         self.periods_config = periods_config
         self.period_name = [p for p in periods_config.keys()]
         self.probs = np.array([d["prob"] for p, d in periods_config.items()])
@@ -17,11 +18,11 @@ class RandomScriptAgent(BaseScriptAgent):
 
     def make_new_period(self, i=None):
         if i is None:
-            i = np.random.choice(np.arange(len(self.period_name)), p=self.probs)
+            i = self.random.choice(np.arange(len(self.period_name)), p=self.probs)
         elif type(i) == list:
             p = self.probs[i].copy()
             p = p / p.sum()
-            i = np.random.choice(i, p=p)
+            i = self.random.choice(i, p=p)
         p = self.period_name[i]
         return p, SCRIPT_PERIODS_CLASSES[p](**self.periods_config[p]["args"])
 
@@ -43,7 +44,8 @@ class RandomScriptAgent(BaseScriptAgent):
         if pos == self.last_pos:
             self.stuck_time += 1
             if self.stuck_time >= 3:
-                action = random.choice(Direction.ALL_DIRECTIONS)
+                action = self.random.choice(range(len(Action.ALL_ACTIONS)))
+                action = Action.ALL_ACTIONS[action]
         else:
             self.last_pos = pos
             self.stuck_time = 0

@@ -6,8 +6,25 @@ class Env:
         self.seed = 2042
 
     def reset(self):
-        self.B = 8 if 2000 <= self.seed < 3000 else 6 if 1000 <= self.seed < 2000 else 10
+        self.B = 8
+        self.true_seed = self.seed % 1000
+        self.random = np.random.RandomState(self.true_seed)
+        self.coords = [(x, y) for x in range(1, self.B - 1) for y in range(1, self.B - 1)]
         self.snake = [(self.B // 2 - 1, self.B // 2 - 1)]
+        self.num_obstacle = self.seed // 1000
+        step = 3
+        self.obstacle = []
+        while step > 0:
+            x = self.random.randint(1, self.B - 1)
+            y = self.random.randint(1, self.B - 1)
+            if (x, y) not in self.snake and (x, y) not in self.obstacle:
+                step -= 1
+                self.coords.remove((x, y))
+                if len(self.obstacle) < self.num_obstacle:
+                    self.obstacle.append((x, y))
+        self.coords.remove(self.snake[0])
+        self.random.shuffle(self.coords)
+        self.random.shuffle(self.coords)
         self.food = []
         self.food_attributes = [[0 for _ in range(self.B)] for _ in range(self.B)]
 
@@ -16,36 +33,27 @@ class Env:
         self.reward = 0
         self.terminal = False
         # random permute coords
-        self.coords = [(x, y) for x in range(1, self.B - 1) for y in range(1, self.B - 1)]
-        self.random.shuffle(self.coords)
-        self.random.shuffle(self.coords)
         # random choose 30% of index in range(200) and set self.value to -1
-        self.value = [1 for _ in range(200)]
-        lst = [_ for _ in range(200)]
-        self.random.shuffle(lst)
-        chosen_index = lst[:60]
-        for idx in chosen_index:
-            self.value[idx] = -1
         self.idx = 0
         self.spawn_food()
         self.spawn_food()
         self.spawn_food()
 
     def spawn_food(self):
-        flag = [(x, y) in self.snake or self.food_attributes[x][y] != 0 for (x, y) in self.coords]
-        if sum(flag) >= len(self.coords) - 1:
-            return
-        while flag[self.idx]:
-            self.idx += 1
-            if self.idx >= len(self.coords):
-                self.idx -= len(self.coords)
+        # flag = [(x, y) in self.snake or self.food_attributes[x][y] != 0 for (x, y) in self.coords]
+        # if sum(flag) >= len(self.coords) - 1:
+        #     return
+        # while flag[self.idx]:
+        #     self.idx += 1
+        #     if self.idx >= len(self.coords):
+        #         self.idx -= len(self.coords)
 
         x, y = self.coords[self.idx]
         self.idx += 1
         if self.idx >= len(self.coords):
             self.idx -= len(self.coords)
         life_span = 12
-        value = self.value.pop(0)
+        value = 1
         new_food = (x, y)
         assert self.food_attributes[x][y] == 0 and new_food not in self.food, \
             f"Food already exists at {new_food}, attributes: {self.food_attributes[x][y]}, coords: {self.coords}"
@@ -75,9 +83,11 @@ class Env:
         else:
             raise ValueError(f"Invalid action a = {a}, dir = {self.dir}")     
         x, y = new_head
-        if new_head in self.snake[1:] or \
+        # Death trigger: hit body; hit wall; head hits newly grown tail
+        if new_head in self.snake[1:] or new_head in self.obstacle or \
         new_head[0] == 0 or new_head[1] == 0 or \
-        new_head[0] == self.B - 1 or new_head[1] == self.B - 1:
+        new_head[0] == self.B - 1 or new_head[1] == self.B - 1 or \
+        (new_head == self.snake[0] and new_head in self.food and self.food_attributes[x][y][1] > 0):
             self.r -= 1
             self.reward += self.r
             self.terminal = True
@@ -113,19 +123,21 @@ class Env:
             for j in range(self.B):
                 output = ""
                 x, y = j, self.B - 1 - i
+                if (x, y) in self.obstacle:
+                    output += '#'
                 if (x, y) in self.snake:
                     output += chr(ord('a') + l - 1 - self.snake.index((x, y)))
-                elif (x, y) in self.food:
+                if (x, y) in self.food:
                     if self.food_attributes[x][y][1] > 0:
                         output += '+'
                     else:
                         output += '-'
                     output += str(self.food_attributes[x][y][0])
-                elif x == 0 or x == self.B - 1 or y == 0 or y == self.B - 1:
+                if x == 0 or x == self.B - 1 or y == 0 or y == self.B - 1:
                     output += '#'
-                else:
-                    output += '.'
-                grid_string += output + ' ' * (4 - len(output))
+                if output == "":
+                    output = '.'
+                grid_string += output + ' ' * (6 - len(output))
             grid_string += '\n'
         return grid_string
 

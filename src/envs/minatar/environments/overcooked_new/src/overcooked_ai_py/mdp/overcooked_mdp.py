@@ -1360,22 +1360,22 @@ class OvercookedGridworld(object):
                             shaped_info[player_idx][f"useless_placement"] += 1
                         shaped_info[player_idx][f"potting_{obj.name}"] += 1
                         
-                        # gjx test use, to be deleted
-                        if self.layout_name == "far_tomato":
-                            if obj.name == "tomato":
-                                if self.is_potting_optimal(new_state, old_soup, soup):
-                                    # only reward when placement is optimal
-                                    shaped_reward[player_idx] += 0
-                                if len(soup.ingredients) >= 2 and self.is_potting_optimal(new_state, old_soup, soup) and all([x == "tomato" for x in soup.ingredients]):
-                                    # puts tomato but not first one
-                                    shaped_reward[player_idx] += self.reward_shaping_params["FOLLOW_TOMATO"] # @GJX: Here
-                                    # print("follow tomato")
-                                    shaped_info[player_idx]["follow_tomato"] += 1
-                                elif len(soup.ingredients) == 1:
-                                    # first one
-                                    shaped_reward[player_idx] += self.reward_shaping_params["PLACE_FIRST_TOMATO"] # @GJX: Here
-                                    shaped_info[player_idx]["first_tomato"] += 1
-                                    new_state.put_first_tomato[player_idx] = True
+                        # # gjx test use, to be deleted
+                        # if self.layout_name == "far_tomato":
+                        #     if obj.name == "tomato":
+                        #         if self.is_potting_optimal(new_state, old_soup, soup):
+                        #             # only reward when placement is optimal
+                        #             shaped_reward[player_idx] += 0
+                        #         if len(soup.ingredients) >= 2 and self.is_potting_optimal(new_state, old_soup, soup) and all([x == "tomato" for x in soup.ingredients]):
+                        #             # puts tomato but not first one
+                        #             shaped_reward[player_idx] += self.reward_shaping_params["FOLLOW_TOMATO"] # @GJX: Here
+                        #             # print("follow tomato")
+                        #             shaped_info[player_idx]["follow_tomato"] += 1
+                        #         elif len(soup.ingredients) == 1:
+                        #             # first one
+                        #             shaped_reward[player_idx] += self.reward_shaping_params["PLACE_FIRST_TOMATO"] # @GJX: Here
+                        #             shaped_info[player_idx]["first_tomato"] += 1
+                        #             new_state.put_first_tomato[player_idx] = True
 
                         # Log potting
                         self.log_object_potting(events_infos, new_state, old_soup, soup, obj.name, player_idx)

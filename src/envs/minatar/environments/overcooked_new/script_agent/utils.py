@@ -129,7 +129,7 @@ def bfs(mdp, state, player_idx, move_mask=None):
     return dist, path
     
 
-def interact(mdp, state, player_idx, pre_goal, random, terrain_type, obj, pos_mask=None, move_mask=None):
+def interact(mdp, state, player_idx, pre_goal, random, terrain_type, obj, pos_mask=None, move_mask=None, random_state=None):
     """
     obj: List[str]
         "onion", "cooking_soup", "dish", "soup"(ready) or "empty", "can_put", "can_interact"
@@ -174,7 +174,8 @@ def interact(mdp, state, player_idx, pre_goal, random, terrain_type, obj, pos_ma
             candidates = mdp.get_valid_player_positions()
         candidates = [(x, y) for x, y in candidates if dist[y, x] != -1]
         if random:
-            goal = rd.choice(candidates)
+            goal = random_state.choice(range(len(candidates)))
+            goal = candidates[goal]
         else:
             for x, y in candidates:
                 if goal is None or dist[y, x] < dist[goal[1], goal[0]]:
@@ -187,7 +188,8 @@ def interact(mdp, state, player_idx, pre_goal, random, terrain_type, obj, pos_ma
         return Action.INTERACT, goal
     
     x, y = goal
-    action = rd.choice(Direction.ALL_DIRECTIONS)
+    action = random_state.choice(range(len(Direction.ALL_DIRECTIONS)))
+    action = Direction.ALL_DIRECTIONS[action]
     history = []
     while x!=pos[0] or y!=pos[1]:
         history.append((x, y, action))
@@ -200,7 +202,7 @@ def interact(mdp, state, player_idx, pre_goal, random, terrain_type, obj, pos_ma
     # print("history", history)
     return action, goal
 
-def random_move(mdp, state, player_idx, pre_goal, move_mask=None):
+def random_move(mdp, state, player_idx, pre_goal, move_mask=None, random_state= None):
     player = state.players[player_idx]
     pos, o = player.position, player.orientation
     i_pos = Action.move_in_direction(pos, o)
@@ -212,14 +214,16 @@ def random_move(mdp, state, player_idx, pre_goal, move_mask=None):
         # assert mdp.get_terrain_type_at_pos(pre_goal) in terrain_type
         if dist[pre_goal[1], pre_goal[0]] != -1:
             goal = pre_goal
-
+    assert random_state is not None, "random_state must be provided for random_move"
     if goal is None:
         candidates = mdp.get_valid_player_positions()
         candidates = [(x, y) for x, y in candidates if dist[y, x] != -1 and (move_mask is None or move_mask[y, x] == 1)]
-        goal = rd.choice(candidates)
+        goal = random_state.choice(range(len(candidates)))
+        goal = candidates[goal]
     
     x, y = goal
-    action = rd.choice(Direction.ALL_DIRECTIONS)
+    action = random_state.choice(range(len(Direction.ALL_DIRECTIONS)))
+    action = Direction.ALL_DIRECTIONS[action]
     history = []
     while x!=pos[0] or y!=pos[1]:
         history.append((x, y, action))

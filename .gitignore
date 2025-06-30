@@ -192,3 +192,5 @@ debug*
 google*
 plot*
 src/run.py
+analysis/data_org.py
+overcooked_render.py

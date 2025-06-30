@@ -177,14 +177,15 @@ import time
 def main_loop(initial_seed, sim_seed, plan_level, args):
     random.seed(sim_seed)
     current_node = Node(State(initial_seed = initial_seed))
+    # print(f"\n{current_node.state.env.state_string()}\n") 
     for l in range(args.levels):
         current_node = UCTSEARCH(args.num_sims, args.sim_level, plan_level, current_node)
-        print(f"Level {l+1}, Reward: {current_node.state.reward()}, Moves: {current_node.state.moves}")
-        print("Snake:", current_node.state.env.snake)
-        for i, c in enumerate(current_node.children):
-            print(i, c)
-        print(f"\n{current_node.state.env.state_string()}\n")
-        print("-----------------------------------------")
+        # print(f"Level {l+1}, Reward: {current_node.state.reward()}, Moves: {current_node.state.moves}")
+        # print("Snake:", current_node.state.env.snake)
+        # for i, c in enumerate(current_node.children):
+        #     print(i, c)
+        # print(f"\n{current_node.state.env.state_string()}\n")
+        # print("-----------------------------------------")
         if current_node.children == []:
             return {
                 "begin_seed": initial_seed // 1000 * 1000,
@@ -200,19 +201,19 @@ def jobs_to_schedule():
     # sim_level = 10
     # num_sims = 200
     # levels = 100
-    tasks = [f"{begin_seed}-{plan_level}" for begin_seed in [3001] for plan_level in [2]]
+    tasks = [f"{begin_seed}-{plan_level}" for begin_seed in [1000, 2000, 3000] for plan_level in [1, 2, 3]]
     instance = []
-    if not os.path.exists("logs-mcts-debug"):
-        os.makedirs("logs-mcts-debug")
+    if not os.path.exists("logs-mcts"):
+        os.makedirs("logs-mcts")
     for task in tasks:
         begin_seed, plan_level = map(int, task.split('-'))
-        with open(f"logs-mcts-debug/{begin_seed}_{plan_level}.log", 'w') as f:
+        with open(f"logs-mcts/{begin_seed}_{plan_level}.log", 'w') as f:
             f.write(f"Starting MCTS with num_sims={200}, levels={100}, sim_level={10}, begin_seed={begin_seed}, plan_level={plan_level}\n")
             f.write("Initial Seed, Reward, Level\n")
-        for initial_seed in [begin_seed + i for i in range(1)]:
-            for sim_seed in [42 + _ for _ in range(1)]:
+        for initial_seed in [begin_seed + i for i in range(10)]:
+            for sim_seed in [42 + _ for _ in range(3)]:
                 instance.append((initial_seed, sim_seed, plan_level))
-   # assert len(instance) == 270, "Expected 270 instances to process, got %d" % len(instance)
+    assert len(instance) == 270, "Expected 270 instances to process, got %d" % len(instance)
     seed_result = {}
     result = {}
     with ThreadPoolExecutor(max_workers=min(len(instance), 256)) as executor:
@@ -232,7 +233,7 @@ def jobs_to_schedule():
             ret = future.result()
             results.append(ret)
             print(f"Progress: {idx}/{len(futures)}")
-            with open(f"logs-mcts-debug/{ret['begin_seed']}_{ret['plan_level']}.log", 'a') as f:
+            with open(f"logs-mcts/{ret['begin_seed']}_{ret['plan_level']}.log", 'a') as f:
                 f.write(f"Initial Seed: {ret['initial_seed']}, Reward: {ret['reward']}, Level: {ret['level']}\n")
                 f.write(f"Final State:\n{ret['final_state']}\n")
                 f.write("---------------------------------------\n")

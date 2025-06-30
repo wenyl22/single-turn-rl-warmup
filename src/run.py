@@ -73,12 +73,11 @@ from game_loop import main_game_loop
 def jobs_to_schedule(Args):
     # game-method-difficulty-token_per_tick-format-repeat_times
     seed_num = 8
-    instance_groupnum = 6
-    instance_num = 144
+    instance_groupnum = 3
+    instance_num = 48
     temp = []
     temp.extend(
-        ['snake-fast-E-32768-A-4', 'snake-fast-M-32768-A-4', 'snake-fast-H-32768-A-4',
-        'snake-parallel-E-8192-T-2', 'snake-parallel-M-8192-T-2', 'snake-parallel-H-8192-T-2']
+        [f'snake-fast-{z}-{x}-A-4' for z in ['E', 'M', 'H'] for x in [32768]]
     )
     assert len(temp) == instance_groupnum, f"Expected {instance_groupnum} settings, got {len(temp)}"
     

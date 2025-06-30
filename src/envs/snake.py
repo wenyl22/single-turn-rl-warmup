@@ -25,6 +25,7 @@ def llm_state_builder(env: Env):
     return {
         "turn": env.game_turn,
         "snake_dir": env.dir,
+        "internal_obstacles": env.obstacle,
         "foods": foods,
         "snake": snake,
         "size": env.B
@@ -32,7 +33,9 @@ def llm_state_builder(env: Env):
 
 def state_to_description(state_for_llm, scratch_pad = None, fast = False):
     description = f"**Current Turn**: \( t_{0 if fast else 1} = {state_for_llm['turn']} \)\n"
-    description += f"**Cells occupied by walls**: `x=0`/`x={state_for_llm['size'] - 1}` or `y=0`/`y={state_for_llm['size'] - 1}`.\n"
+    description += f"**Cells occupied by walls**:\n"
+    description += f"\t - Border Cells: x=0/x={state_for_llm['size'] - 1} or y=0/y={state_for_llm['size'] - 1}.\n"
+    description += f"\t - Internal Obstacles: {state_for_llm['internal_obstacles']}\n"
     description += f"**Snake Positions**:{state_for_llm['snake']}\n**Snake Head Direction**: {state_for_llm['snake_dir']}\n"
     description += f"**Food Positions, Life Span and Value**:\n"
 

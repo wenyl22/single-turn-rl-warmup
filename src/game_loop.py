@@ -51,18 +51,18 @@ def main_game_loop(file, seed, args, api_keys):
         'fast_agent_prompt': [], 'fast_agent_response': [], 'follow_plan': [], 
         'action': [], 'reward': [], "slow_response_token_num": [], "fast_response_token_num": []
     }
-    ckpt = file.replace('0629', '0628')
-    if os.path.exists(ckpt):
-        logs = pd.read_csv(ckpt).to_dict(orient='list')
-        for a in logs['action']:
-            if env.env.terminal:
-                print("Warning: Environment is terminal, but action {} is still being processed.".format(a))
-                print(file)
-                #raise ValueError(f"Environment is terminal, but action {a} is still being processed.")
-            r, t = env.act(a)
-        print(f"env.reward: {env.env.reward}, game_turn: {env.env.game_turn}, terminal: {env.env.terminal}")
-        print(f"ckpt {ckpt} loaded, resuming from turn {env.env.game_turn}. reward {logs['reward'][-1]}")
-        assert env.env.reward == logs['reward'][-1], f"Reward mismatch: {env.env.reward} != {logs['reward'][-1]}"
+    # ckpt = file.replace('0629', '0630')
+    # if os.path.exists(ckpt):
+    #     logs = pd.read_csv(ckpt).to_dict(orient='list')
+    #     for key in logs:
+    #         if key == "Unnamed: 0":
+    #             print("Unrecognized key 'Unamed: 0' in logs, removing it.")
+    #         else:
+    #             assert len(logs[key]) == len(logs['action']), f"Length mismatch in logs {file}: {key} has {len(logs[key])} entries, but 'action' has {len(logs['action'])} entries."
+    #     logs = {k: v for k, v in logs.items() if k != "Unnamed: 0"}
+    #     for a in logs['action']:
+    #         r, t = env.act(a)
+    #     assert env.env.reward == logs['reward'][-1], f"Reward mismatch: {env.env.reward} != {logs['reward'][-1]}"
     while env.env.terminal == False:
         logs['render'].append('\n' + env.env.state_string())
         # print("\n" + env.env.state_string())
@@ -142,7 +142,6 @@ def main_game_loop(file, seed, args, api_keys):
             belief_state = ""
             while client.token_queue_len > 0:
                 client.run_slow_inference([], "", None)
-        print("Reward:", env.env.reward)
     df = pd.DataFrame(logs)
     df.to_csv(file)
     dir = '/'.join(file.split('/')[:-1])

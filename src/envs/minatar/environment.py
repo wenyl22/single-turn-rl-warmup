@@ -42,8 +42,6 @@ class Environment:
             self.random = np.random.RandomState(seed)
             self.env.random = self.random
             self.env.seed = seed
-            np.random.seed(seed)
-            random.seed(seed)
 
     # Wrapper for env.act
     def act(self, a):
