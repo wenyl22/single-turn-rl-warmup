@@ -69,15 +69,25 @@ from game_loop import main_game_loop
     #         if key == "seed":
     #             continue
     #         f.write(f"Mean {key}: {np.mean([r[key] for r in results])}\n")
-
+def check_args(args):
+    if args.method == "slow":
+        assert args.fast_max_token == 0, "Fast max token must be 0 when method is slow."
+        assert args.format == "A", "Format must be 'A' when method is slow."
+    if args.method == "fast":
+        assert args.fast_max_token == args.token_per_tick, "Fast max token must be equal to token per tick when method is fast." 
+    if args.method == "parallel":
+        assert args.fast_max_token < args.token_per_tick, "Fast max token must be less than token per tick when method is parallel." 
 def jobs_to_schedule(Args):
-    # game-method-difficulty-token_per_tick-format-repeat_times
+    # ATTENTION: For overcooked setting, different layouts must be run in seperate windows, because it configures Recipe class globally.
     seed_num = 8
     instance_groupnum = 3
     instance_num = 48
     temp = []
     temp.extend(
-        [f'snake-fast-{z}-{x}-A-4' for z in ['E', 'M', 'H'] for x in [32768]]
+        [f'snake-{a}-{b}-{c}-{d}-{e}-2' for a in ['E', 'M', 'H'] for b in ['parallel'] for c in [8192] for d in [2048] for e in ['T']]
+        #     + 
+        # [f'freeway-{a}-{b}-{c}-{d}-{e}-1' for a in ['E', 'M', 'H'] for b in ['parallel'] for c in [8192] for d in [2048] for e in ['T']]
+        # [f'overcooked-{a}-{b}-{c}-{d}-{e}-1' for a in ['E', 'H', 'I'] for b in ['parallel'] for c in [4096, 8192, 16384, 32768] for d in [2048] for e in ['T']]
     )
     assert len(temp) == instance_groupnum, f"Expected {instance_groupnum} settings, got {len(temp)}"
     
@@ -85,16 +95,17 @@ def jobs_to_schedule(Args):
     instance = []
     for s in settings:
         repeat_times = int(s.split('-')[-1])
-        log_file = f"logs-0629/{s.replace('-', '_')[:-2]}"
+        log_file = f"logs-0704/{s.replace('-', '_')[:-2]}"
         if not os.path.exists(log_file):
             os.makedirs(log_file)
         # make an argument instance
         args = argparse.Namespace(
             game=s.split('-')[0],
-            method=s.split('-')[1],
-            difficulty=s.split('-')[2],
+            difficulty=s.split('-')[1],
+            method=s.split('-')[2],
             token_per_tick=int(s.split('-')[3]),
-            format=s.split('-')[4],
+            fast_max_token=int(s.split('-')[4]),
+            format=s.split('-')[5],
             repeat_times=repeat_times,
             slow_model=Args.slow_model,
             slow_base_url= Args.slow_base_url,
@@ -103,6 +114,8 @@ def jobs_to_schedule(Args):
             meta_control= Args.meta_control,
             api_keys='to be assigned'
         )
+        # check validity
+        check_args(args)
         with open(log_file + '/args.log', 'w') as f:
             f.write("Arguments:\n")
             for arg, value in vars(args).items():
@@ -110,7 +123,8 @@ def jobs_to_schedule(Args):
             f.write("\n")
         for seed in range(seed_num):
             for r in range(repeat_times):
-                instance.append((log_file + f'/{r}_{seed}.csv', seed, args))
+                if not os.path.exists(f"{log_file}/{r}_{seed}.csv"):
+                    instance.append((log_file + f'/{r}_{seed}.csv', seed, args))
     # sort by r
     print(instance)
     assert len(instance) == instance_num, f"Expected {instance_num} instances, got {len(instance)}"

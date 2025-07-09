@@ -26,7 +26,7 @@ class StateVisualizer:
         "window_fps": 30,
         "player_colors": ['blue', 'green'],
         "is_rendering_hud": True,
-        "hud_font_size": 10,
+        "hud_font_size": 20,
         "hud_font_path": roboto_path, 
         "hud_system_font_name": None, # if set to None use hud_font_path
         "hud_font_color": (255,255,255), # white

@@ -51,6 +51,15 @@ class Action(object):
         STAY: "stay",
         INTERACT: INTERACT
     }
+    A_TO_CHAR = { 
+        Direction.NORTH: "D",
+        Direction.SOUTH: "U",
+        Direction.EAST: "R",
+        Direction.WEST: "L",
+        STAY: "S",
+        INTERACT: "I"
+    }
+
     NUM_ACTIONS = len(ALL_ACTIONS)
 
     @staticmethod
@@ -79,7 +88,8 @@ class Action(object):
 
     @staticmethod
     def sample(action_probs):
-        return np.random.choice(Action.ALL_ACTIONS, p=action_probs)
+        idx = np.random.choice(len(action_probs), p=action_probs)
+        return Action.INDEX_TO_ACTION[idx]
     
     @staticmethod
     def argmax(action_probs):

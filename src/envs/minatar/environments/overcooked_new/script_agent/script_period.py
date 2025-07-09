@@ -367,7 +367,7 @@ class Put_Ingredient_Everywhere(BaseScriptPeriod):
             if self.__current_period.done(mdp, state, player_idx):
                 assert player.has_object() and player.get_object().name in self.target_obj
                 self.__stage = 2
-                self.__current_period = Put_Object(terrain_type="X", random_put=True)
+                self.__current_period = Put_Object(terrain_type="XP", random_put=True)
             else:
                 return self.__current_period.step(mdp, state, player_idx)
         return self.__current_period.step(mdp, state, player_idx)

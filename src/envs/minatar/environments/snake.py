@@ -20,11 +20,22 @@ class Env:
             if (x, y) not in self.snake and (x, y) not in self.obstacle:
                 step -= 1
                 self.coords.remove((x, y))
-                if len(self.obstacle) < self.num_obstacle:
-                    self.obstacle.append((x, y))
+                self.obstacle.append((x, y))
         self.coords.remove(self.snake[0])
         self.random.shuffle(self.coords)
         self.random.shuffle(self.coords)
+        if len(self.obstacle) >= self.num_obstacle:
+            self.obstacle = self.obstacle[:self.num_obstacle]
+        else:
+            step = 3
+            while step > 0:
+                x = self.random.randint(1, self.B - 1)
+                y = self.random.randint(1, self.B - 1)
+                if (x, y) not in self.snake and (x, y) not in self.obstacle:
+                    step -= 1
+                    self.coords.remove((x, y))
+                    self.obstacle.append((x, y))
+            self.obstacle = self.obstacle[:self.num_obstacle]
         self.food = []
         self.food_attributes = [[0 for _ in range(self.B)] for _ in range(self.B)]
 
@@ -152,7 +163,8 @@ class Env:
         new_env.reward = self.reward
         new_env.terminal = self.terminal
         new_env.coords = self.coords.copy()
-        new_env.value = self.value.copy()
+        new_env.obstacle = self.obstacle.copy()
+        new_env.idx = self.idx
         new_env.B = self.B
         new_env.seed = self.seed
         return new_env

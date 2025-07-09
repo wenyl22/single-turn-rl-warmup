@@ -3,8 +3,8 @@ from envs.minatar.environments.snake import Env
 from copy import deepcopy
 seed_mapping = {
     'E': {0: 1000, 1: 1001, 2: 1002, 3: 1003, 4: 1004, 5: 1005, 6: 1006, 7: 1007},
-    'M': {0: 2000, 1: 2001, 2: 2002, 3: 2003, 4: 2004, 5: 2005, 6: 2006, 7: 2007},
-    'H': {0: 3000, 1: 3001, 2: 3002, 3: 3003, 4: 3004, 5: 3005, 6: 3006, 7: 3007},
+    'M': {0: 3000, 1: 3001, 2: 3002, 3: 3003, 4: 3004, 5: 3005, 6: 3006, 7: 3007},
+    'H': {0: 5000, 1: 5001, 2: 5002, 3: 5003, 4: 5004, 5: 5005, 6: 5006, 7: 5007}
 }
 def setup_env(seed, difficulty):
     env = Environment("snake", sticky_action_prob=0)
@@ -35,7 +35,7 @@ def state_to_description(state_for_llm, scratch_pad = None, fast = False):
     description = f"**Current Turn**: \( t_{0 if fast else 1} = {state_for_llm['turn']} \)\n"
     description += f"**Cells occupied by walls**:\n"
     description += f"\t - Border Cells: x=0/x={state_for_llm['size'] - 1} or y=0/y={state_for_llm['size'] - 1}.\n"
-    description += f"\t - Internal Obstacles: {state_for_llm['internal_obstacles']}\n"
+    description += f"\t - Internal Obstacles: {state_for_llm['internal_obstacles'] if len(state_for_llm['internal_obstacles']) > 0 else 'No internal obstacles'}\n"
     description += f"**Snake Positions**:{state_for_llm['snake']}\n**Snake Head Direction**: {state_for_llm['snake_dir']}\n"
     description += f"**Food Positions, Life Span and Value**:\n"
 

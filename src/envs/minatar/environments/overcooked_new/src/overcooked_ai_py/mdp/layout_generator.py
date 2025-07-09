@@ -324,7 +324,7 @@ class Grid(object):
 
     def __init__(self, shape):
         assert len(shape) == 2, "Grid must be 2 dimensional"
-        grid = (np.ones(shape) * TYPE_TO_CODE[COUNTER]).astype(np.int)
+        grid = (np.ones(shape) * TYPE_TO_CODE[COUNTER]).astype(np.int32)
         self.mtx = grid
         self.shape = np.array(shape)
         self.width = shape[0]

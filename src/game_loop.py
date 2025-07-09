@@ -6,7 +6,7 @@ import time
 import re
 import os
 
-def meta_controller(args, free, env):
+def meta_controller(args, idle, env):
     """
     Meta Controller decides whether to trigger slow agent based on:
     - Environment complexity
@@ -15,7 +15,7 @@ def meta_controller(args, free, env):
     if args.method == "fast":
         return False
     if args.meta_control == "continuous":
-        return free
+        return idle
     elif args.meta_control == "periodic":
         return env.env.game_turn % 4 == 0
     elif args.meta_control == "triggered":
@@ -43,36 +43,23 @@ def main_game_loop(file, seed, args, api_keys):
     client = ApiSingleThreadedLLMClient(args, api_keys)
     # set up env, load prompt - environment specific
     env, real_seed = setup_env(seed, args.difficulty)
-    belief_state = ""
+    memory = ""
     start_time = time.time()
     logs = {
         'description': [], 'render':[], 'meta_control': [],
-        'slow_agent_prompt':[], 'slow_agent_response':[], 'belief_state': [],
-        'fast_agent_prompt': [], 'fast_agent_response': [], 'follow_plan': [], 
+        'slow_agent_prompt':[], 'slow_agent_response':[], 'memory': [],
+        'fast_agent_prompt': [], 'fast_agent_response': [], 
         'action': [], 'reward': [], "slow_response_token_num": [], "fast_response_token_num": []
     }
-    # ckpt = file.replace('0629', '0630')
-    # if os.path.exists(ckpt):
-    #     logs = pd.read_csv(ckpt).to_dict(orient='list')
-    #     for key in logs:
-    #         if key == "Unnamed: 0":
-    #             print("Unrecognized key 'Unamed: 0' in logs, removing it.")
-    #         else:
-    #             assert len(logs[key]) == len(logs['action']), f"Length mismatch in logs {file}: {key} has {len(logs[key])} entries, but 'action' has {len(logs['action'])} entries."
-    #     logs = {k: v for k, v in logs.items() if k != "Unnamed: 0"}
-    #     for a in logs['action']:
-    #         r, t = env.act(a)
-    #     assert env.env.reward == logs['reward'][-1], f"Reward mismatch: {env.env.reward} != {logs['reward'][-1]}"
     while env.env.terminal == False:
         logs['render'].append('\n' + env.env.state_string())
-        # print("\n" + env.env.state_string())
         state_for_llm = llm_state_builder(env.env)
         state_description = state_to_description(state_for_llm, fast = False)
         fast_agent_response, slow_agent_response = "", ""
         fast_agent_prompt, slow_agent_prompt = "", ""
         fast_response_token_num, slow_response_token_num = 0, 0
         ### --- Slow Agent --- ###
-        meta_control = meta_controller(args, client.token_queue_len == 0, env)
+        meta_control = meta_controller(args, client.gen_text == "", env)
         if meta_control:
             messages = [ {"role": "user", "content": SLOW_AGENT_PROMPT + FORMAT + state_description} ]
             slow_agent_prompt = messages[-1]['content']
@@ -81,56 +68,41 @@ def main_game_loop(file, seed, args, api_keys):
         else:
             messages = []
         sampling_params = SamplingParams(temperature=0.6, top_p=0.95, max_tokens=32768)
-        slow_agent_response, turns, slow_response_token_num = client.run_slow_inference(messages, "", sampling_params)
-        ## --- Update Belief State --- ###
+        slow_agent_response, turns, slow_response_token_num = client.run_slow_inference(messages, sampling_params, env.env.game_turn)
+        ## --- Update Persistent Memory --- ###
         if args.method == "slow":
             temp = extract_boxed(slow_agent_response)
-            if temp != "":
-                belief_state = re.sub(r'[^' + ALL_ACTIONS + ']', '', temp)
-                belief_state = belief_state[turns:] if len(belief_state) > turns else ""
-        elif args.format == "T":
-            belief_state = f"""Guidance from a Previous Thinking Model: Turn \( t_1 = {env.env.game_turn - turns} \)\n"""
-            belief_state += slow_agent_response
-        elif args.format == "A" or args.format == "C":
-            if slow_agent_response != "":
-                belief_state = f"""**Guidance from a Previous Thinking Model:** Turn \( t_1 = {env.env.game_turn - turns} \)\n"""
-                if args.format == "A":
-                    belief_state += extract_boxed(slow_agent_response)
-                else:
-                    belief_state += slow_agent_response.split("</think>")[-1].strip()
-        logs['belief_state'].append(belief_state)
+            memory = re.sub(r'[^' + ALL_ACTIONS + ']', '', temp)
+            memory = memory[turns:] if len(memory) > turns else ""
+        if slow_agent_response != "":
+            memory = f"""**Guidance from a Previous Thinking Model:** Turn \( t_1 = {turns} \)\n"""
+            if args.format == "A":
+                memory += extract_boxed(slow_agent_response)
+            elif args.format == "C":
+                memory += slow_agent_response.split("</think>")[-1].strip()
+            else:
+                memory += slow_agent_response
+        logs['memory'].append(memory)
         ### --- Fast Agent --- ###
         if args.method == "slow":
-            action = belief_state[0] if belief_state != "" else DEFAULT_ACTION
-            belief_state = belief_state[1:] if belief_state != "" else ""
+            action = memory[0] if memory != "" else DEFAULT_ACTION
+            memory = memory[1:] if memory != "" else ""
         else:
-            state_description = state_to_description(state_for_llm, belief_state if belief_state != "" else None, fast = True)
+            state_description = state_to_description(state_for_llm, memory if memory != "" else None, fast = True)
             messages = [ {"role": "user", "content": FAST_AGENT_PROMPT + state_description} ]
             fast_agent_prompt = messages[-1]['content']
-            sampling_params = SamplingParams(temperature=1, top_p=1, max_tokens=8192)
-            fast_agent_response, fast_response_token_num = client.run_fast_inference(messages, sampling_params)
+            sampling_params = SamplingParams(temperature=1, top_p=1, max_tokens=args.fast_max_token)
+            fast_agent_response, fast_response_token_num = client.run_fast_inference(messages, sampling_params, ALL_ACTIONS, DEFAULT_ACTION)
             action = extract_boxed(fast_agent_response)
-            action = re.sub(r'[^' + ALL_ACTIONS + ']', '', action)
-            if action == "":
-                action = DEFAULT_ACTION
-            else:
-                action = action[-1]
         ### --- Act in Environment --- ###
         r, terminal = env.act(action)
         ### --- Log Information --- ###
-        follow_plan = False
-        if belief_state != "":
-            advice = belief_state.split(f"Turn {env.env.game_turn}: ")[-1].strip()
-            advice = re.sub(r'[^' + ALL_ACTIONS + ']', '', advice)
-            if advice in ALL_ACTIONS and advice != "":
-                follow_plan = advice[0] == action
         logs['description'].append(state_description)
         logs['meta_control'].append(meta_control)
         logs['slow_agent_prompt'].append(slow_agent_prompt)
         logs['slow_agent_response'].append(slow_agent_response)
         logs['fast_agent_prompt'].append(fast_agent_prompt)
         logs['fast_agent_response'].append(fast_agent_response)
-        logs['follow_plan'].append(follow_plan)
         logs['action'].append(action)
         logs['reward'].append(env.env.reward)
         logs['slow_response_token_num'].append(slow_response_token_num)
@@ -139,9 +111,10 @@ def main_game_loop(file, seed, args, api_keys):
         df.to_csv(file)
         if summarize(seed, args.difficulty, env):
             # clear the belief state and stop the slow agent
-            belief_state = ""
-            while client.token_queue_len > 0:
-                client.run_slow_inference([], "", None)
+            memory = ""
+            while client.gen_text != "":
+                client.run_slow_inference([], None, None)
+            client.to_flush = ""
     df = pd.DataFrame(logs)
     df.to_csv(file)
     dir = '/'.join(file.split('/')[:-1])

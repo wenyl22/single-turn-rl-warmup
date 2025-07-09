@@ -11,15 +11,36 @@ from minatar.environments.overcooked_new.config import get_config
 from minatar.environment import Environment
 from minatar.environments.overcooked_new.src.overcooked_ai_py.mdp.overcooked_mdp import Recipe
 difficulty_layout_mapping = {
-    'E': 'many_orders',
-    'M': 'distant_tomato',
+    'E': 'cc_easy',
+    'M': 'cc_medium',
+    'H': 'cc_hard',
+    'I': 'cc_insane',
 }
+def pair(seed, difficulty):
+    # if difficulty == 'E':
+    #     if seed % 2 == 0:
+    #         return "script:place_tomato_in_pot"
+    #     else:
+    #         return "script:place_tomato_and_deliver_soup"
+    # if difficulty == 'M':
+    #     if seed % 2 == 0:
+    #         return "script:place_tomato_in_pot"
+    #     else:
+    #         return "script:place_tomato_and_deliver_soup"
+    # if difficulty == 'H':
+    #     if seed % 2 == 0:
+    #         return "script:put_onion_everywhere"
+    #     else:
+    #         return "script:put_dish_everywhere"
+    return "script:put_onion_everywhere"
+
 orientation_to_char_mapping = {
     (0, 1): 'U',  # Up
     (0, -1): 'D',  # Down
     (-1, 0): 'L',  # Left
     (1, 0): 'R',  # Right
 }
+
 def setup_env(seed, difficulty):
     parser = get_config()
     all_args = parse_args([], parser)
@@ -27,12 +48,12 @@ def setup_env(seed, difficulty):
     all_args.env_name = "overcooked"
     all_args.algorithm_name = "population"
     all_args.agent0_policy_name = "script:LLM"
-    all_args.agent1_policy_name = "script:place_tomato_and_deliver_soup"
+    all_args.agent1_policy_name = pair(seed, difficulty)
     all_args.episode_length = 100
     all_args.num_agents = 2
     run_dir = Path("vislogs/overcooked-vislogs") / all_args.layout_name
     if not os.path.exists(str(run_dir)):
-        os.makedirs(str(run_dir))
+        os.makedirs(str(run_dir), exist_ok=True)
     env = Environment('overcooked', sticky_action_prob=0.0)
     env.seed(seed)
     env.env.all_args = all_args
@@ -57,6 +78,7 @@ def llm_state_builder(env: Env):
     all_order_info = env.gym_env.base_env.state.all_order_info()
     terrain = env.gym_env.base_mdp.terrain_pos_dict
     state_for_llm = {
+        "history": env.history if len(env.history[0]) <= 5 else [env.history[0][-5:], env.history[1][-5:]],
         "game_turn": env.game_turn,
         "state": state,
         "all_orders": all_order_info,
@@ -83,13 +105,18 @@ def state_to_description(state_for_llm, scratch_pad=None, fast = False):
     position = [0, 0]
     orientation = [0, 0]
     held_object = [0, 0]
+    history = [0, 0]
     for i in range(2):
         player = state_for_llm['state']['players'][i]
         position[i] = player['position']
         orientation[i] = orientation_to_char_mapping[player['orientation']]
         held_object[i] = deepcopy(player['held_object'])
+        if len(state_for_llm['history'][i]) > 0:
+            history[i] = ", ".join(state_for_llm['history'][i])
+        else:
+            history[i] = "No action history"
         if held_object[i] is not None:
-            held_object[i] = "one" + held_object[i]['name']
+            held_object[i] = "one " + held_object[i]['name']
             if held_object == "dish":
                 held_object[i] = "clean plate"
             elif held_object[i] == "soup":
@@ -133,7 +160,7 @@ def state_to_description(state_for_llm, scratch_pad=None, fast = False):
 
     description = GAME_STATE_PROMPT.format(
         kitchen_counter = kitchen_counters,
-        tomato = tomatoes,
+        tomato = tomatoes if len(tomatoes) > 0 else "No tomato dispensers",
         onion = onions,
         plate = plates,
         pot = pots,
@@ -143,9 +170,11 @@ def state_to_description(state_for_llm, scratch_pad=None, fast = False):
         my_position = position[0],
         my_orientation = orientation[0],
         my_holding = held_object[0],
+        my_action_history = history[0],
         he_position = position[1],
         he_orientation = orientation[1],
         he_holding = held_object[1],
+        he_action_history = history[1],
         kitchen_counter_state = text_kitchen_counter_state,
         pot_state = text_pot_state,
     )

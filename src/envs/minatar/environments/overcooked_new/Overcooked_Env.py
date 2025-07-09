@@ -852,7 +852,7 @@ class Overcooked(gym.Env):
         done = [done, done]
         available_actions = np.ones((2, len(Action.ALL_ACTIONS)), dtype=np.uint8)
 
-        return both_agents_ob, share_obs, reward, done, info, available_actions
+        return both_agents_ob, share_obs, reward, done, info, available_actions, joint_action
 
     def anneal_reward_shaping_factor(self, timesteps):
         """
