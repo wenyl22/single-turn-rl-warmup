@@ -12,7 +12,7 @@ class Env:
         self.coords = [(x, y) for x in range(1, self.B - 1) for y in range(1, self.B - 1)]
         self.snake = [(self.B // 2 - 1, self.B // 2 - 1)]
         self.num_obstacle = self.seed // 1000
-        step = 3
+        step = self.num_obstacle
         self.obstacle = []
         while step > 0:
             x = self.random.randint(1, self.B - 1)
@@ -27,15 +27,7 @@ class Env:
         if len(self.obstacle) >= self.num_obstacle:
             self.obstacle = self.obstacle[:self.num_obstacle]
         else:
-            step = 3
-            while step > 0:
-                x = self.random.randint(1, self.B - 1)
-                y = self.random.randint(1, self.B - 1)
-                if (x, y) not in self.snake and (x, y) not in self.obstacle:
-                    step -= 1
-                    self.coords.remove((x, y))
-                    self.obstacle.append((x, y))
-            self.obstacle = self.obstacle[:self.num_obstacle]
+            raise ValueError(f"Not enough obstacles generated: {len(self.obstacle)} < {self.num_obstacle}")
         self.food = []
         self.food_attributes = [[0 for _ in range(self.B)] for _ in range(self.B)]
 
@@ -63,7 +55,7 @@ class Env:
         self.idx += 1
         if self.idx >= len(self.coords):
             self.idx -= len(self.coords)
-        life_span = 12
+        life_span = 10
         value = 1
         new_food = (x, y)
         assert self.food_attributes[x][y] == 0 and new_food not in self.food, \
@@ -121,7 +113,7 @@ class Env:
             if l <= 1:
                 self.food.remove(food)
                 self.food_attributes[x][y] = 0
-        if self.game_turn % 2 == 1:
+        if self.game_turn % 3 == 1:
             self.spawn_food()
         self.reward += self.r
         self.terminal = True if self.game_turn >= 100 else False

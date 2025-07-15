@@ -16,8 +16,9 @@ def meta_controller(args, idle, env):
         return False
     if args.meta_control == "continuous":
         return idle
-    elif args.meta_control == "periodic":
-        return env.env.game_turn % 4 == 0
+    elif args.meta_control.startswith("periodic"):
+        f = int(args.meta_control[8:])
+        return env.env.game_turn % f == 0
     elif args.meta_control == "triggered":
         pass
 

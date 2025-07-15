@@ -180,7 +180,7 @@ results/
 *.sh
 count.py
 *.txt
-calc_token_num.py
+calc*
 *.png
 *.csv
 *.html
@@ -191,6 +191,10 @@ calc_token_num.py
 debug*
 google*
 plot*
-src/run.py
 analysis/data_org.py
 overcooked_render.py
+src/envs/minatar/environments/overcooked_new/src/overcooked_ai_py/data/testing/*
+analysis/*
+organize_all_files.py
+test*
+assets/*

@@ -76,7 +76,7 @@ def check_args(args):
     if args.method == "fast":
         assert args.fast_max_token == args.token_per_tick, "Fast max token must be equal to token per tick when method is fast." 
     if args.method == "parallel":
-        assert args.fast_max_token < args.token_per_tick, "Fast max token must be less than token per tick when method is parallel." 
+        assert args.fast_max_token <= args.token_per_tick, "Fast max token must be less than or equal to token per tick when method is parallel." 
 def jobs_to_schedule(Args):
     # ATTENTION: For overcooked setting, different layouts must be run in seperate windows, because it configures Recipe class globally.
     seed_num = 8
@@ -84,10 +84,9 @@ def jobs_to_schedule(Args):
     instance_num = 48
     temp = []
     temp.extend(
-        [f'snake-{a}-{b}-{c}-{d}-{e}-2' for a in ['E', 'M', 'H'] for b in ['parallel'] for c in [8192] for d in [2048] for e in ['T']]
-        #     + 
-        # [f'freeway-{a}-{b}-{c}-{d}-{e}-1' for a in ['E', 'M', 'H'] for b in ['parallel'] for c in [8192] for d in [2048] for e in ['T']]
-        # [f'overcooked-{a}-{b}-{c}-{d}-{e}-1' for a in ['E', 'H', 'I'] for b in ['parallel'] for c in [4096, 8192, 16384, 32768] for d in [2048] for e in ['T']]
+        [f'freeway-{a}-parallel-{b}-4096-T-{c}-2' for a in ['M'] for b in [8192] for c in ['periodic1', 'periodic2', 'periodic3']] 
+        # [f'snake-{a}-fast-8192-8192-A-1' for a in ['E', 'M', 'H']] + 
+        # [f'snake-{a}-parallel-8192-2048-T-1' for a in ['E', 'M', 'H']]
     )
     assert len(temp) == instance_groupnum, f"Expected {instance_groupnum} settings, got {len(temp)}"
     
@@ -95,7 +94,8 @@ def jobs_to_schedule(Args):
     instance = []
     for s in settings:
         repeat_times = int(s.split('-')[-1])
-        log_file = f"logs-0704/{s.replace('-', '_')[:-2]}"
+        game = s.split('-')[0]
+        log_file = f"metacontrol-logs-{game}/{s.replace('-', '_')[:-2]}"
         if not os.path.exists(log_file):
             os.makedirs(log_file)
         # make an argument instance
@@ -111,7 +111,7 @@ def jobs_to_schedule(Args):
             slow_base_url= Args.slow_base_url,
             fast_model= Args.fast_model,
             fast_base_url= Args.fast_base_url,
-            meta_control= Args.meta_control,
+            meta_control=s.split('-')[6],
             api_keys='to be assigned'
         )
         # check validity
@@ -162,6 +162,6 @@ if __name__ == "__main__":
     Args.add_argument('--fast_base_url', type=str, default=None, help='URL of the fast model server')
     Args.add_argument('--slow_model', type=str, default = 'deepseek-reasoner')
     Args.add_argument('--fast_model', type=str, default = 'deepseek-chat')
-    Args.add_argument('--meta_control', type=str, default='continuous', choices=['continuous', 'triggered', 'periodic'], help='method to trigger slow agent')
+    Args.add_argument('--meta_control', type=str, default='continuous', help='method to trigger slow agent')
     Args = Args.parse_args()
     jobs_to_schedule(Args)

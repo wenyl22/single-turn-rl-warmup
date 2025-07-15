@@ -12,9 +12,8 @@ from minatar.environment import Environment
 from minatar.environments.overcooked_new.src.overcooked_ai_py.mdp.overcooked_mdp import Recipe
 difficulty_layout_mapping = {
     'E': 'cc_easy',
-    'M': 'cc_medium',
-    'H': 'cc_hard',
-    'I': 'cc_insane',
+    'M': 'cc_hard',
+    'H': 'cc_insane',
 }
 def pair(seed, difficulty):
     # if difficulty == 'E':

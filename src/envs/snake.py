@@ -2,9 +2,9 @@ from envs.minatar.environment import Environment
 from envs.minatar.environments.snake import Env
 from copy import deepcopy
 seed_mapping = {
-    'E': {0: 1000, 1: 1001, 2: 1002, 3: 1003, 4: 1004, 5: 1005, 6: 1006, 7: 1007},
-    'M': {0: 3000, 1: 3001, 2: 3002, 3: 3003, 4: 3004, 5: 3005, 6: 3006, 7: 3007},
-    'H': {0: 5000, 1: 5001, 2: 5002, 3: 5003, 4: 5004, 5: 5005, 6: 5006, 7: 5007}
+    'E': {i: 1000 + i for i in range(32)},
+    'M': {i: 5000 + i for i in range(32)},
+    'H': {i: 8000 + i for i in range(32)},
 }
 def setup_env(seed, difficulty):
     env = Environment("snake", sticky_action_prob=0)

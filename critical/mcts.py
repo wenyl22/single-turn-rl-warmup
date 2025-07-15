@@ -201,7 +201,7 @@ def jobs_to_schedule():
     # sim_level = 10
     # num_sims = 200
     # levels = 100
-    tasks = [f"{begin_seed}-{plan_level}" for begin_seed in [1000, 2000, 3000] for plan_level in [1, 2, 3]]
+    tasks = [f"{begin_seed}-{plan_level}" for begin_seed in [5000] for plan_level in [1, 2, 3]]
     instance = []
     if not os.path.exists("logs-mcts"):
         os.makedirs("logs-mcts")
@@ -213,7 +213,7 @@ def jobs_to_schedule():
         for initial_seed in [begin_seed + i for i in range(10)]:
             for sim_seed in [42 + _ for _ in range(3)]:
                 instance.append((initial_seed, sim_seed, plan_level))
-    assert len(instance) == 270, "Expected 270 instances to process, got %d" % len(instance)
+    assert len(instance) == 90, "Expected 270 instances to process, got %d" % len(instance)
     seed_result = {}
     result = {}
     with ThreadPoolExecutor(max_workers=min(len(instance), 256)) as executor:
@@ -247,12 +247,12 @@ def jobs_to_schedule():
         for (begin_seed, plan_level, initial_seed), rewards in seed_result.items():
             mean_reward = sum(rewards) / len(rewards)
             std_reward = math.sqrt(sum([(r - mean_reward) ** 2 for r in rewards]) / len(rewards))
-            with open(f"logs-mcts-debug/{begin_seed}_{plan_level}.log", 'a') as f:
+            with open(f"logs-mcts/{begin_seed}_{plan_level}.log", 'a') as f:
                 f.write(f"Seed: {initial_seed}, Mean Reward: {mean_reward:.2f}, Std Reward: {std_reward:.2f}\n")
         for (begin_seed, plan_level), rewards in result.items():
             mean_reward = sum(rewards) / len(rewards)
             std_reward = math.sqrt(sum([(r - mean_reward) ** 2 for r in rewards]) / len(rewards))
-            with open(f"logs-mcts-debug/{begin_seed}_{plan_level}.log", 'a') as f:
+            with open(f"logs-mcts/{begin_seed}_{plan_level}.log", 'a') as f:
                 f.write(f"Seed: {begin_seed}, Plan Level: {plan_level}, Mean Reward: {mean_reward:.2f}, Std Reward: {std_reward:.2f}\n")
 jobs_to_schedule()
 # if __name__=="__main__":

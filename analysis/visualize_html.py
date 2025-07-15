@@ -150,16 +150,16 @@ for seed in seeds:
 
     html_content += f'<div class="seed-container seed-{seed}" style="display: {"block" if seed == 0 else "none"};">'
     page_index = 0
-    belief_state = ""
+    memory = ""
 
     for _, row in df.iterrows():
         render = row["render"]
-        belief_state = row["scratch_pad"] if "scratch_pad" in row else row['belief_state']
+        memory = row["scratch_pad"] if "scratch_pad" in row else row['memory']
         action = row["selected_action"] if "selected_action" in row else row['action']
         follow_plan = row["follow_plan"] if "follow_plan" in row else "Not Recorded"
         reward = row["reward"] if "reward" in row else "Not Recorded"
         meta_control = row["meta_control"] if "meta_control" in row else "Not Recorded"
-        dropped_items = ["render", "action", "follow_plan", 'reward', 'belief_state', 'meta_control', "Unnamed: 0"]
+        dropped_items = ["render", "action", "follow_plan", 'reward', 'memory', 'meta_control', "Unnamed: 0"]
         dropped_items = [item for item in dropped_items if item in row]
         other_columns = {key: preprocess_string(value) for key, value in row.drop(dropped_items).items()}
         other_columns_html = "".join(
@@ -178,7 +178,7 @@ for seed in seeds:
                     <h3>Meta Control:</h3>
                     <p>{meta_control}</p>
                     <h3>Belief State:</h3>
-                    <p>{belief_state}</p>
+                    <p>{memory}</p>
                     <h3>Follow Plan:</h3>
                     <p>{follow_plan}</p>
                     <h3>Selected Action | Total Reward</h3>
@@ -203,7 +203,7 @@ html_content += """
 output_path = args.f.replace("_seed.csv", "_visualization.html")
 if os.path.exists(output_path):
     os.remove(output_path)
-output_path = os.path.join(os.path.dirname(args.f), "visualization.html")
+output_path = os.path.join(os.path.dirname(args.f), os.path.dirname(args.f).split('/')[-1] + ".html")
 
 with open(output_path, "w") as f:
     f.write(html_content)
