@@ -65,7 +65,7 @@ def main_game_loop(file, seed, args, api_keys):
         if meta_control:
             messages = [ {"role": "user", "content": SLOW_AGENT_PROMPT + FORMAT + state_description} ]
             if args.method == "codegen":
-                messages = [ {"role": "user", "content": CODE_GENERATOR_PROMPT + FORMAT + state_description} ]
+                messages = [ {"role": "user", "content": CODE_GENERATOR_PROMPT + state_description} ]
             slow_agent_prompt = messages[-1]['content']
             if "gemini" in args.slow_model:
                 messages[-1]['content'] += "\n Remember to put the action sequence in \\boxed{...} format."

@@ -82,11 +82,11 @@ def check_args(args):
 def jobs_to_schedule(Args):
     # ATTENTION: For overcooked setting, different layouts must be run in seperate windows, because it configures Recipe class globally.
     seed_num = 8
-    instance_groupnum = 3
-    instance_num = 48
+    instance_groupnum = 1
+    instance_num = 8
     temp = []
     temp.extend(
-        [f'freeway-{a}-parallel-{b}-4096-T-{c}-2' for a in ['M'] for b in [8192] for c in ['periodic1', 'periodic2', 'periodic3']] 
+        [f'overcooked-{a}-codegen-{b}-0-A-{c}-1' for a in ['M'] for b in [8192] for c in ['continuous']] 
         # [f'snake-{a}-fast-8192-8192-A-1' for a in ['E', 'M', 'H']] + 
         # [f'snake-{a}-parallel-8192-2048-T-1' for a in ['E', 'M', 'H']]
     )
@@ -97,7 +97,7 @@ def jobs_to_schedule(Args):
     for s in settings:
         repeat_times = int(s.split('-')[-1])
         game = s.split('-')[0]
-        log_file = f"metacontrol-logs-{game}/{s.replace('-', '_')[:-2]}"
+        log_file = f"codegen-logs/{s.replace('-', '_')[:-2]}"
         if not os.path.exists(log_file):
             os.makedirs(log_file)
         # make an argument instance
