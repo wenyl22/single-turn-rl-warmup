@@ -5,6 +5,7 @@ from vllm import SamplingParams
 import time
 import re
 import os
+from utils.exe_utils import execute_code
 
 def meta_controller(args, idle, env):
     """
@@ -34,8 +35,8 @@ def main_game_loop(file, seed, args, api_keys):
         from envs.airraid import setup_env, llm_state_builder, state_to_description, summarize
         from envs.prompts.airraid import SLOW_AGENT_PROMPT, FAST_AGENT_PROMPT, DEFAULT_ACTION, ALL_ACTIONS, ACTION_FORMAT_PROMPT, CONCLUSION_FORMAT_PROMPT
     elif args.game == "overcooked":
-        from envs.overcooked import setup_env, llm_state_builder, state_to_description, summarize
-        from envs.prompts.overcooked import SLOW_AGENT_PROMPT, FAST_AGENT_PROMPT, DEFAULT_ACTION, ALL_ACTIONS, ACTION_FORMAT_PROMPT, CONCLUSION_FORMAT_PROMPT
+        from envs.overcooked import setup_env, llm_state_builder, state_to_description, state_to_json, summarize
+        from envs.prompts.overcooked import SLOW_AGENT_PROMPT, FAST_AGENT_PROMPT, DEFAULT_ACTION, ALL_ACTIONS, ACTION_FORMAT_PROMPT, CONCLUSION_FORMAT_PROMPT, CODE_GENERATOR_PROMPT
     else:
         raise ValueError(f"Game {args.game} is not supported.")
     FORMAT = ACTION_FORMAT_PROMPT if args.format == "A" else CONCLUSION_FORMAT_PROMPT
@@ -55,7 +56,7 @@ def main_game_loop(file, seed, args, api_keys):
     while env.env.terminal == False:
         logs['render'].append('\n' + env.env.state_string())
         state_for_llm = llm_state_builder(env.env)
-        state_description = state_to_description(state_for_llm, fast = False)
+        state_description = state_to_description(state_for_llm, fast = False, json_mode=args.method == "codegen")
         fast_agent_response, slow_agent_response = "", ""
         fast_agent_prompt, slow_agent_prompt = "", ""
         fast_response_token_num, slow_response_token_num = 0, 0
@@ -63,6 +64,8 @@ def main_game_loop(file, seed, args, api_keys):
         meta_control = meta_controller(args, client.gen_text == "", env)
         if meta_control:
             messages = [ {"role": "user", "content": SLOW_AGENT_PROMPT + FORMAT + state_description} ]
+            if args.method == "codegen":
+                messages = [ {"role": "user", "content": CODE_GENERATOR_PROMPT + FORMAT + state_description} ]
             slow_agent_prompt = messages[-1]['content']
             if "gemini" in args.slow_model:
                 messages[-1]['content'] += "\n Remember to put the action sequence in \\boxed{...} format."
@@ -85,11 +88,21 @@ def main_game_loop(file, seed, args, api_keys):
                 memory += slow_agent_response
         logs['memory'].append(memory)
         ### --- Fast Agent --- ###
-        if args.method == "slow":
+        if args.method == "codegen":
+            python_code_str = slow_agent_response.split('```python')[-1].split('```')[0].strip()
+            json_state = state_to_json(state_for_llm)
+            success, result = execute_code(python_code_str, json_state, timeout=60)
+            if not success or not result in ALL_ACTIONS:
+                action = DEFAULT_ACTION
+                fast_agent_response = f"Error executing code: {result}"
+            else: 
+                fast_agent_response = result
+                action = result
+        elif args.method == "slow":
             action = memory[0] if memory != "" else DEFAULT_ACTION
             memory = memory[1:] if memory != "" else ""
         else:
-            state_description = state_to_description(state_for_llm, memory if memory != "" else None, fast = True)
+            state_description = state_to_description(state_for_llm, memory if memory != "" else None, fast=True)
             messages = [ {"role": "user", "content": FAST_AGENT_PROMPT + state_description} ]
             fast_agent_prompt = messages[-1]['content']
             sampling_params = SamplingParams(temperature=1, top_p=1, max_tokens=args.fast_max_token)

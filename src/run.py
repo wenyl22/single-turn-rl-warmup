@@ -77,6 +77,8 @@ def check_args(args):
         assert args.fast_max_token == args.token_per_tick, "Fast max token must be equal to token per tick when method is fast." 
     if args.method == "parallel":
         assert args.fast_max_token <= args.token_per_tick, "Fast max token must be less than or equal to token per tick when method is parallel." 
+    if args.method == "codegen":
+        assert args.fast_max_token == 0, "Fast max token must be 0 when method is codegen."
 def jobs_to_schedule(Args):
     # ATTENTION: For overcooked setting, different layouts must be run in seperate windows, because it configures Recipe class globally.
     seed_num = 8

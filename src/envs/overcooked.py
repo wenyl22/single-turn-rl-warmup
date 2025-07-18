@@ -10,6 +10,8 @@ from pathlib import Path
 from minatar.environments.overcooked_new.config import get_config
 from minatar.environment import Environment
 from minatar.environments.overcooked_new.src.overcooked_ai_py.mdp.overcooked_mdp import Recipe
+from utils.dict_str_utils import dict_to_string_custom
+
 difficulty_layout_mapping = {
     'E': 'cc_easy',
     'M': 'cc_hard',
@@ -85,7 +87,99 @@ def llm_state_builder(env: Env):
     }
     return state_for_llm
 from prompts.overcooked import GAME_STATE_PROMPT
-def state_to_description(state_for_llm, scratch_pad=None, fast = False):
+
+def state_to_json(state_for_llm):
+    """
+    Convert the state_for_llm dictionary to a JSON-like string representation:
+        json_state = {
+        "environment": {
+            "tile_types": {
+                "Kitchen Counter": [[0, 0], [1, 0], [2, 0], [5, 0], [6, 0], [7, 0], [0, 1], [7, 1], [2, 2], [3, 2], [4, 2], [5, 2], [0, 3], [7, 3], [0, 4], [1, 4], [2, 4], [5, 4], [6, 4], [7, 4]],
+                "Tomato Dispenser": [],
+                "Onion Dispenser": [[3, 4], [4, 4]],
+                "Plate Dispenser": [[0, 2]],
+                "Pot": [[3, 0], [4, 0]],
+                "Serving Counter": [[7, 2]]
+            },
+            "recipe": {
+                "onions": 3,
+                "tomatoes": 0,
+                "reward": 20,
+                "cook_time": 5
+            }
+        },
+        "game_state": {
+            "turn": 29,
+            "players": {
+                "Alice": {
+                    "position": [2, 1],
+                    "orientation": "U",
+                    "holding": None,
+                    "action_history": ["L", "D", "I", "L", "U"]
+                },
+                "Bob": {
+                    "position": [4, 3],
+                    "orientation": "R",
+                    "holding": ["onion", 1],
+                    "action_history": ["I", "R", "U", "I", "R"]
+                }
+            },
+            "objects": {
+                "Kitchen Counter (2, 2)": ["onion", 1],
+                "Pot (3, 0)": {
+                    "onions": 2,
+                    "tomatoes": 0,
+                    "cooking": False,
+                }
+            }
+        }
+    }
+    """
+    
+    json_state = {
+        "environment": {
+            "tile_types": {
+                "Kitchen Counter": state_for_llm['layout']['X'], 
+                "Tomato Dispenser": state_for_llm['layout']['T'],
+                "Onion Dispenser": state_for_llm['layout']['O'],
+                "Plate Dispenser": state_for_llm['layout']['D'],
+                "Pot": state_for_llm['layout']['P'],
+                "Serving Counter": state_for_llm['layout']['S'],
+            },
+            "recipe": [
+                {
+                    "onions": len([ingredient for ingredient in recipe['ingredients'] if ingredient == Recipe.ONION]),
+                    "tomatoes": len([ingredient for ingredient in recipe['ingredients'] if ingredient == Recipe.TOMATO]),
+                    "reward": recipe['value'],
+                    "cook_time": recipe['time']
+                } for recipe in state_for_llm['all_orders']
+            ]
+        },
+        "game_state": {
+            "turn": state_for_llm['game_turn'],
+            "players": {
+                player_name: {
+                    "position": player['position'],
+                    "orientation": player['orientation'],
+                    "holding": player['holding'],
+                    "action_history": player['action_history']
+                } for player_name, player in state_for_llm['state']['players'].items()
+            },
+            "objects": {
+                f"{obj['name']} ({obj['position'][0]}, {obj['position'][1]})": obj['state']
+                for obj in state_for_llm['state']['objects']
+            }
+        }
+    }
+    return json_state
+
+def state_to_description(state_for_llm, scratch_pad=None, fast=False, json_mode=False):
+
+    # Json mode is used for code generation
+    if json_mode:
+        json_state = state_to_json(state_for_llm)
+        return f"```python\n{dict_to_string_custom(json_state)}\n```"
+
     kitchen_counters = state_for_llm['layout']['X']
     tomatoes = state_for_llm['layout']['T']
     onions = state_for_llm['layout']['O']
@@ -182,6 +276,8 @@ def state_to_description(state_for_llm, scratch_pad=None, fast = False):
         lines = scratch_pad.split('\n')
         for line in lines:
             description += f"> {line.strip()}\n"
+    
+
     return description
 
 def summarize(seed, difficulty, env):
