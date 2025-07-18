@@ -141,3 +141,5 @@ class ApiSingleThreadedLLMClient:
             if max_attempt == 0:
                 text += DEFAULT_ACTION + '}'
         return text, token_num
+    def run_slow_trigger(self):
+        

@@ -6,7 +6,7 @@ import time
 import re
 import os
 
-def meta_controller(args, idle, env):
+def meta_controller(args, client, env):
     """
     Meta Controller decides whether to trigger slow agent based on:
     - Environment complexity
@@ -15,12 +15,15 @@ def meta_controller(args, idle, env):
     if args.method == "fast":
         return False
     if args.meta_control == "continuous":
-        return idle
+        return client.gen_text == ""
     elif args.meta_control.startswith("periodic"):
         f = int(args.meta_control[8:])
         return env.env.game_turn % f == 0
     elif args.meta_control == "triggered":
+        return client.run_slow_trigger()
+    elif args.meta_control == "event":
         pass
+        
 
 def main_game_loop(file, seed, args, api_keys):
     # import from envs.{args.game}
@@ -60,7 +63,7 @@ def main_game_loop(file, seed, args, api_keys):
         fast_agent_prompt, slow_agent_prompt = "", ""
         fast_response_token_num, slow_response_token_num = 0, 0
         ### --- Slow Agent --- ###
-        meta_control = meta_controller(args, client.gen_text == "", env)
+        meta_control = meta_controller(args, client, env)
         if meta_control:
             messages = [ {"role": "user", "content": SLOW_AGENT_PROMPT + FORMAT + state_description} ]
             slow_agent_prompt = messages[-1]['content']
@@ -74,8 +77,8 @@ def main_game_loop(file, seed, args, api_keys):
         if args.method == "slow":
             temp = extract_boxed(slow_agent_response)
             memory = re.sub(r'[^' + ALL_ACTIONS + ']', '', temp)
-            memory = memory[turns:] if len(memory) > turns else ""
-        if slow_agent_response != "":
+            memory = memory[turns - env.env.game_turn:] if len(memory) > turns - env.env.game_turn else ""
+        elif slow_agent_response != "":
             memory = f"""**Guidance from a Previous Thinking Model:** Turn \( t_1 = {turns} \)\n"""
             if args.format == "A":
                 memory += extract_boxed(slow_agent_response)
