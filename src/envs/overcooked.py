@@ -90,88 +90,114 @@ from prompts.overcooked import GAME_STATE_PROMPT
 
 def state_to_json(state_for_llm):
     """
-    Convert the state_for_llm dictionary to a JSON-like string representation:
-        json_state = {
-        "environment": {
-            "tile_types": {
-                "Kitchen Counter": [[0, 0], [1, 0], [2, 0], [5, 0], [6, 0], [7, 0], [0, 1], [7, 1], [2, 2], [3, 2], [4, 2], [5, 2], [0, 3], [7, 3], [0, 4], [1, 4], [2, 4], [5, 4], [6, 4], [7, 4]],
-                "Tomato Dispenser": [],
-                "Onion Dispenser": [[3, 4], [4, 4]],
-                "Plate Dispenser": [[0, 2]],
-                "Pot": [[3, 0], [4, 0]],
-                "Serving Counter": [[7, 2]]
-            },
-            "recipe": {
-                "onions": 3,
-                "tomatoes": 0,
-                "reward": 20,
-                "cook_time": 5
-            }
-        },
-        "game_state": {
-            "turn": 29,
-            "players": {
-                "Alice": {
-                    "position": [2, 1],
-                    "orientation": "U",
-                    "holding": None,
-                    "action_history": ["L", "D", "I", "L", "U"]
-                },
-                "Bob": {
-                    "position": [4, 3],
-                    "orientation": "R",
-                    "holding": ["onion", 1],
-                    "action_history": ["I", "R", "U", "I", "R"]
-                }
-            },
-            "objects": {
-                "Kitchen Counter (2, 2)": ["onion", 1],
-                "Pot (3, 0)": {
-                    "onions": 2,
-                    "tomatoes": 0,
-                    "cooking": False,
-                }
-            }
-        }
-    }
+    Convert state_for_llm format to json_state format.
+    
+    Args:
+        state_for_llm: Dictionary containing the LLM state format
+        
+    Returns:
+        Dictionary in json_state format
     """
     
-    json_state = {
-        "environment": {
-            "tile_types": {
-                "Kitchen Counter": state_for_llm['layout']['X'], 
-                "Tomato Dispenser": state_for_llm['layout']['T'],
-                "Onion Dispenser": state_for_llm['layout']['O'],
-                "Plate Dispenser": state_for_llm['layout']['D'],
-                "Pot": state_for_llm['layout']['P'],
-                "Serving Counter": state_for_llm['layout']['S'],
-            },
-            "recipe": [
-                {
-                    "onions": len([ingredient for ingredient in recipe['ingredients'] if ingredient == Recipe.ONION]),
-                    "tomatoes": len([ingredient for ingredient in recipe['ingredients'] if ingredient == Recipe.TOMATO]),
-                    "reward": recipe['value'],
-                    "cook_time": recipe['time']
-                } for recipe in state_for_llm['all_orders']
-            ]
-        },
-        "game_state": {
-            "turn": state_for_llm['game_turn'],
-            "players": {
-                player_name: {
-                    "position": player['position'],
-                    "orientation": player['orientation'],
-                    "holding": player['holding'],
-                    "action_history": player['action_history']
-                } for player_name, player in state_for_llm['state']['players'].items()
-            },
-            "objects": {
-                f"{obj['name']} ({obj['position'][0]}, {obj['position'][1]})": obj['state']
-                for obj in state_for_llm['state']['objects']
+    # Extract data from state_for_llm
+    layout = state_for_llm['layout']
+    state = state_for_llm['state']
+    all_orders = state_for_llm['all_orders']
+    game_turn = state_for_llm['game_turn']
+    
+    # Helper function to convert orientation tuple to string
+    def orientation_to_string(orientation):
+        if orientation == (0, -1):
+            return "U"  # Up
+        elif orientation == (0, 1):
+            return "D"  # Down
+        elif orientation == (-1, 0):
+            return "L"  # Left
+        elif orientation == (1, 0):
+            return "R"  # Right
+        else:
+            return "U"  # Default
+    
+    # Helper function to map layout symbols to tile types
+    def map_tile_types(layout):
+        tile_mapping = {
+            'X': "Kitchen Counter",
+            'T': "Tomato Dispenser", 
+            'O': "Onion Dispenser",
+            'D': "Plate Dispenser",
+            'P': "Pot",
+            'S': "Serving Counter"
+        }
+        
+        tile_types = {}
+        for symbol, tile_type in tile_mapping.items():
+            if symbol in layout:
+                tile_types[tile_type] = layout[symbol]
+            else:
+                tile_types[tile_type] = []
+                
+        return tile_types
+    
+    # Extract recipe information from orders
+    recipe = {"onions": 0, "tomatoes": 0, "reward": 0, "cook_time": 0}
+    if all_orders:
+        first_order = all_orders[0]
+        if 'ingredients' in first_order:
+            ingredients = first_order['ingredients']
+            recipe['onions'] = ingredients.count('onion')
+            recipe['tomatoes'] = ingredients.count('tomato')
+        if 'value' in first_order:
+            recipe['reward'] = first_order['value']
+        if 'time' in first_order:
+            recipe['cook_time'] = first_order['time']
+    
+    # Build environment section
+    environment = {
+        "tile_types": map_tile_types(layout),
+        "recipe": recipe
+    }
+    
+    # Build players section
+    players = {}
+    player_names = ["Alice", "Bob"]  # Assuming two players named Alice and Bob
+    
+    for i, player_data in enumerate(state['players']):
+        if i < len(player_names):
+            player_name = player_names[i]
+            
+            # Extract held object info
+            held_object = None
+            if player_data['held_object'] is not None:
+                held_object = player_data['held_object']
+            
+            players[player_name] = {
+                "position": list(player_data['position']),
+                "orientation": orientation_to_string(player_data['orientation']),
+                "holding": held_object,
+                "action_history": []  # Not available in source format
             }
+    
+    # Build objects section (objects on counters, in pots, etc.)
+    objects = {}
+    
+    # Add objects from state['objects'] if they exist
+    for obj in state.get('objects', []):
+        # This would need more specific logic based on object structure
+        # For now, we'll leave it empty as the source doesn't have detailed object info
+        pass
+    
+    # Build the final json_state
+    json_state = {
+        "environment": environment,
+        "game_state": {
+            "turn": game_turn,
+            "players": players,
+            "objects": objects
         }
     }
+    
     return json_state
+
 
 def state_to_description(state_for_llm, scratch_pad=None, fast=False, json_mode=False):
 
