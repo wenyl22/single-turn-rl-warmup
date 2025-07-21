@@ -45,7 +45,13 @@ def main_game_loop(file, seed, args, api_keys):
     client = ApiSingleThreadedLLMClient(args, api_keys)
     # set up env, load prompt - environment specific
     env, real_seed = setup_env(seed, args.difficulty)
-    memory = ""
+    memory = "" 
+    # For codegen model, this is the last workable function string
+    if args.method == "codegen":
+        memory = """
+def next_action(json_state: dict) -> str:
+    return "S"
+"""
     start_time = time.time()
     logs = {
         'description': [], 'render':[], 'meta_control': [],
@@ -78,7 +84,7 @@ def main_game_loop(file, seed, args, api_keys):
             temp = extract_boxed(slow_agent_response)
             memory = re.sub(r'[^' + ALL_ACTIONS + ']', '', temp)
             memory = memory[turns:] if len(memory) > turns else ""
-        if slow_agent_response != "":
+        if slow_agent_response != "" and args.method != "codegen":
             memory = f"""**Guidance from a Previous Thinking Model:** Turn \( t_1 = {turns} \)\n"""
             if args.format == "A":
                 memory += extract_boxed(slow_agent_response)
@@ -92,12 +98,18 @@ def main_game_loop(file, seed, args, api_keys):
             python_code_str = slow_agent_response.split('```python')[-1].split('```')[0].strip()
             json_state = state_to_json(state_for_llm)
             success, result = execute_code(python_code_str, json_state, timeout=60)
+            if not success or not result in ALL_ACTIONS: 
+                success, result = execute_code(memory, json_state, timeout=120)
+            else:
+                memory = python_code_str
+
             if not success or not result in ALL_ACTIONS:
                 action = DEFAULT_ACTION
                 fast_agent_response = f"Error executing code: {result}"
             else: 
                 fast_agent_response = result
                 action = result
+
         elif args.method == "slow":
             action = memory[0] if memory != "" else DEFAULT_ACTION
             memory = memory[1:] if memory != "" else ""

@@ -1,71 +1,90 @@
-import json
-import signal
 import threading
-from typing import Dict, Any, Union, Tuple
+import time
+import sys
+from typing import Tuple, Any, Optional
+import traceback
+import json
+from concurrent.futures import ThreadPoolExecutor, TimeoutError
 
-def execute_code(python_code_str: str, json_state: Union[str, Dict[str, Any]], timeout: int = 60) -> Tuple[bool, Any]:
+
+def execute_code(python_code_str: str, json_state: dict, timeout: int = 60) -> Tuple[bool, Any]:
     """
-    执行包含next_action函数的Python代码字符串，支持超时控制
+    执行 Python 代码字符串，并在指定时间内返回结果。
     
     Args:
-        python_code_str: 包含next_action函数的Python代码字符串
-        json_state: JSON状态对象，可以是字符串或字典
-        timeout: 超时时间（秒），默认60秒
+        python_code_str (str): 包含 Python 函数定义的代码字符串
+        json_state (dict): 传递给函数的 JSON 状态对象
+        timeout (int): 超时时间（秒），默认为 60 秒
     
     Returns:
-        (success, result): 
-        - success: bool, 是否执行成功
-        - result: 执行结果(成功时)或错误信息(失败时)
+        Tuple[bool, Any]: (是否成功执行, 执行结果或错误信息)
+        - 如果成功: (True, 函数返回值)
+        - 如果失败: (False, 错误信息字符串)
     """
     
-    # 存储执行结果的容器
-    result_container = {'success': False, 'result': None, 'finished': False}
+    def _execute_function(code_str, state):
+        """实际执行函数的内部方法"""
+        # 创建一个安全的执行环境
+        # 只允许必要的内置函数，避免安全风险
+        safe_globals = {
+            '__builtins__': {
+                'abs': abs,
+                'min': min,
+                'max': max,
+                'len': len,
+                'range': range,
+                'enumerate': enumerate,
+                'zip': zip,
+                'dict': dict,
+                'list': list,
+                'tuple': tuple,
+                'set': set,
+                'str': str,
+                'int': int,
+                'float': float,
+                'bool': bool,
+                'print': print,  # 可选：如果需要调试输出
+            }
+        }
+        
+        # 执行代码字符串，将函数定义加载到命名空间
+        exec(code_str, safe_globals)
+        
+        # 检查是否定义了 next_action 函数
+        if 'next_action' not in safe_globals:
+            raise ValueError("代码中未找到 'next_action' 函数定义")
+        
+        # 获取函数引用
+        next_action_func = safe_globals['next_action']
+        
+        # 验证输入参数
+        if not isinstance(state, dict):
+            raise TypeError("json_state 参数必须是字典类型")
+        
+        # 执行函数
+        return next_action_func(state)
     
-    def target_function():
-        try:
-            # 处理json_state
-            if isinstance(json_state, str):
-                parsed_state = json.loads(json_state)
-            else:
-                parsed_state = json_state
+    try:
+        # 使用 ThreadPoolExecutor 实现超时控制
+        with ThreadPoolExecutor(max_workers=1) as executor:
+            future = executor.submit(_execute_function, python_code_str, json_state)
             
-            # 创建安全的执行环境
-            safe_globals = {'__builtins__': {}}
-            
-            # 执行代码并获取next_action函数
-            exec(python_code_str, safe_globals)
-            
-            if 'next_action' not in safe_globals:
-                result_container['success'] = False
-                result_container['result'] = "代码中未找到next_action函数"
-                return
-            
-            # 执行next_action函数
-            result = safe_globals['next_action'](parsed_state)
-            result_container['success'] = True
-            result_container['result'] = result
-            
-        except Exception as e:
-            result_container['success'] = False
-            result_container['result'] = f"{type(e).__name__}: {str(e)}"
-        finally:
-            result_container['finished'] = True
+            try:
+                # 等待结果，设置超时
+                result = future.result(timeout=timeout)
+                return True, result
+                
+            except TimeoutError:
+                return False, f"代码执行超时（超过 {timeout} 秒）"
+        
+            except Exception as e:
+                # 处理在线程中发生的异常
+                return False, f"执行异常: {type(e).__name__}: {str(e)}"
+    except SyntaxError as e:
+        return False, f"语法错误: {str(e)}"
     
-    # 创建并启动线程
-    thread = threading.Thread(target=target_function)
-    thread.daemon = True  # 守护线程，主程序退出时自动结束
-    thread.start()
-    
-    # 等待线程完成或超时
-    thread.join(timeout)
-    
-    if thread.is_alive():
-        # 超时了，线程仍在运行
-        return False, f"代码执行超时（超过{timeout}秒）"
-    elif result_container['finished']:
-        # 正常完成
-        return result_container['success'], result_container['result']
-    else:
-        # 异常情况
-        return False, "代码执行异常终止"
-    
+    except Exception as e:
+        # 捕获所有其他异常
+        error_msg = f"运行时错误: {type(e).__name__}: {str(e)}"
+        return False, error_msg
+   
