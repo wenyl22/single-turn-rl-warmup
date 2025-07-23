@@ -88,116 +88,163 @@ def llm_state_builder(env: Env):
     return state_for_llm
 from prompts.overcooked import GAME_STATE_PROMPT
 
+# def state_to_json(state_for_llm):
+#     """
+#     Convert state_for_llm format to json_state format.
+    
+#     Args:
+#         state_for_llm: Dictionary containing the LLM state format
+        
+#     Returns:
+#         Dictionary in json_state format
+#     """
+    
+#     # Extract data from state_for_llm
+#     layout = state_for_llm['layout']
+#     state = state_for_llm['state']
+#     all_orders = state_for_llm['all_orders']
+#     game_turn = state_for_llm['game_turn']
+    
+#     # Helper function to map layout symbols to tile types
+#     def map_tile_types(layout):
+#         tile_mapping = {
+#             'X': "Kitchen Counter",
+#             'T': "Tomato Dispenser", 
+#             'O': "Onion Dispenser",
+#             'D': "Plate Dispenser",
+#             'P': "Pot",
+#             'S': "Serving Counter"
+#         }
+        
+#         tile_types = {}
+#         for symbol, tile_type in tile_mapping.items():
+#             if symbol in layout:
+#                 tile_types[tile_type] = layout[symbol]
+#             else:
+#                 tile_types[tile_type] = []
+                
+#         return tile_types
+    
+#     # Extract recipe information from orders
+#     recipe = {"onions": 0, "tomatoes": 0, "reward": 0, "cook_time": 0}
+#     if all_orders:
+#         first_order = all_orders[0]
+#         if 'ingredients' in first_order:
+#             ingredients = first_order['ingredients']
+#             recipe['onions'] = ingredients.count('onion')
+#             recipe['tomatoes'] = ingredients.count('tomato')
+#         if 'value' in first_order:
+#             recipe['reward'] = first_order['value']
+#         if 'time' in first_order:
+#             recipe['cook_time'] = first_order['time']
+    
+#     # Build environment section
+#     environment = {
+#         "tile_types": map_tile_types(layout),
+#         "recipe": recipe
+#     }
+    
+#     # Build players section
+#     players = {}
+#     player_names = ["Alice", "Bob"]  # Assuming two players named Alice and Bob
+    
+#     for i, player_data in enumerate(state['players']):
+#         if i < len(player_names):
+#             player_name = player_names[i]
+            
+#             # Extract held object info
+#             held_object = None
+#             if player_data['held_object'] is not None:
+#                 held_object = player_data['held_object']
+            
+#             players[player_name] = {
+#                 "position": list(player_data['position']),
+#                 "orientation": orientation_to_char_mapping[player_data['orientation']],
+#                 "holding": held_object,
+#                 "action_history": []  # Not available in source format
+#             }
+    
+#     # Build objects section (objects on counters, in pots, etc.)
+#     objects = {}
+    
+#     # Add objects from state['objects'] if they exist
+#     for obj in state.get('objects', []):
+#         # This would need more specific logic based on object structure
+#         # For now, we'll leave it empty as the source doesn't have detailed object info
+#         pass
+    
+#     # Build the final json_state
+#     json_state = {
+#         "environment": environment,
+#         "game_state": {
+#             "turn": game_turn,
+#             "players": players,
+#             "objects": objects
+#         }
+#     }
+    
+#     return json_state
+
 def state_to_json(state_for_llm):
     """
     Convert state_for_llm format to json_state format.
     
     Args:
-        state_for_llm: Dictionary containing the LLM state format
+        state_for_llm (dict): Input state in LLM format
         
     Returns:
-        Dictionary in json_state format
+        dict: State in JSON format
     """
     
-    # Extract data from state_for_llm
-    layout = state_for_llm['layout']
-    state = state_for_llm['state']
-    all_orders = state_for_llm['all_orders']
-    game_turn = state_for_llm['game_turn']
-    
-    # Helper function to convert orientation tuple to string
-    def orientation_to_string(orientation):
-        if orientation == (0, -1):
-            return "U"  # Up
-        elif orientation == (0, 1):
-            return "D"  # Down
-        elif orientation == (-1, 0):
-            return "L"  # Left
-        elif orientation == (1, 0):
-            return "R"  # Right
-        else:
-            return "U"  # Default
-    
-    # Helper function to map layout symbols to tile types
-    def map_tile_types(layout):
-        tile_mapping = {
-            'X': "Kitchen Counter",
-            'T': "Tomato Dispenser", 
-            'O': "Onion Dispenser",
-            'D': "Plate Dispenser",
-            'P': "Pot",
-            'S': "Serving Counter"
-        }
-        
-        tile_types = {}
-        for symbol, tile_type in tile_mapping.items():
-            if symbol in layout:
-                tile_types[tile_type] = layout[symbol]
-            else:
-                tile_types[tile_type] = []
-                
-        return tile_types
-    
-    # Extract recipe information from orders
-    recipe = {"onions": 0, "tomatoes": 0, "reward": 0, "cook_time": 0}
-    if all_orders:
-        first_order = all_orders[0]
-        if 'ingredients' in first_order:
-            ingredients = first_order['ingredients']
-            recipe['onions'] = ingredients.count('onion')
-            recipe['tomatoes'] = ingredients.count('tomato')
-        if 'value' in first_order:
-            recipe['reward'] = first_order['value']
-        if 'time' in first_order:
-            recipe['cook_time'] = first_order['time']
-    
-    # Build environment section
-    environment = {
-        "tile_types": map_tile_types(layout),
-        "recipe": recipe
+    # Layout symbol to name mapping
+    layout_mapping = {
+        'X': 'Kitchen Counter',
+        'P': 'Pot',
+        ' ': 'Empty Floor',
+        'D': 'Plate Dispenser',
+        'S': 'Serving Counter',
+        'O': 'Onion Dispenser',
+        'T': 'Tomato Dispenser'
     }
     
-    # Build players section
-    players = {}
-    player_names = ["Alice", "Bob"]  # Assuming two players named Alice and Bob
+    # Player names mapping
+    player_names = ['Alice', 'Bob']
     
-    for i, player_data in enumerate(state['players']):
-        if i < len(player_names):
-            player_name = player_names[i]
-            
-            # Extract held object info
-            held_object = None
-            if player_data['held_object'] is not None:
-                held_object = player_data['held_object']
-            
-            players[player_name] = {
-                "position": list(player_data['position']),
-                "orientation": orientation_to_string(player_data['orientation']),
-                "holding": held_object,
-                "action_history": []  # Not available in source format
-            }
-    
-    # Build objects section (objects on counters, in pots, etc.)
-    objects = {}
-    
-    # Add objects from state['objects'] if they exist
-    for obj in state.get('objects', []):
-        # This would need more specific logic based on object structure
-        # For now, we'll leave it empty as the source doesn't have detailed object info
-        pass
-    
-    # Build the final json_state
-    json_state = {
-        "environment": environment,
-        "game_state": {
-            "turn": game_turn,
-            "players": players,
-            "objects": objects
+    # Convert players from list to dictionary with names
+    players_dict = {}
+    for i, player in enumerate(state_for_llm['state']['players']):
+        player_name = player_names[i] if i < len(player_names) else f'Player{i+1}'
+        players_dict[player_name] = {
+            'position': player['position'],
+            'orientation': player['orientation'],
+            'held_object': player['held_object'],
+            'action_history': state_for_llm['history'][i] if i < len(state_for_llm['history']) else []
         }
+    
+    # Convert layout from symbol keys to descriptive names
+    layout_dict = {}
+    for symbol, positions in state_for_llm['layout'].items():
+        layout_name = layout_mapping.get(symbol)
+        layout_dict[layout_name] = positions
+    
+    # Rename 'all_orders' to 'recipes' in state
+    state_recipes = state_for_llm['state']['all_orders']
+    
+    # Build the json_state
+    json_state = {
+        'game_turn': state_for_llm['game_turn'],
+        'state': {
+            'players': players_dict,
+            'objects': state_for_llm['state']['objects'],
+            'bonus_orders': state_for_llm['state']['bonus_orders'],
+            'recipes': state_recipes,
+            'timestep': state_for_llm['state']['timestep']
+        },
+        'all_orders': state_for_llm['all_orders'],
+        'layout': layout_dict
     }
     
     return json_state
-
 
 def state_to_description(state_for_llm, scratch_pad=None, fast=False, json_mode=False):
 
