@@ -27,7 +27,7 @@ def main_game_loop(file, seed, args, api_keys):
     # import from envs.{args.game}
     if args.game == "freeway":
         from envs.freeway import setup_env, llm_state_builder, state_to_description, summarize
-        from envs.prompts.freeway import SLOW_AGENT_PROMPT, FAST_AGENT_PROMPT, DEFAULT_ACTION, ALL_ACTIONS, ACTION_FORMAT_PROMPT, CONCLUSION_FORMAT_PROMPT
+        from envs.prompts.freeway import SLOW_AGENT_PROMPT, FAST_AGENT_PROMPT, DEFAULT_ACTION, ALL_ACTIONS, ACTION_FORMAT_PROMPT, CONCLUSION_FORMAT_PROMPT, CODE_GENERATOR_PROMPT
     elif args.game == "snake":
         from envs.snake import setup_env, llm_state_builder, state_to_description, summarize
         from envs.prompts.snake import SLOW_AGENT_PROMPT, FAST_AGENT_PROMPT, DEFAULT_ACTION, ALL_ACTIONS, ACTION_FORMAT_PROMPT, CONCLUSION_FORMAT_PROMPT

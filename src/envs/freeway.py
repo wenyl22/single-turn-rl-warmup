@@ -3,6 +3,8 @@ import os
 sys.path.append(os.path.dirname(os.path.abspath(__file__)))
 from minatar.environment import Environment
 from minatar.environments.freeway import Env
+from utils.dict_str_utils import dict_to_string_custom
+
 seed_mapping = {
     'E': { 0: (1000, 13), 1: (1001, 11), 2: (1002, 11), 3: (1003, 11), 4: (1013, 13), 5: (1014, 12), 6: (1016, 11), 7: (1018, 11)},
     'M': { 0: (1069, 12), 1: (1093, 14), 2: (1536, 14), 3: (1858, 16), 4: (1338, 14), 5: (2496, 14), 6: (1933, 15), 7: (1863, 16)},
@@ -67,7 +69,16 @@ def llm_state_builder(env: Env):
     }
     return state_for_llm
 
-def state_to_description(state_for_llm, scratch_pad = None, fast = False):
+
+def state_to_json(state_for_llm):
+    json_state = state_for_llm.copy()
+    return json_state
+
+def state_to_description(state_for_llm, scratch_pad = None, fast = False, json_mode = False):
+    if json_mode:
+        json_state = state_to_json(state_for_llm)
+        return f"```python\n{dict_to_string_custom(json_state)}\n```"
+
     description = f"""**Current Turn:** \( t_{0 if fast else 1} = {state_for_llm['turn']} \) \n"""
     description += f"""**Player Position:** \( (0, {state_for_llm['player_states']}) \)\n"""
     description += f"""**Car State**:
