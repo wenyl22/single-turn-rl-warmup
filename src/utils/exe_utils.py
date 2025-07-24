@@ -26,26 +26,7 @@ def execute_code(python_code_str: str, json_state: dict, timeout: int = 60) -> T
         """实际执行函数的内部方法"""
         # 创建一个安全的执行环境
         # 只允许必要的内置函数，避免安全风险
-        safe_globals = {
-            '__builtins__': {
-                'abs': abs,
-                'min': min,
-                'max': max,
-                'len': len,
-                'range': range,
-                'enumerate': enumerate,
-                'zip': zip,
-                'dict': dict,
-                'list': list,
-                'tuple': tuple,
-                'set': set,
-                'str': str,
-                'int': int,
-                'float': float,
-                'bool': bool,
-                'print': print,  # 可选：如果需要调试输出
-            }
-        }
+        safe_globals = {}
         
         # 执行代码字符串，将函数定义加载到命名空间
         exec(code_str, safe_globals)
