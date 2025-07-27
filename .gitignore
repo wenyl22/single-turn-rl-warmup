@@ -198,3 +198,5 @@ analysis/*
 organize_all_files.py
 test*
 assets/*
+csv_org.py
+stats.py

@@ -15,6 +15,7 @@ class Env:
         self.terminal = False
         self.reward = 0
         self.game_turn = 0
+        self.new_car = True
 
     # Randomize car speeds and directions
     def _randomize_cars(self):
@@ -59,6 +60,7 @@ class Env:
     def act(self, a):
         self.r = 0
         self.game_turn += 1
+        self.new_car = False
         assert not self.terminal
         if a == 'U':
             self.pos = max(0, self.pos - 1)
@@ -80,8 +82,10 @@ class Env:
             dir = -1 if car[3] > 0 else 1
             if car[0] < 0:
                 car[0] = 8
+                self.new_car = True
             elif car[0] > 8:
                 car[0] = 0
+                self.new_car = True
             else:
                 if(abs(car[3]) >= 1):
                     car[2] -= 1
@@ -148,3 +152,6 @@ class Env:
         env.game_turn = self.game_turn
         env.reward = self.reward
         return env
+    def has_event(self):
+        # Check if a new car just appeared
+        return self.new_car

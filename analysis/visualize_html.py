@@ -116,7 +116,7 @@ sys.path.append(os.path.join(os.path.dirname(os.path.dirname(__file__)), "src"))
 parser = argparse.ArgumentParser(description='Visualize LLM responses from CSV files.')
 parser.add_argument('--f', type=str, default='deepseek-reasoner/2025-04-30-23-22-12_8192_0.csv', help='Path to the CSV file')
 args = parser.parse_args()
-args.f = args.f.replace("_0.csv", "_seed.csv")
+args.f = args.f.replace("0.csv", "seed.csv")
 if "freeway" in args.f:
     from envs.freeway import seed_mapping
     difficulty = 'E' if 'E' in args.f else 'M' if 'M' in args.f else 'H' if 'H' in args.f else 'M'

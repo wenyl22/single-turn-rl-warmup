@@ -1,11 +1,11 @@
 import threading
 from openai import OpenAI
-from generate import generate
+from generate import generate, generate_s1
 from anthropic import AnthropicVertex
 from transformers import AutoTokenizer
 from google import genai
 import time
-class ApiSingleThreadedLLMClient:
+class LLMClient:
     def __init__(self, args, api_keys):
         self.api_keys = api_keys
         self.to_flush = ""
@@ -27,6 +27,7 @@ class ApiSingleThreadedLLMClient:
         self.slow_base_url = args.slow_base_url
         self.fast_model = args.fast_model
         self.fast_base_url = args.fast_base_url
+        self.budget_method = args.budget_method
         self.add_new_thread(0)
 
     def add_new_thread(self, idx):
@@ -54,6 +55,13 @@ class ApiSingleThreadedLLMClient:
             return {"text": "", "token_num": 0}
         llm = self.slow_llm if not fast else self.fast_llm
         model = self.slow_model if not fast else self.fast_model
+        if self.budget_method == "s1":
+            return generate_s1(llm, model, messages, sampling_params, fast)
+        if self.budget_method == "constrainedCoT": # Let’s think a bit step by step and limit the answer length to xxx words.
+            return generate_constrainedCoT(llm, model, messages, sampling_params, fast)
+        # SoT: 3 formats
+        # Concise CoT: Be concise
+            
         return generate(llm, model, messages, sampling_params, fast)
     def run_slow_inference(self, messages, sampling_params, turn):
         _token_num = 0
@@ -84,40 +92,7 @@ class ApiSingleThreadedLLMClient:
         if self.gen_accum + self.fast_max_token >= self.gen_token_num:
             self.gen_text = ""
         return _text, _turn, _token_num
-        # if messages != []:
-        #     self.gen_accum = 0
-        #     self.token_queue_len = 0
-        #     self.resp = ""
-        # turn = self.gen_accum // self.token_per_tick
-        # temp = self.token_queue_len
-        # # self.gen_accum += self.token_per_tick
-        # # if self.token_queue_len > 0:
-        # #     if self.token_queue_len <= self.gen_accum:
-        # #         self.gen_accum = 0
-        # #         self.token_queue_len = 0
-        # #         return self.resp, turn, temp
-        # #     else:
-        # #         if self.format == 'T':
-        # #             resp = self.tokenizer.decode(self.token_queue[:self.gen_accum], skip_special_tokens=True)
-        # #         else:
-        # #             resp = DEFAULT_COMPLETION
-        # #         return resp, turn, 0
-        # response = self.generate(messages, sampling_params)
-        # self.resp = response['text']
-        # self.token_queue_len = response['token_num']
-        # if self.format == 'T':
-        #     self.token_queue = self.tokenizer.encode(self.resp)
-        
-        # # if self.gen_accum >= self.token_queue_len:
-        # #     self.gen_accum = 0
-        # #     self.token_queue_len = 0
-        # #     return self.resp, turn, temp 
-        # # else:
-        # #     if self.format == 'T':
-        # #         resp = self.tokenizer.decode(self.token_queue[:self.gen_accum], skip_special_tokens=True)
-        # #     else:
-        # #         resp = DEFAULT_COMPLETION
-        # #     return resp, turn, 0
+
     def run_fast_inference(self, messages, sampling_params, ALL_ACTIONS, DEFAULT_ACTION):
         response = self.generate(messages, sampling_params, fast = True)
         text = response['text']
@@ -141,5 +116,27 @@ class ApiSingleThreadedLLMClient:
             if max_attempt == 0:
                 text += DEFAULT_ACTION + '}'
         return text, token_num
-    def run_slow_trigger(self):
-        
+
+class WallTimeLLMClients:
+    def __init__(self, args, api_keys):
+        self.fast_model = args.fast_model
+        self.slow_model = args.slow_model
+        self.fast_base_url = args.fast_base_url
+        self.slow_base_url = args.slow_base_url
+        self.fast_llm = OpenAI(base_url=self.fast_base_url, api_key=api_keys)
+        self.slow_llm = OpenAI(base_url=self.slow_base_url, api_key=api_keys)
+
+    def generate(self, messages, sampling_params, fast = False):
+        client = self.fast_llm if fast else self.slow_llm
+        model = self.fast_model if fast else self.slow_model
+        params = {
+            "model": model,
+            "messages": messages,
+            "max_tokens": sampling_params.max_tokens,
+            "temperature": sampling_params.temperature,
+            "top_p": sampling_params.top_p,
+            "stream": True,
+        }
+        #print("Messages:", messages)
+        response = client.chat.completions.create(**params)
+        return response

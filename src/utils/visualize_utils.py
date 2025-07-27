@@ -2,7 +2,7 @@ import imageio
 import numpy as np
 from PIL import Image, ImageDraw, ImageFont
 
-def string_map_to_image(string_map, font_path, font_size, index):
+def string_map_to_image(string_map, font_path = '/usr/share/fonts/truetype/dejavu/DejaVuSansMono.ttf', font_size = 30, index = 0):
     """
     Convert a string map to an image.
 

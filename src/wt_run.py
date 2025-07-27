@@ -4,79 +4,72 @@ import os
 import numpy as np
 from itertools import cycle
 from concurrent.futures import ThreadPoolExecutor, as_completed
-from game_loop import main_game_loop
+from wt_game_loop import GamePlay
 
 def check_args(args):
     if args.method == "slow":
-        assert args.fast_max_token == 0, "Fast max token must be 0 when method is slow."
+        assert args.fast_agent_time == 10, "Fast max token must be 0 when method is slow."
         assert args.format == "A", "Format must be 'A' when method is slow."
     if args.method == "fast":
-        assert args.fast_max_token == args.token_per_tick, "Fast max token must be equal to token per tick when method is fast." 
+        assert args.fast_agent_time == args.seconds_per_step, "Fast max token must be equal to token per tick when method is fast." 
     if args.method == "parallel":
-        assert args.fast_max_token <= args.token_per_tick, "Fast max token must be less than or equal to token per tick when method is parallel." 
+        assert args.fast_agent_time <= args.seconds_per_step, "Fast max token must be less than or equal to token per tick when method is parallel." 
 def jobs_to_schedule(Args):
-    seed_num = 32
-    instance_groupnum = 12
-    instance_num = 384
+    seed_num = 4
+    instance_groupnum = 1
+    instance_num = 4
     temp = []
     temp.extend(
-        [f'snake-{a}-slow-{b}-2048-A-1' for a in ['E', 'M', 'H'] for b in [4096, 8192, 16384]] + \
-        [f'snake-{a}-parallel-16384-2048-T-1' for a in ['E', 'M', 'H']]
+        ['freeway-M-slow-360-10-A']
     )
     assert len(temp) == instance_groupnum, f"Expected {instance_groupnum} settings, got {len(temp)}"
     
     settings = temp.copy()
     instance = []
     for s in settings:
-        repeat_times = int(s.split('-')[-1])
         game = s.split('-')[0]
-        log_file = f"new-logs-snake/{s.replace('-', '_')[:-2]}"
-        if not os.path.exists(log_file):
-            os.makedirs(log_file)
+        log_dir = f"walltime-logs-{game}/{s.replace('-', '_')}"
+        if not os.path.exists(log_dir):
+            os.makedirs(log_dir)
         # make an argument instance
         args = argparse.Namespace(
-            game=s.split('-')[0],
-            difficulty=s.split('-')[1],
-            method=s.split('-')[2],
-            token_per_tick=int(s.split('-')[3]),
-            fast_max_token=int(s.split('-')[4]),
-            format=s.split('-')[5],
-            repeat_times=repeat_times,
-            slow_model=Args.slow_model,
-            slow_base_url= Args.slow_base_url,
-            fast_model= Args.fast_model,
-            fast_base_url= Args.fast_base_url,
-            meta_control=s.split('-')[6] if len(s.split('-')[6]) > 2 else 'continuous',
-            api_keys='to be assigned'
+            game = s.split('-')[0],
+            difficulty = s.split('-')[1],
+            method = s.split('-')[2],
+            seconds_per_step = int(s.split('-')[3]),
+            fast_agent_time = int(s.split('-')[4]),
+            format = s.split('-')[5],
+            slow_model = Args.slow_model,
+            slow_base_url = Args.slow_base_url,
+            fast_model = Args.fast_model,
+            fast_base_url = Args.fast_base_url,
+            meta_control = Args.meta_control,
+            api_keys = "to be assigned",
         )
-        # check validity
         check_args(args)
-        with open(log_file + '/args.log', 'w') as f:
+        with open(log_dir + '/args.log', 'w') as f:
             f.write("Arguments:\n")
             for arg, value in vars(args).items():
                 f.write(f"{arg}: {value}\n")
             f.write("\n")
         for seed in range(seed_num):
-            for r in range(repeat_times):
-                if not os.path.exists(f"{log_file}/{r}_{seed}.csv"):
-                    instance.append((log_file + f'/{r}_{seed}.csv', seed, args))
+            if not os.path.exists(f"{log_dir}/game_{seed}.json"):
+                instance.append((log_dir, seed, args))
     # sort by r
     print(instance)
     assert len(instance) == instance_num, f"Expected {instance_num} instances, got {len(instance)}"
-    instance.sort(key=lambda x: int(x[0].split('/')[-1].split('_')[0]))
     api_keys = Args.api_keys
     api_keys = api_keys * (instance_num // len(api_keys)) + api_keys[:instance_num % len(api_keys)]
     assert len(api_keys) == instance_num
     max_workers = len(api_keys)
     api_cycle = cycle(api_keys)
+    results = []
     with ThreadPoolExecutor(max_workers=max_workers) as executor:
-        futures = [
-            executor.submit(
-                main_game_loop, log_file, seed, args, next(api_cycle)
-            )
-            for (log_file, seed, args) in instance
-        ]
-        results = []
+        futures = []
+        for logdir, seed, args in instance:
+            args.api_keys = next(api_cycle)
+            print(args.api_keys)
+            futures.append(executor.submit(GamePlay().run_env, logdir, seed, args))
         total = len(futures)
        # write to the correct log file
         for idx, future in enumerate(as_completed(futures), 1):
@@ -89,7 +82,18 @@ def jobs_to_schedule(Args):
                     f.write(f"{key}: {value} ")
                 f.write("\n---------------------------------------\n")
             print(f"Progress: {idx}/{total} ({idx/total*100:.2f}%)")
-
+    for s in settings:
+        log_dir = f"walltime-logs-{s.split('-')[0]}/{s.replace('-', '_')}"
+        log_dir_results = [r for r in results if r['logdir'] == log_dir]
+        with open(log_dir + '/args.log', 'a') as f:
+            # write the summary of results, mean of time, turns, and reward
+            f.write("\nSummary of results:\n")
+            f.write(f"Total runs: {len(log_dir_results)}\n")
+            for key, value in log_dir_results[0].items():
+                if key == 'logdir':
+                    continue
+                mean_value = np.mean([r[key] for r in log_dir_results])
+                f.write(f"{key}: {mean_value:.2f} ")
 if __name__ == "__main__":
     Args = argparse.ArgumentParser(description='Run benchmark with a specific model.')
     Args.add_argument('--api_keys', nargs='+', type=str, default=[], help='List of API keys for OpenAI')

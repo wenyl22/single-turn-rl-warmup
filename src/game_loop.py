@@ -1,5 +1,5 @@
 import pandas as pd
-from utils.client_utils import ApiSingleThreadedLLMClient
+from utils.client_utils import LLMClient
 from utils.extract_utils import extract_boxed
 from vllm import SamplingParams
 import time
@@ -22,7 +22,7 @@ def meta_controller(args, client, env):
     elif args.meta_control == "triggered":
         return client.run_slow_trigger()
     elif args.meta_control == "event":
-        pass
+        return env.env.has_event()
         
 
 def main_game_loop(file, seed, args, api_keys):
@@ -44,7 +44,7 @@ def main_game_loop(file, seed, args, api_keys):
     FORMAT = ACTION_FORMAT_PROMPT if args.format == "A" else CONCLUSION_FORMAT_PROMPT
     
     # set up model client
-    client = ApiSingleThreadedLLMClient(args, api_keys)
+    client = LLMClient(args, api_keys)
     # set up env, load prompt - environment specific
     env, real_seed = setup_env(seed, args.difficulty)
     memory = ""
@@ -77,7 +77,8 @@ def main_game_loop(file, seed, args, api_keys):
         if args.method == "slow":
             temp = extract_boxed(slow_agent_response)
             memory = re.sub(r'[^' + ALL_ACTIONS + ']', '', temp)
-            memory = memory[turns - env.env.game_turn:] if len(memory) > turns - env.env.game_turn else ""
+            if args.game != 'overcooked':
+                memory = memory[env.env.game_turn - turns:] if len(memory) > env.env.game_turn - turns else ""
         elif slow_agent_response != "":
             memory = f"""**Guidance from a Previous Thinking Model:** Turn \( t_1 = {turns} \)\n"""
             if args.format == "A":
