@@ -15,12 +15,12 @@ def check_args(args):
     if args.method == "parallel":
         assert args.fast_agent_time <= args.seconds_per_step, "Fast max token must be less than or equal to token per tick when method is parallel." 
 def jobs_to_schedule(Args):
-    seed_num = 4
+    seed_num = 8
     instance_groupnum = 1
-    instance_num = 4
+    instance_num = 8
     temp = []
     temp.extend(
-        ['freeway-M-slow-360-10-A']
+        ['overcooked-M-parallel-360-90-T']
     )
     assert len(temp) == instance_groupnum, f"Expected {instance_groupnum} settings, got {len(temp)}"
     
@@ -28,7 +28,7 @@ def jobs_to_schedule(Args):
     instance = []
     for s in settings:
         game = s.split('-')[0]
-        log_dir = f"walltime-logs-{game}/{s.replace('-', '_')}"
+        log_dir = f"new-walltime-logs-{game}/{s.replace('-', '_')}"
         if not os.path.exists(log_dir):
             os.makedirs(log_dir)
         # make an argument instance
@@ -47,11 +47,12 @@ def jobs_to_schedule(Args):
             api_keys = "to be assigned",
         )
         check_args(args)
-        with open(log_dir + '/args.log', 'w') as f:
-            f.write("Arguments:\n")
-            for arg, value in vars(args).items():
-                f.write(f"{arg}: {value}\n")
-            f.write("\n")
+        if not os.path.exists(log_dir + '/args.log'):
+            with open(log_dir + '/args.log', 'w') as f:
+                f.write("Arguments:\n")
+                for arg, value in vars(args).items():
+                    f.write(f"{arg}: {value}\n")
+                f.write("\n")
         for seed in range(seed_num):
             if not os.path.exists(f"{log_dir}/game_{seed}.json"):
                 instance.append((log_dir, seed, args))

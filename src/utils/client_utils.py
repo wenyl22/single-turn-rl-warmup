@@ -1,6 +1,6 @@
 import threading
 from openai import OpenAI
-from generate import generate, generate_s1
+from generate import generate
 from anthropic import AnthropicVertex
 from transformers import AutoTokenizer
 from google import genai
@@ -27,7 +27,6 @@ class LLMClient:
         self.slow_base_url = args.slow_base_url
         self.fast_model = args.fast_model
         self.fast_base_url = args.fast_base_url
-        self.budget_method = args.budget_method
         self.add_new_thread(0)
 
     def add_new_thread(self, idx):
@@ -54,14 +53,7 @@ class LLMClient:
         if messages == []:
             return {"text": "", "token_num": 0}
         llm = self.slow_llm if not fast else self.fast_llm
-        model = self.slow_model if not fast else self.fast_model
-        if self.budget_method == "s1":
-            return generate_s1(llm, model, messages, sampling_params, fast)
-        if self.budget_method == "constrainedCoT": # Let’s think a bit step by step and limit the answer length to xxx words.
-            return generate_constrainedCoT(llm, model, messages, sampling_params, fast)
-        # SoT: 3 formats
-        # Concise CoT: Be concise
-            
+        model = self.slow_model if not fast else self.fast_model            
         return generate(llm, model, messages, sampling_params, fast)
     def run_slow_inference(self, messages, sampling_params, turn):
         _token_num = 0
@@ -97,7 +89,7 @@ class LLMClient:
         response = self.generate(messages, sampling_params, fast = True)
         text = response['text']
         token_num = response['token_num']
-        if "oxed" in text:
+        if "oxed" in text.split('</think>')[-1]:
             return text, token_num
         text += "\n Therefore, the final answer is \\boxed{"
         new_message = messages.copy() + [{"role": "assistant", "content": text}]

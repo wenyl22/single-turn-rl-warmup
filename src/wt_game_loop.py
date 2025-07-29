@@ -100,14 +100,15 @@ class GamePlay():
         memory = ""
         last_t = time.time()
         self.logger = Logger(args, log_dir, seed, real_seed)
-        logs = {
-            'description': [], 'render':[], 'meta_control': [],
-            'slow_agent_prompt':[], 'slow_agent_response':[], 'memory': [],
-            'fast_agent_prompt': [], 'fast_agent_response': [], 
-            'action': [], 'reward': [], "slow_response_token_num": [], "fast_response_token_num": []
-        }
+        # logs = {
+        #     'description': [], 'render':[], 'meta_control': [],
+        #     #'slow_agent_prompt':[], 'slow_agent_response':[], 
+        #     'memory': [],
+        #     #'fast_agent_prompt': [], 'fast_agent_response': [], 
+        #     'action': [], 'reward': [], #"slow_response_token_num": [], "fast_response_token_num": []
+        # }
         while not env.env.terminal:
-            logs['render'].append('\n' + env.env.state_string())
+            # logs['render'].append('\n' + env.env.state_string())
             fast_agent_response, slow_agent_response = "", ""
             fast_agent_prompt, slow_agent_prompt = "", ""
             fast_response_token_num, slow_response_token_num = 0, 0
@@ -140,7 +141,7 @@ class GamePlay():
                     memory += _s.split("</think>")[-1].strip()
                 else:
                     memory += _s
-            logs['memory'].append(memory)
+            # logs['memory'].append(memory)
 
             if args.method != "slow":
                 state_description = state_to_description(state_for_llm, memory if memory != "" else None, fast = True)
@@ -166,16 +167,16 @@ class GamePlay():
             r, t = env.act(action)
             ### --- Logging --- ###
             self.logger.log_action_execution(env, action)
-            logs['description'].append(state_description)
-            logs['meta_control'].append(meta_control)
-            logs['slow_agent_prompt'].append(slow_agent_prompt)
-            logs['slow_agent_response'].append(slow_agent_response)
-            logs['fast_agent_prompt'].append(fast_agent_prompt)
-            logs['fast_agent_response'].append(fast_agent_response)
-            logs['action'].append(action)
-            logs['reward'].append(env.env.reward)
-            logs['slow_response_token_num'].append(slow_response_token_num)
-            logs['fast_response_token_num'].append(fast_response_token_num)
+            # logs['description'].append(state_description)
+            # logs['meta_control'].append(meta_control)
+            # logs['slow_agent_prompt'].append(slow_agent_prompt)
+            # logs['slow_agent_response'].append(slow_agent_response)
+            # logs['fast_agent_prompt'].append(fast_agent_prompt)
+            # logs['fast_agent_response'].append(fast_agent_response)
+            # logs['action'].append(action)
+            # logs['reward'].append(env.env.reward)
+            # logs['slow_response_token_num'].append(slow_response_token_num)
+            # logs['fast_response_token_num'].append(fast_response_token_num)
             ### --- Logging --- ###
             if summarize(seed, args.difficulty, env):
                 if self.slow_thread and self.slow_thread.is_alive():
@@ -185,8 +186,8 @@ class GamePlay():
                     self.stop_fast = True
                     self.fast_thread.join(timeout=3.0)
                 memory = ""
-            df = pd.DataFrame(logs)
-            df.to_csv(f"{log_dir}/{seed}.csv")
+            # df = pd.DataFrame(logs)
+            # df.to_csv(f"{log_dir}/{seed}.csv")
         self.logger.save_final_logs()
         print(f"Game {args.game} with seed {real_seed} finished. Total turns: {env.env.game_turn}, Reward: {env.env.reward}")
         return {

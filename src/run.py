@@ -15,13 +15,12 @@ def check_args(args):
     if args.method == "parallel":
         assert args.fast_max_token <= args.token_per_tick, "Fast max token must be less than or equal to token per tick when method is parallel." 
 def jobs_to_schedule(Args):
-    seed_num = 32
-    instance_groupnum = 12
-    instance_num = 384
+    seed_num = 8
+    instance_groupnum = 1
+    instance_num = 8
     temp = []
     temp.extend(
-        [f'snake-{a}-slow-{b}-2048-A-1' for a in ['E', 'M', 'H'] for b in [4096, 8192, 16384]] + \
-        [f'snake-{a}-parallel-16384-2048-T-1' for a in ['E', 'M', 'H']]
+        ['freeway-M-fast-32768-32768-A-1']
     )
     assert len(temp) == instance_groupnum, f"Expected {instance_groupnum} settings, got {len(temp)}"
     
@@ -30,7 +29,7 @@ def jobs_to_schedule(Args):
     for s in settings:
         repeat_times = int(s.split('-')[-1])
         game = s.split('-')[0]
-        log_file = f"new-logs-snake/{s.replace('-', '_')[:-2]}"
+        log_file = f"adaptive-logs-{game}/{s.replace('-', '_')[:-2]}"
         if not os.path.exists(log_file):
             os.makedirs(log_file)
         # make an argument instance
@@ -46,8 +45,8 @@ def jobs_to_schedule(Args):
             slow_base_url= Args.slow_base_url,
             fast_model= Args.fast_model,
             fast_base_url= Args.fast_base_url,
-            meta_control=s.split('-')[6] if len(s.split('-')[6]) > 2 else 'continuous',
-            api_keys='to be assigned'
+            meta_control= Args.meta_control,
+            api_keys='to be assigned',
         )
         # check validity
         check_args(args)
