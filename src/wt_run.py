@@ -28,7 +28,7 @@ def jobs_to_schedule(Args):
     instance = []
     for s in settings:
         game = s.split('-')[0]
-        log_dir = f"new-walltime-logs-{game}/{s.replace('-', '_')}"
+        log_dir = f"walltime-logs/{s.replace('-', '_')}"
         if not os.path.exists(log_dir):
             os.makedirs(log_dir)
         # make an argument instance

@@ -165,7 +165,7 @@ if __name__ == "__main__":
     if len(sys.argv) > 1:
         log_dir = sys.argv[1]
     else:
-        log_dir = "walltime-logs-freeway/freeway_M_parallel_360_180_T"
+        log_dir = "walltime-logs/freeway_M_parallel_360_180_T"
     
-    replay = Replay(log_dir=log_dir, seed = 1)
-    replay.generate_demo_video(output_file="game_replay.mp4", fps=4, time_compression=80)
+    replay = Replay(log_dir=log_dir, seed = 0)
+    replay.generate_demo_video(output_file="game_replay.mp4", fps=4, time_compression=200)

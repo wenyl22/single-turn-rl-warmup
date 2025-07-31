@@ -4,7 +4,7 @@ from utils.extract_utils import extract_boxed
 from vllm import SamplingParams
 import time
 import re
-import os
+from collections import defaultdict
 
 def meta_controller(args, client, env):
     """
@@ -33,12 +33,12 @@ def main_game_loop(file, seed, args, api_keys):
     elif args.game == "snake":
         from envs.snake import setup_env, llm_state_builder, state_to_description, summarize
         from envs.prompts.snake import SLOW_AGENT_PROMPT, FAST_AGENT_PROMPT, DEFAULT_ACTION, ALL_ACTIONS, ACTION_FORMAT_PROMPT, CONCLUSION_FORMAT_PROMPT
-    elif args.game == "airraid":
-        from envs.airraid import setup_env, llm_state_builder, state_to_description, summarize
-        from envs.prompts.airraid import SLOW_AGENT_PROMPT, FAST_AGENT_PROMPT, DEFAULT_ACTION, ALL_ACTIONS, ACTION_FORMAT_PROMPT, CONCLUSION_FORMAT_PROMPT
     elif args.game == "overcooked":
         from envs.overcooked import setup_env, llm_state_builder, state_to_description, summarize
         from envs.prompts.overcooked import SLOW_AGENT_PROMPT, FAST_AGENT_PROMPT, DEFAULT_ACTION, ALL_ACTIONS, ACTION_FORMAT_PROMPT, CONCLUSION_FORMAT_PROMPT
+    elif args.game == "chess":
+        from envs.chess import setup_env, llm_state_builder, state_to_description, summarize
+        from envs.prompts.chess import SLOW_AGENT_PROMPT, FAST_AGENT_PROMPT, DEFAULT_ACTION, ALL_ACTIONS, ACTION_FORMAT_PROMPT, CONCLUSION_FORMAT_PROMPT
     else:
         raise ValueError(f"Game {args.game} is not supported.")
     FORMAT = ACTION_FORMAT_PROMPT if args.format == "A" else CONCLUSION_FORMAT_PROMPT
@@ -49,12 +49,7 @@ def main_game_loop(file, seed, args, api_keys):
     env, real_seed = setup_env(seed, args.difficulty)
     memory = ""
     start_time = time.time()
-    logs = {
-        'description': [], 'render':[], 'meta_control': [],
-        'slow_agent_prompt':[], 'slow_agent_response':[], 'memory': [],
-        'fast_agent_prompt': [], 'fast_agent_response': [], 
-        'action': [], 'reward': [], "slow_response_token_num": [], "fast_response_token_num": []
-    }
+    logs = defaultdict(list)
     while env.env.terminal == False:
         logs['render'].append('\n' + env.env.state_string())
         state_for_llm = llm_state_builder(env.env)
@@ -76,11 +71,17 @@ def main_game_loop(file, seed, args, api_keys):
         ## --- Update Persistent Memory --- ###
         if args.method == "slow":
             temp = extract_boxed(slow_agent_response)
-            memory = re.sub(r'[^' + ALL_ACTIONS + ']', '', temp)
-            if args.game != 'overcooked':
-                memory = memory[env.env.game_turn - turns:] if len(memory) > env.env.game_turn - turns else ""
+            if args.game not in ['chess']:
+                memory = re.sub(r'[^' + ALL_ACTIONS + ']', '', temp)
+                if args.game not in ['overcooked']:
+                    memory = memory[env.env.game_turn - turns:] if len(memory) > env.env.game_turn - turns else ""
+            else:
+                memory = temp
         elif slow_agent_response != "":
-            memory = f"""**Guidance from a Previous Thinking Model:** Turn \( t_1 = {turns} \)\n"""
+            if args.game not in ['chess']:
+                memory = f"""**Guidance from a Previous Thinking Model:** Turn \( t_1 = {turns} \)\n"""
+            else:
+                memory = f"""**Guidance from a Thinking Model:**\n"""
             if args.format == "A":
                 memory += extract_boxed(slow_agent_response)
             elif args.format == "C":
@@ -90,8 +91,12 @@ def main_game_loop(file, seed, args, api_keys):
         logs['memory'].append(memory)
         ### --- Fast Agent --- ###
         if args.method == "slow":
-            action = memory[0] if memory != "" else DEFAULT_ACTION
-            memory = memory[1:] if memory != "" else ""
+            if args.game not in ['chess']:
+                action = memory[0] if memory != "" else DEFAULT_ACTION
+                memory = memory[1:] if memory != "" else ""
+            else:
+                action = memory if memory != "" else DEFAULT_ACTION
+                memory = ""
         else:
             state_description = state_to_description(state_for_llm, memory if memory != "" else None, fast = True)
             messages = [ {"role": "user", "content": FAST_AGENT_PROMPT + state_description} ]
@@ -112,10 +117,13 @@ def main_game_loop(file, seed, args, api_keys):
         logs['reward'].append(env.env.reward)
         logs['slow_response_token_num'].append(slow_response_token_num)
         logs['fast_response_token_num'].append(fast_response_token_num)
+        if args.game == 'chess':
+            logs['my_last_move'].append(env.env.action_history[-1] if env.env.action_history else None)
+            logs['opponent_last_move'].append(env.env.opponent_action_history[-1] if env.env.opponent_action_history else None)
         df = pd.DataFrame(logs)
         df.to_csv(file)
         if summarize(seed, args.difficulty, env):
-            # clear the belief state and stop the slow agent
+            # reset
             memory = ""
             while client.gen_text != "":
                 client.run_slow_inference([], None, None)
@@ -127,6 +135,7 @@ def main_game_loop(file, seed, args, api_keys):
     fast_response_token = [_ for _ in logs["fast_response_token_num"] if _ > 0]
     mean_slow_response_token_num = sum(slow_response_token) / len(slow_response_token) if len(slow_response_token) > 0 else 0
     fast_fast_response_token_num = sum(fast_response_token) / len(fast_response_token) if len(fast_response_token) > 0 else 0
+    del env
     return {
         'logdir': dir,
         'seed': real_seed,

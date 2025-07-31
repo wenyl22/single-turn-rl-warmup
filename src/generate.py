@@ -4,9 +4,6 @@ from openai import OpenAI
 from anthropic import AnthropicVertex
 from google import genai
 import time
-import tiktoken
-
-# from together import Together
 
 def generate(llm: OpenAI | AnthropicVertex | genai.Client, model: str, messages: List[Dict], sampling_params: SamplingParams, fast: bool) -> str:
     params = {

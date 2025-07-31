@@ -15,12 +15,13 @@ def check_args(args):
     if args.method == "parallel":
         assert args.fast_max_token <= args.token_per_tick, "Fast max token must be less than or equal to token per tick when method is parallel." 
 def jobs_to_schedule(Args):
-    seed_num = 8
+    seed_num = 4
     instance_groupnum = 1
-    instance_num = 8
+    instance_num = 4
     temp = []
     temp.extend(
-        ['freeway-M-fast-32768-32768-A-1']
+        ['chess-M-fast-8192-8192-A-1']
+        # ['freeway-H-fast-8192-8192-A-1', 'freeway-H-parallel-32768-4096-T-1']
     )
     assert len(temp) == instance_groupnum, f"Expected {instance_groupnum} settings, got {len(temp)}"
     
@@ -29,7 +30,7 @@ def jobs_to_schedule(Args):
     for s in settings:
         repeat_times = int(s.split('-')[-1])
         game = s.split('-')[0]
-        log_file = f"adaptive-logs-{game}/{s.replace('-', '_')[:-2]}"
+        log_file = f"new-logs-chess/{s.replace('-', '_')[:-2]}"
         if not os.path.exists(log_file):
             os.makedirs(log_file)
         # make an argument instance

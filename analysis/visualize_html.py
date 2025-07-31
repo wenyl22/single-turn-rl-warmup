@@ -121,13 +121,12 @@ if "freeway" in args.f:
     from envs.freeway import seed_mapping
     difficulty = 'E' if 'E' in args.f else 'M' if 'M' in args.f else 'H' if 'H' in args.f else 'M'
     seed_mapping = seed_mapping[difficulty]
-elif "airraid" in args.f:
-    from envs.airraid import seed_mapping
 elif "snake" in args.f:
     seed_mapping = {0: 1000, 1: 1001, 2: 1002, 3: 1003, 4: 1004, 5: 1005, 6: 1006, 7: 1007}
 elif "overcooked" in args.f:
     seed_mapping = {0: 0, 1: 1, 2: 2, 3: 3, 4: 4, 5: 5, 6: 6, 7: 7}
-
+elif "chess" in args.f:
+    seed_mapping = {0: 0, 1: 1, 2: 2, 3: 3, 4: 4, 5: 5, 6: 6, 7: 7}
 # Add seed options to the dropdown
 for seed in seeds:
     html_content += f'<option value="{seed}">Seed {seed_mapping[seed]}</option>'
@@ -154,7 +153,7 @@ for seed in seeds:
 
     for _, row in df.iterrows():
         render = row["render"]
-        memory = row["scratch_pad"] if "scratch_pad" in row else row['memory']
+        memory = row["scratch_pad"] if "scratch_pad" in row else row.get("memory", "Not Recorded")
         action = row["selected_action"] if "selected_action" in row else row['action']
         follow_plan = row["follow_plan"] if "follow_plan" in row else "Not Recorded"
         reward = row["reward"] if "reward" in row else "Not Recorded"

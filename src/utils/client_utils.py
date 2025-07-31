@@ -40,6 +40,8 @@ class LLMClient:
                 print(f"Using slow model: {self.slow_model} at {self.slow_base_url} with API key {self.api_keys}")
             if self.slow_model == "deepseek-reasoner":
                 self.slow_tokenizer = AutoTokenizer.from_pretrained("deepseek-ai/DeepSeek-R1")
+            if self.slow_model == "Qwen/Qwen3-235B-A22B-Thinking-2507":
+                self.slow_tokenizer = AutoTokenizer.from_pretrained("Qwen/Qwen3-235B-A22B-Thinking-2507")
         if self.method != "slow":
             if "claude" in self.fast_model:
                 self.fast_llm = AnthropicVertex(region="us-east5", project_id="gcp-multi-agent")
