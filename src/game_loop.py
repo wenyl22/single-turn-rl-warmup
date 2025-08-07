@@ -118,7 +118,8 @@ def main_game_loop(file, seed, args, api_keys):
         logs['slow_response_token_num'].append(slow_response_token_num)
         logs['fast_response_token_num'].append(fast_response_token_num)
         if args.game == 'chess':
-            logs['my_last_move'].append(env.env.action_history[-1] if env.env.action_history else None)
+            logs['my_last_move'].append(env.env._parse_action(action))
+            logs['is_legal_move'].append(env.env._parse_action(action) in env.env.board.legal_moves)
             logs['opponent_last_move'].append(env.env.opponent_action_history[-1] if env.env.opponent_action_history else None)
         df = pd.DataFrame(logs)
         df.to_csv(file)
@@ -135,8 +136,7 @@ def main_game_loop(file, seed, args, api_keys):
     fast_response_token = [_ for _ in logs["fast_response_token_num"] if _ > 0]
     mean_slow_response_token_num = sum(slow_response_token) / len(slow_response_token) if len(slow_response_token) > 0 else 0
     fast_fast_response_token_num = sum(fast_response_token) / len(fast_response_token) if len(fast_response_token) > 0 else 0
-    del env
-    return {
+    ret = {
         'logdir': dir,
         'seed': real_seed,
         'game_turn': env.env.game_turn, 
@@ -145,3 +145,5 @@ def main_game_loop(file, seed, args, api_keys):
         'slow_response_token_num': mean_slow_response_token_num,
         'fast_response_token_num': fast_fast_response_token_num,
     }
+    del env
+    return ret

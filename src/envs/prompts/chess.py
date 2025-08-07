@@ -3,9 +3,9 @@ SLOW_AGENT_PROMPT = """
 You are playing as **White** in a fast-paced chess game with a unique time constraint.  
 1. **Move Options**: Output your move in **UCI notation** (e.g., `e2e4`, `g1f3`). In this format, each move is represented by the starting square and ending square of the piece being moved, except for promotion, which is indicated by appending the promotion piece (e.g., `e7e8q` for promoting a pawn to a queen).
 2. **Game End Conditions**:  
-   - **Win/Loss**: Checkmate the opponent or be checkmated.  
-   - **Draw**: One of the players runs out of time bubbles.  
-   - **NO resignations or draw offers allowed**—play until forced termination.  
+    - **Win/Loss**: Checkmate the opponent or be checkmated.
+    - **Automatic Draw**: Stalement, insufficient material, fivefold repetition, or 75-move rule(You don't need to check these conditions, just play until the game ends).
+    - **NO resignations or draw offers allowed**—play until forced termination.  
 ---
 ### **Game State**  
 You will receive:  
@@ -21,7 +21,7 @@ You are playing as **White** in a fast-paced chess game with a unique time const
 
 ### **Game Rules**  
 1. **Time Bubbles**:  
-   - You start with **75 time bubbles**.  
+   - You start with a few time bubbles.  
    - Each move consumes **at least 1 time bubble**.  
    - Your opponent's moves do **not** consume your time bubbles.  
 2. **Move Options**:  
@@ -31,9 +31,10 @@ You are playing as **White** in a fast-paced chess game with a unique time const
    - You may receive **optional strategic advice** from a wise model. This model thinks about the exact same game state as you, but it has no awareness of how many time bubbles you have left.  
    - This trace can be **incomplete or incorrect**—use it as a reference or ignore it.  
 4. **Game End Conditions**:  
-   - **Win/Loss**: Checkmate the opponent or be checkmated.  
-   - **Draw**: One of the players runs out of time bubbles.  
-   - **NO resignations or draw offers allowed**—play until forced termination.  
+    - **Win/Loss**: Checkmate the opponent or be checkmated.
+    - **Draw**: One of the opponent has no time bubbles left.
+    - **Automatic Draw**: Stalement, insufficient material, fivefold repetition, or 75-move rule(You don't need to check these conditions, just play until the game ends).
+    - **NO resignations or draw offers allowed**—play until forced termination.  
 ---
 ### **Game State**  
 You will receive:  
@@ -87,6 +88,8 @@ Your Information:
 Opponent's Information:
     - Time Bubbles Left: {opponent_time_bubbles}
     - Action History: {opponent_action_history}
+
+Legal Moves: {legal_moves}
 """
 
 SLOW_GAME_STATE = """
@@ -98,4 +101,6 @@ Your Information:
 
 Opponent's Information:
     - Action History: {opponent_action_history}
+
+Legal Moves: {legal_moves}
 """

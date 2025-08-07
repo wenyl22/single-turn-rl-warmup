@@ -16,12 +16,11 @@ def check_args(args):
         assert args.fast_max_token <= args.token_per_tick, "Fast max token must be less than or equal to token per tick when method is parallel." 
 def jobs_to_schedule(Args):
     seed_num = 4
-    instance_groupnum = 1
-    instance_num = 4
+    instance_groupnum = 3
+    instance_num = 12
     temp = []
     temp.extend(
-        ['chess-M-fast-8192-8192-A-1']
-        # ['freeway-H-fast-8192-8192-A-1', 'freeway-H-parallel-32768-4096-T-1']
+        [f'chess-{a}-slow-32768-0-A-1' for a in ['E', 'M', 'H']]
     )
     assert len(temp) == instance_groupnum, f"Expected {instance_groupnum} settings, got {len(temp)}"
     
@@ -49,7 +48,6 @@ def jobs_to_schedule(Args):
             meta_control= Args.meta_control,
             api_keys='to be assigned',
         )
-        # check validity
         check_args(args)
         with open(log_file + '/args.log', 'w') as f:
             f.write("Arguments:\n")

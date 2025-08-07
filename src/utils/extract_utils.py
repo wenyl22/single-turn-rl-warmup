@@ -1,4 +1,15 @@
 import re
+def extract_text(text, default_value=""):
+    """
+    Extracts the text{...} from the input string.
+    Returns the last match found or the default value if no match is found.
+    """
+    matches = re.findall(r'ext{(.*?)}', text, re.DOTALL)
+    if matches:
+        return matches[-1].strip()
+    return text.strip() if text else default_value
+
+
 def extract_boxed(text, default_value=""):
     """
     Extracts the \boxed{...} text from the input string.
@@ -21,6 +32,8 @@ def extract_boxed(text, default_value=""):
             if stack:
                 stack.pop()
             if not stack:
+                if 'ext{' in text[start_index:i]:
+                    return extract_text(text[start_index:i])
                 return text[start_index + 1:i].strip()
     return default_value if default_value else text[start_index + 1:].strip()
 

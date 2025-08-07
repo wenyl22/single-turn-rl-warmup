@@ -14,8 +14,8 @@ class Env:
         self.difficulty = 1
     def reset(self):
         self.board = chess.Board()
-        self.time_bubbles = 75
-        self.opponent_time_bubbles = 75
+        self.time_bubbles = 200
+        self.opponent_time_bubbles = 200
         self.action_history = []
         self.opponent_action_history = []
         self.reward = 0
@@ -27,7 +27,7 @@ class Env:
             if self.engine:
                 self.engine.quit()
             self.engine = chess.engine.SimpleEngine.popen_uci(self.stockfish_path)
-            self.engine.configure({"Skill Level": self.difficulty})
+            self.engine.configure({"Skill Level": self.difficulty + 1})
         except Exception as e:
             print(f"Unable to start Stockfish engine: {e}")
             self.engine = None
@@ -60,32 +60,39 @@ class Env:
             legal_moves = list(self.board.legal_moves)
             if not legal_moves:
                 return None
+            
             best_moves = []
-            best_score = float('-inf')            
+            best_score = float('-inf') if self.board.turn == chess.WHITE else float('inf')
+            
             for move in legal_moves:
                 self.board.push(move)
                 try:
-                    info = self.engine.analyse(self.board, chess.engine.Limit(depth=self.difficulty + 3))
+                    info = self.engine.analyse(self.board, chess.engine.Limit(time = 1.0))
                     score = info["score"].white().score(mate_score=10000)
-                    if score > best_score:
-                        best_score = score
-                        best_moves = [move]
-                    elif score == best_score:
-                        best_moves.append(move)
-                except:
-                    pass
+                    if self.board.turn == chess.WHITE:
+                        if score < best_score:
+                            best_score = score
+                            best_moves = [move]
+                        elif score == best_score:
+                            best_moves.append(move)
+                    else:
+                        if score > best_score:
+                            best_score = score
+                            best_moves = [move]
+                        elif score == best_score:
+                            best_moves.append(move)
+                except Exception as e:
+                    print(f"Move analysis error: {e}")
                 finally:
                     self.board.pop()
-            # choose the best move self.random
+            
             if best_moves:
                 return self.random.choice(best_moves)
             else:
-                return legal_moves[0] 
-                
+                return legal_moves[0]                
         except Exception as e:
-            print(f"Deterministic move error: {e}")
+            print(f"Stockfish move error: {e}")
             return None
-
     def act(self, action_str: str) -> Tuple[float, bool]:
         assert not self.terminal, "Game is already over."
         self.r = 0
@@ -126,7 +133,7 @@ class Env:
         else: 
             reward += 10
         self.terminal = True 
-        self.reward += self.r
+        self.reward += reward
         return reward
 
     def state_string(self) -> str:
