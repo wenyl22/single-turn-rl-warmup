@@ -134,3 +134,38 @@ class WallTimeLLMClients:
         #print("Messages:", messages)
         response = client.chat.completions.create(**params)
         return response
+
+class SimpleLLMClients:
+    def __init__(self, args, api_keys):
+        self.api_keys = api_keys
+        self.fast_model = args.fast_model
+        self.slow_model = args.slow_model
+        self.fast_base_url = args.fast_base_url
+        self.slow_base_url = args.slow_base_url
+        self.fast_llm = OpenAI(base_url=self.fast_base_url, api_key=api_keys)
+        self.slow_llm = OpenAI(base_url=self.slow_base_url, api_key=api_keys)
+    
+    def get_fast_response(self, prompt):
+        response = self.fast_llm.responses.create(
+            model=self.fast_model,
+            reasoning={"effort": "low", "summary": "detailed"},
+            input=[{"role": "user", "content": prompt}],
+        )
+        return response
+
+    def get_slow_response(self, prompt):
+        response = self.slow_llm.responses.create(
+            model=self.slow_model,
+            reasoning={"effort": "high", "summary": "detailed"},
+            input=[{"role": "user", "content": prompt}],
+        )
+        return response
+    def get_slow_response_streaming(self, prompt, cancel_event):
+        response = self.slow_llm.responses.create(
+            model=self.slow_model,
+            reasoning={"effort": "high", "summary": "detailed"},
+            input=[{"role": "user", "content": prompt}],
+            stream=True,
+        )
+        return response
+            

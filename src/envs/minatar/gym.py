@@ -81,7 +81,7 @@ class BaseEnv(gym.Env):
 
 
 def register_envs():
-    for game in ["freeway", "airraid", "snake", "overcooked", "chess"]:
+    for game in ["freeway", "airraid", "snake", "overcooked", "chess", "chess2"]:
         name = game.title().replace('_', '')
         register(
             id="MinAtar/{}-v0".format(name),
